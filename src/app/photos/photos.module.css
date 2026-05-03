@@ -1,0 +1,59 @@
+.layout {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: minmax(0, 1.35fr) minmax(20rem, 0.65fr);
+  margin: 0 auto;
+  width: min(1180px, 100%);
+}
+
+.gallery {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.photo {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 0;
+  overflow: hidden;
+}
+
+.photo img {
+  aspect-ratio: 4 / 3;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.photo figcaption {
+  color: var(--muted);
+  line-height: 1.5;
+  padding: 0.85rem;
+}
+
+.emptyGallery {
+  background: var(--surface);
+  border: 1px dashed var(--brass);
+  border-radius: var(--radius);
+  color: var(--muted);
+  line-height: 1.7;
+  padding: 1.25rem;
+}
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .gallery {
+    grid-template-columns: 1fr;
+  }
+}

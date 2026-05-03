@@ -1,0 +1,35 @@
+.form {
+  display: grid;
+  gap: 1rem;
+}
+
+.status {
+  border-radius: var(--radius);
+  color: var(--pine);
+  font-weight: 700;
+  min-height: 1.5rem;
+}
+
+.error {
+  color: var(--rose);
+}
+
+.uploadButton {
+  align-items: center;
+  background: var(--pine);
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--white);
+  display: inline-flex;
+  font-weight: 800;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 2.85rem;
+  padding: 0.75rem 1rem;
+  width: fit-content;
+}
+
+.uploadButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}

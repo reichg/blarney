@@ -1,0 +1,150 @@
+.pageHeader {
+  background: var(--pine);
+  color: var(--white);
+  padding: clamp(3rem, 8vw, 5rem) var(--page-gutter);
+}
+
+.pageHeaderInner {
+  margin: 0 auto;
+  width: min(980px, 100%);
+}
+
+.pageHeader p {
+  color: rgb(255 255 255 / 78%);
+  line-height: 1.7;
+  max-width: 64ch;
+}
+
+.formSection {
+  padding: clamp(2.5rem, 6vw, 5rem) var(--page-gutter);
+}
+
+.formShell {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: minmax(0, 0.85fr) minmax(20rem, 1.15fr);
+  margin: 0 auto;
+  width: min(1120px, 100%);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.panel h2,
+.panel h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  margin-top: 0;
+}
+
+.panel p,
+.detailList {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.detailList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+}
+
+.detailList li {
+  list-style: none;
+}
+
+.form {
+  display: grid;
+  gap: 1rem;
+}
+
+.gridTwo {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.field span,
+.fieldset legend {
+  color: var(--pine);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.field input,
+.field select,
+.field textarea {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  min-height: 2.9rem;
+  padding: 0.75rem;
+  width: 100%;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.fieldset {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 1rem;
+}
+
+.choiceRow {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+}
+
+.choiceRow input {
+  accent-color: var(--pine);
+  height: 1rem;
+  width: 1rem;
+}
+
+.submitButton {
+  align-items: center;
+  background: var(--pine);
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--white);
+  display: inline-flex;
+  font-weight: 800;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 2.9rem;
+  padding: 0.8rem 1rem;
+  width: fit-content;
+}
+
+.notice {
+  background: var(--sky);
+  border-radius: var(--radius);
+  color: var(--pine);
+  font-weight: 700;
+  line-height: 1.55;
+  padding: 1rem;
+}
+
+@media (max-width: 860px) {
+  .formShell,
+  .gridTwo {
+    grid-template-columns: 1fr;
+  }
+}

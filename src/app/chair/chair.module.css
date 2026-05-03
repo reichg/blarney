@@ -1,0 +1,242 @@
+.adminShell {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  min-height: calc(100vh - 4.75rem);
+}
+
+.sidebar {
+  background: var(--pine);
+  color: var(--white);
+  padding: 1.25rem;
+}
+
+.sidebar h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 0 0 1rem;
+}
+
+.adminNav {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.adminNav a,
+.logoutButton {
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  color: rgb(255 255 255 / 84%);
+  display: block;
+  font-weight: 800;
+  padding: 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.adminNav a:hover,
+.adminNav a:focus-visible,
+.logoutButton:hover,
+.logoutButton:focus-visible {
+  background: rgb(255 255 255 / 12%);
+  color: var(--white);
+  outline: none;
+}
+
+.content {
+  padding: clamp(1.25rem, 4vw, 3rem);
+}
+
+.topline {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.topline h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 4vw, 3.75rem);
+  margin: 0;
+}
+
+.muted {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.statGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stat,
+.panel,
+.loginPanel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+.stat span {
+  color: var(--muted);
+  display: block;
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+}
+
+.stat strong {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.4rem;
+}
+
+.tableWrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  min-width: 760px;
+  width: 100%;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.85rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--pine);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.statusPill {
+  background: var(--sky);
+  border-radius: 999px;
+  color: var(--pine);
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.3rem 0.55rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.actionButton,
+.dangerButton {
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--white);
+  font-weight: 800;
+  min-height: 2.5rem;
+  padding: 0.65rem 0.85rem;
+}
+
+.actionButton {
+  background: var(--pine);
+}
+
+.dangerButton {
+  background: var(--rose);
+}
+
+.compactForm {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.compactForm input,
+.compactForm textarea {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-height: 2.55rem;
+  padding: 0.65rem;
+  width: 100%;
+}
+
+.photoGrid,
+.pairingGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.photoPreview {
+  aspect-ratio: 4 / 3;
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  object-fit: cover;
+  width: 100%;
+}
+
+.pairingMembers {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.75rem 0;
+  padding: 0;
+}
+
+.pairingMembers li {
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+}
+
+.loginPage {
+  display: grid;
+  min-height: calc(100vh - 4.75rem);
+  padding: var(--page-gutter);
+  place-items: center;
+}
+
+.loginPanel {
+  display: grid;
+  gap: 1rem;
+  max-width: 26rem;
+  width: 100%;
+}
+
+.loginPanel h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 0;
+}
+
+.error {
+  color: var(--rose);
+  font-weight: 800;
+}
+
+@media (max-width: 920px) {
+  .adminShell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
+  .adminNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .statGrid,
+  .photoGrid,
+  .pairingGrid {
+    grid-template-columns: 1fr;
+  }
+}

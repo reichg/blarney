@@ -1,0 +1,159 @@
+.hero {
+  min-height: min(760px, 74vh);
+  overflow: hidden;
+  position: relative;
+}
+
+.heroImage {
+  object-fit: cover;
+  z-index: 0;
+}
+
+.heroOverlay {
+  background: linear-gradient(
+    90deg,
+    rgb(18 35 29 / 82%),
+    rgb(18 35 29 / 32%),
+    rgb(18 35 29 / 12%)
+  );
+  inset: 0;
+  position: absolute;
+  z-index: 1;
+}
+
+.heroContent {
+  color: var(--white);
+  display: grid;
+  gap: 1.25rem;
+  margin: 0 auto;
+  padding: clamp(4rem, 9vw, 7rem) var(--page-gutter);
+  position: relative;
+  width: min(1180px, 100%);
+  z-index: 2;
+}
+
+.heroContent h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3rem, 11vw, 7.5rem);
+  line-height: 0.9;
+  margin: 0;
+  max-width: 9ch;
+}
+
+.heroContent p {
+  color: rgb(255 255 255 / 82%);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 42rem;
+}
+
+.heroFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.heroFact {
+  background: rgb(255 255 255 / 13%);
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: var(--radius);
+  color: var(--white);
+  font-weight: 800;
+  padding: 0.75rem 0.85rem;
+}
+
+.overviewGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.overviewItem,
+.pairingGroup {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.overviewItem h3,
+.pairingGroup h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 0 0 0.45rem;
+}
+
+.overviewItem p,
+.pairingGroup p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.pairingHeader {
+  align-items: end;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.pairingGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.memberList {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.memberList li {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+}
+
+.emptyState {
+  background: var(--surface);
+  border: 1px dashed var(--brass);
+  border-radius: var(--radius);
+  color: var(--muted);
+  line-height: 1.7;
+  padding: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .overviewGrid,
+  .pairingGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    min-height: 76vh;
+  }
+
+  .heroOverlay {
+    background: linear-gradient(
+      180deg,
+      rgb(18 35 29 / 76%),
+      rgb(18 35 29 / 34%)
+    );
+  }
+
+  .overviewGrid,
+  .pairingGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .pairingHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

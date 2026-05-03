@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  NON_BINARY
+  PREFER_NOT_TO_SAY
+}
+
+enum PaymentStatus {
+  EXTERNAL_PENDING
+  CONFIRMED
+  WAIVED
+}
+
+enum PhotoStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PairingStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Participant {
+  id            String          @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String          @unique
+  phone         String?
+  gender        Gender
+  age           Int
+  averageScore  Int
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  registrations Registration[]
+  rsvps         Rsvp[]
+  pairingSlots  PairingMember[]
+
+  @@index([gender, averageScore, age])
+}
+
+model Registration {
+  id               String        @id @default(cuid())
+  participantId    String
+  packageSelection String
+  guestCount       Int           @default(0)
+  dayBeforeRsvp    Boolean       @default(false)
+  paymentStatus    PaymentStatus @default(EXTERNAL_PENDING)
+  paymentReference String?
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  participant      Participant   @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([paymentStatus])
+  @@index([createdAt])
+}
+
+model Rsvp {
+  id            String       @id @default(cuid())
+  participantId String?
+  firstName     String
+  lastName      String
+  email         String
+  attending     Boolean
+  attendeeCount Int          @default(1)
+  familyNames   String?
+  dietaryNotes  String?
+  notes         String?
+  createdAt     DateTime     @default(now())
+  participant   Participant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+
+  @@index([attending])
+  @@index([createdAt])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String?
+  rating    Int?
+  category  String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([category])
+  @@index([createdAt])
+}
+
+model PhotoSubmission {
+  id             String      @id @default(cuid())
+  submitterName  String
+  submitterEmail String
+  caption        String?
+  s3Key          String      @unique
+  approvedS3Key  String?
+  status         PhotoStatus @default(PENDING)
+  reviewNotes    String?
+  approvedAt     DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model PairingGroup {
+  id          String          @id @default(cuid())
+  name        String
+  teeTime     DateTime?
+  sortOrder   Int
+  status      PairingStatus   @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  members     PairingMember[]
+
+  @@index([status, sortOrder])
+}
+
+model PairingMember {
+  id             String       @id @default(cuid())
+  groupId        String
+  participantId  String
+  slot           Int
+  snapshotScore  Int
+  snapshotAge    Int
+  snapshotGender Gender
+  group          PairingGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  participant    Participant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, slot])
+  @@index([participantId])
+}
+
+model EventSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
