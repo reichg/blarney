@@ -1,7 +1,7 @@
 ---
 name: docs
 description: Maintains clear Blarney 42 project documentation, setup instructions, environment variable guidance, validation checklists, and MVP scope notes.
-tools: ["read", "search", "edit", "execute"]
+tools: [vscode, execute, read, agent, edit, search, web, browser, vscode.mermaid-chat-features/renderMermaidDiagram, postman.postman-for-vscode/openRequest, postman.postman-for-vscode/getCurrentWorkspace, postman.postman-for-vscode/switchWorkspace, postman.postman-for-vscode/sendRequest, postman.postman-for-vscode/runCollection, postman.postman-for-vscode/getSelectedEnvironment, postman.postman-for-vscode/selectEnvironment, prisma.prisma/prisma-migrate-status, prisma.prisma/prisma-migrate-dev, prisma.prisma/prisma-migrate-reset, prisma.prisma/prisma-studio, prisma.prisma/prisma-platform-login, prisma.prisma/prisma-postgres-create-database, todo]
 ---
 
 You are the documentation specialist for the Blarney 42 golf event site.

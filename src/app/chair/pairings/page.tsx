@@ -103,6 +103,7 @@ export default async function ChairPairingsPage() {
               <label>
                 Tee time
                 <input
+                  required
                   name="teeTime"
                   type="datetime-local"
                   defaultValue={datetimeLocalValue(group.teeTime)}

@@ -5,20 +5,28 @@ import { copyPendingPhotoToApproved } from "@/lib/s3";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+function normalizeRequiredFormValue(value: unknown) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    return trimmed.length ? trimmed : undefined;
+  }
+
+  return value ?? undefined;
+}
+
 const photoReviewSchema = z.object({
   id: z.string().min(1),
-  reviewNotes: z.string().trim().optional(),
+  reviewNotes: z.preprocess(
+    normalizeRequiredFormValue,
+    z.string().trim().min(1),
+  ),
 });
-
-function optionalText(value: FormDataEntryValue | null) {
-  const text = typeof value === "string" ? value.trim() : "";
-  return text.length ? text : undefined;
-}
 
 export async function approvePhoto(formData: FormData) {
   const parsed = photoReviewSchema.parse({
     id: formData.get("id"),
-    reviewNotes: optionalText(formData.get("reviewNotes")),
+    reviewNotes: formData.get("reviewNotes"),
   });
 
   const photo = await db.photoSubmission.findUniqueOrThrow({
@@ -43,7 +51,7 @@ export async function approvePhoto(formData: FormData) {
 export async function rejectPhoto(formData: FormData) {
   const parsed = photoReviewSchema.parse({
     id: formData.get("id"),
-    reviewNotes: optionalText(formData.get("reviewNotes")),
+    reviewNotes: formData.get("reviewNotes"),
   });
 
   await db.photoSubmission.update({

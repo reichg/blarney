@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "prisma generate && next dev",
+    "dev:tunnel": "prisma generate && next dev --hostname 0.0.0.0",
     "build": "prisma generate && next build",
     "start": "next start",
     "db:up": "docker compose up -d postgres",

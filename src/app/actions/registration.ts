@@ -1,75 +1,159 @@
 "use server";
 
-import { db } from "@/lib/db";
-import { redirect } from "next/navigation";
+import {
+  createRegistrationCheckoutPayment,
+  registrationCheckoutPayloadSchema,
+} from "@/lib/registrationCheckout";
 import { z } from "zod";
 
-const registrationSchema = z.object({
-  firstName: z.string().trim().min(1),
-  lastName: z.string().trim().min(1),
-  email: z.string().trim().email(),
-  phone: z.string().trim().optional(),
-  gender: z.enum(["MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"]),
-  age: z.coerce.number().int().min(1).max(110),
-  averageScore: z.coerce.number().int().min(20).max(120),
-  packageSelection: z.string().trim().min(1),
-  guestCount: z.coerce.number().int().min(0).max(20),
-  dayBeforeRsvp: z.boolean(),
-  notes: z.string().trim().optional(),
-});
+function normalizeRequiredFormValue(value: unknown) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
 
-function optionalText(value: FormDataEntryValue | null) {
-  const text = typeof value === "string" ? value.trim() : "";
-  return text.length ? text : undefined;
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  return value ?? undefined;
 }
 
-export async function submitRegistration(formData: FormData) {
-  const parsed = registrationSchema.parse({
+const requiredTextSchema = z.preprocess(
+  normalizeRequiredFormValue,
+  z.string().trim().min(1),
+);
+
+const requiredIntSchema = (minimum: number, maximum: number) =>
+  z.preprocess(
+    normalizeRequiredFormValue,
+    z.coerce.number().int().min(minimum).max(maximum),
+  );
+
+const registrationSubmitSchema = z
+  .object({
+    firstName: requiredTextSchema,
+    lastName: requiredTextSchema,
+    email: z
+      .string()
+      .trim()
+      .email()
+      .transform((value) => value.toLowerCase()),
+    phone: requiredTextSchema,
+    gender: z.enum(["MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"]),
+    age: requiredIntSchema(1, 110),
+    averageScore: requiredIntSchema(20, 120),
+    packageSelection: requiredTextSchema,
+    adultGuestCount: requiredIntSchema(0, 20),
+    childGuestCount: requiredIntSchema(0, 20),
+    dayBeforeRsvp: z
+      .preprocess(normalizeRequiredFormValue, z.enum(["yes", "no"]))
+      .transform((value) => value === "yes"),
+    notes: requiredTextSchema,
+  })
+  .refine((data) => data.adultGuestCount + data.childGuestCount <= 20, {
+    message: "Keep total pre-event guests at 20 or fewer.",
+    path: ["adultGuestCount"],
+  });
+
+function getRegistrationPaymentErrorMessage(error: unknown) {
+  return error instanceof Error && process.env.NODE_ENV !== "production"
+    ? `Registration payment could not be started. ${error.message}`
+    : "Registration payment could not be started. Please try again.";
+}
+
+const duplicateRegistrationMessage =
+  "This email already has a registration or RSVP on file.";
+
+export type SubmitRegistrationResult =
+  | {
+      ok: true;
+      checkoutId: string;
+      checkoutUrl: string;
+      paymentUrl: string;
+      paymentPath: string;
+      thanksPath: string;
+      registrationId?: string;
+      alreadyConfirmed?: boolean;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
+
+export async function submitRegistration(
+  formData: FormData,
+): Promise<SubmitRegistrationResult> {
+  const parsed = registrationSubmitSchema.safeParse({
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
     email: formData.get("email"),
-    phone: optionalText(formData.get("phone")),
+    phone: formData.get("phone"),
     gender: formData.get("gender"),
     age: formData.get("age"),
     averageScore: formData.get("averageScore"),
     packageSelection: formData.get("packageSelection"),
-    guestCount: formData.get("guestCount") ?? "0",
-    dayBeforeRsvp: formData.get("dayBeforeRsvp") === "on",
-    notes: optionalText(formData.get("notes")),
+    adultGuestCount: formData.get("adultGuestCount"),
+    childGuestCount: formData.get("childGuestCount"),
+    dayBeforeRsvp: formData.get("dayBeforeRsvp"),
+    notes: formData.get("notes"),
   });
 
-  const email = parsed.email.toLowerCase();
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Complete the required registration details and try again.",
+    };
+  }
 
-  const participant = await db.participant.upsert({
-    where: { email },
-    update: {
-      firstName: parsed.firstName,
-      lastName: parsed.lastName,
-      phone: parsed.phone,
-      gender: parsed.gender,
-      age: parsed.age,
-      averageScore: parsed.averageScore,
-    },
-    create: {
-      firstName: parsed.firstName,
-      lastName: parsed.lastName,
-      email,
-      phone: parsed.phone,
-      gender: parsed.gender,
-      age: parsed.age,
-      averageScore: parsed.averageScore,
-    },
-  });
+  try {
+    const checkoutPayment = await createRegistrationCheckoutPayment(
+      registrationCheckoutPayloadSchema.parse(parsed.data),
+    );
 
-  await db.registration.create({
-    data: {
-      participantId: participant.id,
-      packageSelection: parsed.packageSelection,
-      guestCount: parsed.guestCount,
-      dayBeforeRsvp: parsed.dayBeforeRsvp,
-      notes: parsed.notes,
-    },
-  });
+    if (!checkoutPayment.ok) {
+      return {
+        ok: false,
+        error:
+          checkoutPayment.reason === "duplicate"
+            ? duplicateRegistrationMessage
+            : checkoutPayment.reason === "configuration"
+              ? "Payment is not configured right now. Please try again later."
+              : checkoutPayment.reason === "review"
+                ? "This payment needs chair review before another checkout can be started. Contact the chair with your Square receipt if you already paid."
+                : "Payment could not be started right now. Please try again.",
+      };
+    }
 
-  redirect("/register/thanks");
+    if (checkoutPayment.status === "confirmed") {
+      const thanksPath = `/register/thanks?registration=${encodeURIComponent(checkoutPayment.registrationId)}&payment=confirmed`;
+
+      return {
+        ok: true,
+        checkoutId: checkoutPayment.checkoutId,
+        checkoutUrl: thanksPath,
+        paymentUrl: thanksPath,
+        paymentPath: thanksPath,
+        thanksPath,
+        registrationId: checkoutPayment.registrationId,
+        alreadyConfirmed: true,
+      };
+    }
+
+    const paymentPath = `/register/payment?checkout=${encodeURIComponent(checkoutPayment.checkoutId)}`;
+    const thanksPath = `/register/thanks?checkout=${encodeURIComponent(checkoutPayment.checkoutId)}`;
+
+    return {
+      ok: true,
+      checkoutId: checkoutPayment.checkoutId,
+      checkoutUrl: checkoutPayment.paymentUrl,
+      paymentUrl: checkoutPayment.paymentUrl,
+      paymentPath,
+      thanksPath,
+    };
+  } catch (error) {
+    console.error("Registration payment start failed", error);
+
+    return {
+      ok: false,
+      error: getRegistrationPaymentErrorMessage(error),
+    };
+  }
 }

@@ -1,7 +1,7 @@
 ---
 name: backend
 description: Implements Blarney 42 server actions, Prisma/Postgres models, chair auth, S3 photo flow, and deterministic pairing logic.
-tools: ["read", "search", "edit", "execute"]
+tools: [vscode, execute, read, agent, edit, search, web, browser, vscode.mermaid-chat-features/renderMermaidDiagram, postman.postman-for-vscode/openRequest, postman.postman-for-vscode/getCurrentWorkspace, postman.postman-for-vscode/switchWorkspace, postman.postman-for-vscode/sendRequest, postman.postman-for-vscode/runCollection, postman.postman-for-vscode/getSelectedEnvironment, postman.postman-for-vscode/selectEnvironment, prisma.prisma/prisma-migrate-status, prisma.prisma/prisma-migrate-dev, prisma.prisma/prisma-migrate-reset, prisma.prisma/prisma-studio, prisma.prisma/prisma-platform-login, prisma.prisma/prisma-postgres-create-database, todo]
 ---
 
 You are the backend specialist for the Blarney 42 golf event site.

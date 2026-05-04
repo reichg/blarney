@@ -3,6 +3,7 @@ node_modules
 out
 dist
 coverage
+.env.pr
 .env
 .env*.local
 *.tsbuildinfo
@@ -11,3 +12,4 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .vercel
+next-env.d.ts

@@ -5,11 +5,11 @@ export default function PhotoThanksPage() {
     <section className={styles.formSection}>
       <div className={styles.formShell}>
         <div className={styles.panel}>
-          <p className="eyebrow">Photo submitted</p>
+          <p className="eyebrow">Photo submission received</p>
           <h1 className="section-title">It is ready for review.</h1>
           <p>
-            The photo is in the pending S3 area and will appear publicly after
-            chair approval.
+            Submitted photos are in the pending S3 area and will appear publicly
+            after chair approval.
           </p>
         </div>
       </div>

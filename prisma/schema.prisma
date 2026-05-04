@@ -31,6 +31,17 @@ enum PairingStatus {
   ARCHIVED
 }
 
+enum RsvpSource {
+  FORM
+  REGISTRATION
+}
+
+enum RegistrationCheckoutStatus {
+  PENDING
+  CONFIRMED
+  PAYMENT_REVIEW
+}
+
 model Participant {
   id            String          @id @default(cuid())
   firstName     String
@@ -50,36 +61,64 @@ model Participant {
 }
 
 model Registration {
-  id               String        @id @default(cuid())
-  participantId    String
+  id               String                @id @default(cuid())
+  participantId    String                @unique
   packageSelection String
-  guestCount       Int           @default(0)
-  dayBeforeRsvp    Boolean       @default(false)
-  paymentStatus    PaymentStatus @default(EXTERNAL_PENDING)
-  paymentReference String?
+  adultGuestCount  Int                   @default(0)
+  childGuestCount  Int                   @default(0)
+  dayBeforeRsvp    Boolean               @default(false)
+  paymentStatus    PaymentStatus         @default(EXTERNAL_PENDING)
+  paymentReference String?               @unique
   notes            String?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  participant      Participant   @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  participant      Participant           @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  checkout         RegistrationCheckout?
 
   @@index([paymentStatus])
   @@index([createdAt])
 }
 
-model Rsvp {
-  id            String       @id @default(cuid())
-  participantId String?
-  firstName     String
-  lastName      String
-  email         String
-  attending     Boolean
-  attendeeCount Int          @default(1)
-  familyNames   String?
-  dietaryNotes  String?
-  notes         String?
-  createdAt     DateTime     @default(now())
-  participant   Participant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+model RegistrationCheckout {
+  id                  String                     @id @default(cuid())
+  idempotencyKey      String                     @unique
+  email               String
+  payload             Json
+  paymentReference    String?                    @unique
+  paymentOrderId      String?                    @unique
+  paymentUrl          String?
+  status              RegistrationCheckoutStatus @default(PENDING)
+  registrationId      String?                    @unique
+  confirmedAt         DateTime?
+  paymentCompletedAt  DateTime?
+  paymentReviewReason String?
+  lastReconciledAt    DateTime?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  registration        Registration?              @relation(fields: [registrationId], references: [id], onDelete: SetNull)
 
+  @@index([email])
+  @@index([status, createdAt])
+}
+
+model Rsvp {
+  id                 String       @id @default(cuid())
+  participantId      String?
+  source             RsvpSource   @default(FORM)
+  firstName          String
+  lastName           String
+  email              String       @unique
+  attending          Boolean
+  adultAttendeeCount Int?
+  childAttendeeCount Int?
+  attendeeCount      Int          @default(1)
+  familyNames        String?
+  dietaryNotes       String?
+  notes              String?
+  createdAt          DateTime     @default(now())
+  participant        Participant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+
+  @@unique([participantId, source], name: "participantId_source")
   @@index([attending])
   @@index([createdAt])
 }

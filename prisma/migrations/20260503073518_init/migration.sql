@@ -1,6 +1,3 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
 -- CreateEnum
 CREATE TYPE "Gender" AS ENUM ('MALE', 'FEMALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY');
 
@@ -12,6 +9,12 @@ CREATE TYPE "PhotoStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
 
 -- CreateEnum
 CREATE TYPE "PairingStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
+
+-- CreateEnum
+CREATE TYPE "RsvpSource" AS ENUM ('FORM', 'REGISTRATION');
+
+-- CreateEnum
+CREATE TYPE "RegistrationCheckoutStatus" AS ENUM ('PENDING', 'CONFIRMED');
 
 -- CreateTable
 CREATE TABLE "Participant" (
@@ -34,7 +37,8 @@ CREATE TABLE "Registration" (
     "id" TEXT NOT NULL,
     "participantId" TEXT NOT NULL,
     "packageSelection" TEXT NOT NULL,
-    "guestCount" INTEGER NOT NULL DEFAULT 0,
+    "adultGuestCount" INTEGER NOT NULL DEFAULT 0,
+    "childGuestCount" INTEGER NOT NULL DEFAULT 0,
     "dayBeforeRsvp" BOOLEAN NOT NULL DEFAULT false,
     "paymentStatus" "PaymentStatus" NOT NULL DEFAULT 'EXTERNAL_PENDING',
     "paymentReference" TEXT,
@@ -46,9 +50,27 @@ CREATE TABLE "Registration" (
 );
 
 -- CreateTable
+CREATE TABLE "RegistrationCheckout" (
+    "id" TEXT NOT NULL,
+    "idempotencyKey" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "payload" JSONB NOT NULL,
+    "paymentReference" TEXT,
+    "paymentUrl" TEXT,
+    "status" "RegistrationCheckoutStatus" NOT NULL DEFAULT 'PENDING',
+    "registrationId" TEXT,
+    "confirmedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RegistrationCheckout_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Rsvp" (
     "id" TEXT NOT NULL,
     "participantId" TEXT,
+    "source" "RsvpSource" NOT NULL DEFAULT 'FORM',
     "firstName" TEXT NOT NULL,
     "lastName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -136,10 +158,28 @@ CREATE UNIQUE INDEX "Participant_email_key" ON "Participant"("email");
 CREATE INDEX "Participant_gender_averageScore_age_idx" ON "Participant"("gender", "averageScore", "age");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Registration_paymentReference_key" ON "Registration"("paymentReference");
+
+-- CreateIndex
 CREATE INDEX "Registration_paymentStatus_idx" ON "Registration"("paymentStatus");
 
 -- CreateIndex
 CREATE INDEX "Registration_createdAt_idx" ON "Registration"("createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RegistrationCheckout_idempotencyKey_key" ON "RegistrationCheckout"("idempotencyKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RegistrationCheckout_paymentReference_key" ON "RegistrationCheckout"("paymentReference");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RegistrationCheckout_registrationId_key" ON "RegistrationCheckout"("registrationId");
+
+-- CreateIndex
+CREATE INDEX "RegistrationCheckout_email_idx" ON "RegistrationCheckout"("email");
+
+-- CreateIndex
+CREATE INDEX "RegistrationCheckout_status_createdAt_idx" ON "RegistrationCheckout"("status", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "Rsvp_attending_idx" ON "Rsvp"("attending");
@@ -173,6 +213,9 @@ CREATE UNIQUE INDEX "EventSetting_key_key" ON "EventSetting"("key");
 
 -- AddForeignKey
 ALTER TABLE "Registration" ADD CONSTRAINT "Registration_participantId_fkey" FOREIGN KEY ("participantId") REFERENCES "Participant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RegistrationCheckout" ADD CONSTRAINT "RegistrationCheckout_registrationId_fkey" FOREIGN KEY ("registrationId") REFERENCES "Registration"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Rsvp" ADD CONSTRAINT "Rsvp_participantId_fkey" FOREIGN KEY ("participantId") REFERENCES "Participant"("id") ON DELETE SET NULL ON UPDATE CASCADE;

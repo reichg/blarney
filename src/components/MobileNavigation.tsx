@@ -3,7 +3,7 @@
 import styles from "@/components/Navigation.module.css";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export type NavLink = {
   href: string;
@@ -17,13 +17,43 @@ type MobileNavigationProps = {
 
 export function MobileNavigation({ links }: MobileNavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const menuId = useId();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
 
   return (
-    <>
+    <div className={styles.mobileMenu} ref={menuRef}>
       <button
-        aria-label="Open navigation"
-        className={styles.mobileTab}
-        onClick={() => setIsOpen(true)}
+        aria-controls={menuId}
+        aria-expanded={isOpen}
+        aria-label={isOpen ? "Close navigation" : "Open navigation"}
+        className={styles.mobileTrigger}
+        onClick={() => setIsOpen((open) => !open)}
         type="button"
       >
         <Menu aria-hidden="true" size={18} />
@@ -31,57 +61,45 @@ export function MobileNavigation({ links }: MobileNavigationProps) {
       </button>
 
       {isOpen ? (
-        <div
-          className={styles.overlay}
-          role="presentation"
-          onClick={() => setIsOpen(false)}
-        >
-          <aside
-            className={styles.drawer}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.drawerHeader}>
-              <div className={styles.brand}>
-                <span className={styles.brandName}>Blarney 42</span>
-                <span className={styles.brandMeta}>Cannon Beach</span>
-              </div>
-              <button
-                aria-label="Close navigation"
-                className={styles.closeButton}
-                onClick={() => setIsOpen(false)}
-                type="button"
-              >
-                <X aria-hidden="true" size={20} />
-              </button>
-            </div>
-            <nav aria-label="Mobile navigation" className={styles.drawerLinks}>
-              {links.map((link) =>
-                link.external ? (
-                  <a
-                    className={styles.drawerLink}
-                    href={link.href}
-                    key={link.href}
-                    onClick={() => setIsOpen(false)}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    {link.label}
-                  </a>
-                ) : (
-                  <Link
-                    className={styles.drawerLink}
-                    href={link.href}
-                    key={link.href}
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ),
-              )}
-            </nav>
-          </aside>
+        <div className={styles.dropdown} id={menuId}>
+          <div className={styles.dropdownHeader}>
+            <p className={styles.dropdownLabel}>Navigate</p>
+            <button
+              aria-label="Close navigation"
+              className={styles.closeButton}
+              onClick={() => setIsOpen(false)}
+              type="button"
+            >
+              <X aria-hidden="true" size={18} />
+            </button>
+          </div>
+          <nav aria-label="Mobile navigation" className={styles.dropdownLinks}>
+            {links.map((link) =>
+              link.external ? (
+                <a
+                  className={styles.dropdownLink}
+                  href={link.href}
+                  key={link.href}
+                  onClick={() => setIsOpen(false)}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {link.label}
+                </a>
+              ) : (
+                <Link
+                  className={styles.dropdownLink}
+                  href={link.href}
+                  key={link.href}
+                  onClick={() => setIsOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ),
+            )}
+          </nav>
         </div>
       ) : null}
-    </>
+    </div>
   );
 }

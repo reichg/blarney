@@ -30,17 +30,20 @@ export default function FeedbackPage() {
             <div className={styles.gridTwo}>
               <label className={styles.field}>
                 <span>Name</span>
-                <input name="name" type="text" />
+                <input name="name" required type="text" />
               </label>
               <label className={styles.field}>
                 <span>Email</span>
-                <input name="email" type="email" />
+                <input name="email" required type="email" />
               </label>
             </div>
             <div className={styles.gridTwo}>
               <label className={styles.field}>
                 <span>Category</span>
-                <select name="category" required>
+                <select defaultValue="" name="category" required>
+                  <option disabled value="">
+                    Select one
+                  </option>
                   <option value="Registration">Registration</option>
                   <option value="Logistics">Logistics</option>
                   <option value="Pairings">Pairings</option>
@@ -50,8 +53,10 @@ export default function FeedbackPage() {
               </label>
               <label className={styles.field}>
                 <span>Rating</span>
-                <select name="rating">
-                  <option value="">No rating</option>
+                <select defaultValue="" name="rating" required>
+                  <option disabled value="">
+                    Select one
+                  </option>
                   <option value="5">5</option>
                   <option value="4">4</option>
                   <option value="3">3</option>

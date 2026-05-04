@@ -1,6 +1,33 @@
 import type { NextConfig } from "next";
 
+function getHostFromUrl(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    return new URL(value).host;
+  } catch {
+    return value.trim() || undefined;
+  }
+}
+
+const allowedDevOrigins = Array.from(
+  new Set(
+    [
+      "localhost:3000",
+      "127.0.0.1:3000",
+      "blarney42.com",
+      "blarney42.gabe-reichenberger.com",
+      "*.trycloudflare.com",
+      getHostFromUrl(process.env.NEXT_PUBLIC_SITE_URL),
+      getHostFromUrl(process.env.CLOUDFLARED_TUNNEL_URL),
+    ].filter((origin): origin is string => Boolean(origin)),
+  ),
+);
+
 const nextConfig: NextConfig = {
+  allowedDevOrigins,
   images: {
     remotePatterns: [
       {

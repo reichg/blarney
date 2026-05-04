@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { completeRegistrationPaymentStatuses } from "@/lib/payment";
 import Link from "next/link";
 import styles from "./chair.module.css";
 
@@ -7,14 +8,20 @@ export const dynamic = "force-dynamic";
 async function getDashboardCounts() {
   try {
     const [
-      registrations,
+      completeRegistrations,
+      pendingPaymentRegistrations,
       rsvps,
       feedback,
       pendingPhotos,
       draftPairings,
       publishedPairings,
     ] = await Promise.all([
-      db.registration.count(),
+      db.registration.count({
+        where: {
+          paymentStatus: { in: [...completeRegistrationPaymentStatuses] },
+        },
+      }),
+      db.registration.count({ where: { paymentStatus: "EXTERNAL_PENDING" } }),
       db.rsvp.count(),
       db.feedback.count(),
       db.photoSubmission.count({ where: { status: "PENDING" } }),
@@ -23,7 +30,8 @@ async function getDashboardCounts() {
     ]);
 
     return {
-      registrations,
+      completeRegistrations,
+      pendingPaymentRegistrations,
       rsvps,
       feedback,
       pendingPhotos,
@@ -32,7 +40,8 @@ async function getDashboardCounts() {
     };
   } catch {
     return {
-      registrations: 0,
+      completeRegistrations: 0,
+      pendingPaymentRegistrations: 0,
       rsvps: 0,
       feedback: 0,
       pendingPhotos: 0,
@@ -58,8 +67,12 @@ export default async function ChairDashboardPage() {
       </div>
       <div className={styles.statGrid}>
         <div className={styles.stat}>
-          <span>Registrations</span>
-          <strong>{counts.registrations}</strong>
+          <span>Complete Registrations</span>
+          <strong>{counts.completeRegistrations}</strong>
+        </div>
+        <div className={styles.stat}>
+          <span>Pending Payment</span>
+          <strong>{counts.pendingPaymentRegistrations}</strong>
         </div>
         <div className={styles.stat}>
           <span>RSVPs</span>

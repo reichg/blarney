@@ -46,7 +46,7 @@ export default async function Home() {
           fill
           priority
           sizes="100vw"
-          src="https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=1800&q=80"
+          src="/images/background.png"
         />
         <div className={styles.heroOverlay} />
         <div className={styles.heroContent}>

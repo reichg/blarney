@@ -14,6 +14,13 @@ export function formatDateTime(value: Date | string | null | undefined) {
   }).format(date);
 }
 
+export function formatCurrency(cents: number, currency = "USD") {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(cents / 100);
+}
+
 export function initials(firstName: string, lastName: string) {
   return `${firstName.slice(0, 1)}${lastName.slice(0, 1)}`.toUpperCase();
 }

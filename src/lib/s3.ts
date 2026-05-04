@@ -1,4 +1,9 @@
 import {
+  isAllowedImageType,
+  isAllowedPhotoSize,
+  photoUploadLimitLabel,
+} from "@/lib/photoUpload";
+import {
   CopyObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
@@ -6,13 +11,6 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomUUID } from "crypto";
-
-const allowedImageTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-]);
 
 function getBucket() {
   const bucket = process.env.AWS_S3_BUCKET;
@@ -25,12 +23,13 @@ function getBucket() {
 }
 
 function getS3Client() {
-  const region = process.env.AWS_REGION ?? "us-west-2";
+  const region = process.env.AWS_REGION ?? "us-west-1";
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
   const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
   return new S3Client({
     region,
+    requestChecksumCalculation: "WHEN_REQUIRED",
     credentials:
       accessKeyId && secretAccessKey
         ? {
@@ -49,10 +48,6 @@ function cleanFileName(fileName: string) {
     .slice(0, 80);
 }
 
-export function isAllowedImageType(contentType: string) {
-  return allowedImageTypes.has(contentType);
-}
-
 export function approvedKeyFromPendingKey(key: string) {
   return key.startsWith("pending/")
     ? key.replace(/^pending\//, "approved/")
@@ -62,9 +57,14 @@ export function approvedKeyFromPendingKey(key: string) {
 export async function createPendingPhotoUpload(
   fileName: string,
   contentType: string,
+  fileSize: number,
 ) {
   if (!isAllowedImageType(contentType)) {
     throw new Error("Unsupported image type.");
+  }
+
+  if (!isAllowedPhotoSize(fileSize)) {
+    throw new Error(`Photos must be ${photoUploadLimitLabel} or smaller.`);
   }
 
   const key = `pending/${randomUUID()}-${cleanFileName(fileName) || "photo"}`;

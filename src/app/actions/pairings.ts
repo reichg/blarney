@@ -2,21 +2,36 @@
 
 import { db } from "@/lib/db";
 import { buildPairingGroups } from "@/lib/pairings";
+import { completeRegistrationPaymentStatuses } from "@/lib/payment";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+
+function normalizeRequiredFormValue(value: unknown) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    return trimmed.length ? trimmed : undefined;
+  }
+
+  return value ?? undefined;
+}
 
 const pairingGroupSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1),
   sortOrder: z.coerce.number().int().min(1),
-  teeTime: z.string().trim().optional(),
+  teeTime: z.preprocess(normalizeRequiredFormValue, z.string().trim().min(1)),
 });
 
 export async function generatePairings() {
   const participants = await db.participant.findMany({
     where: {
       registrations: {
-        some: {},
+        some: {
+          paymentStatus: {
+            in: [...completeRegistrationPaymentStatuses],
+          },
+        },
       },
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
@@ -76,7 +91,7 @@ export async function updatePairingGroup(formData: FormData) {
     data: {
       name: parsed.name,
       sortOrder: parsed.sortOrder,
-      teeTime: parsed.teeTime ? new Date(parsed.teeTime) : null,
+      teeTime: new Date(parsed.teeTime),
     },
   });
 

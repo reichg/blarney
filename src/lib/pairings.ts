@@ -22,8 +22,6 @@ export type PairingGroupResult = {
 const genderOrder: Gender[] = [
   "MALE",
   "FEMALE",
-  "NON_BINARY",
-  "PREFER_NOT_TO_SAY",
 ];
 
 export function isGoodGolfer(averageScore: number) {
@@ -52,14 +50,7 @@ function compareApplicants(left: PairingApplicant, right: PairingApplicant) {
 }
 
 function groupLabel(gender: Gender, index: number) {
-  const label =
-    gender === "MALE"
-      ? "Men"
-      : gender === "FEMALE"
-        ? "Women"
-        : gender === "NON_BINARY"
-          ? "Open"
-          : "Unspecified";
+  const label = gender === "MALE" ? "Men" : "Women";
 
   return `${label} Group ${index}`;
 }

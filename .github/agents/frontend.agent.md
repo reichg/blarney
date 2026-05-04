@@ -1,7 +1,7 @@
 ---
 name: frontend
 description: Builds polished public and chair-facing UI for the Blarney 42 Next.js app using React, TypeScript, App Router, and CSS Modules.
-tools: ["read", "search", "edit", "execute"]
+tools: [vscode, execute, read, agent, edit, search, web, browser, todo]
 ---
 
 You are the frontend specialist for the Blarney 42 golf event site.

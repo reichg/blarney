@@ -97,6 +97,12 @@
   resize: vertical;
 }
 
+.fieldHint {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
 .fieldset {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -128,9 +134,103 @@
   font-weight: 800;
   gap: 0.5rem;
   justify-content: center;
+  line-height: 1.25;
+  max-width: 100%;
   min-height: 2.9rem;
   padding: 0.8rem 1rem;
+  text-align: center;
   width: fit-content;
+}
+
+.submitButton:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.summaryCard {
+  background: rgb(214 234 220 / 35%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.summaryCard h3 {
+  margin: 0;
+}
+
+.summaryGrid {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.summaryGrid div {
+  align-items: baseline;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.summaryGrid dt {
+  color: var(--muted);
+}
+
+.summaryGrid dd {
+  margin: 0;
+}
+
+.summaryValue {
+  font-weight: 800;
+}
+
+.paymentAction {
+  margin-block: 0.35rem 0.85rem;
+  max-width: 100%;
+  text-align: center;
+  width: fit-content;
+}
+
+.actionRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.secondaryAction {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--pine);
+  display: inline-flex;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 2.7rem;
+  padding: 0.7rem 0.95rem;
+  text-align: center;
+}
+
+.secondaryAction:hover,
+.secondaryAction:focus-visible {
+  background: var(--surface-strong);
+  outline: none;
+}
+
+.errorNotice {
+  background: rgb(191 65 65 / 10%);
+  border: 1px solid rgb(191 65 65 / 28%);
+  border-radius: var(--radius);
+  color: #8c2d2d;
+  line-height: 1.5;
+  padding: 0.9rem 1rem;
+}
+
+.supportText {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
 }
 
 .notice {

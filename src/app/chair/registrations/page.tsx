@@ -3,6 +3,40 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+function formatGuestSummary(adultGuestCount: number, childGuestCount: number) {
+  if (adultGuestCount === 0 && childGuestCount === 0) {
+    return "None";
+  }
+
+  const parts = [];
+
+  if (adultGuestCount > 0) {
+    parts.push(`${adultGuestCount} adult${adultGuestCount === 1 ? "" : "s"}`);
+  }
+
+  if (childGuestCount > 0) {
+    parts.push(`${childGuestCount} child${childGuestCount === 1 ? "" : "ren"}`);
+  }
+
+  return parts.join(", ");
+}
+
+function formatPaymentStatus(paymentStatus: string) {
+  if (paymentStatus === "EXTERNAL_PENDING") {
+    return "Pending payment";
+  }
+
+  if (paymentStatus === "CONFIRMED") {
+    return "Complete";
+  }
+
+  if (paymentStatus === "WAIVED") {
+    return "Complete (waived)";
+  }
+
+  return paymentStatus.replaceAll("_", " ");
+}
+
 async function getRegistrations() {
   try {
     return await db.registration.findMany({
@@ -34,7 +68,7 @@ export default async function ChairRegistrationsPage() {
               <th>Golf</th>
               <th>Package</th>
               <th>Guests</th>
-              <th>Payment</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -56,10 +90,15 @@ export default async function ChairRegistrationsPage() {
                   {registration.participant.averageScore}
                 </td>
                 <td>{registration.packageSelection}</td>
-                <td>{registration.guestCount}</td>
+                <td>
+                  {formatGuestSummary(
+                    registration.adultGuestCount,
+                    registration.childGuestCount,
+                  )}
+                </td>
                 <td>
                   <span className={styles.statusPill}>
-                    {registration.paymentStatus.replaceAll("_", " ")}
+                    {formatPaymentStatus(registration.paymentStatus)}
                   </span>
                 </td>
               </tr>

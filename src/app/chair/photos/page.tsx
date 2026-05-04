@@ -45,7 +45,8 @@ export default async function ChairPhotosPage() {
                 <input name="id" type="hidden" value={photo.id} />
                 <textarea
                   name="reviewNotes"
-                  placeholder="Review notes"
+                  placeholder="Required review notes"
+                  required
                   rows={2}
                 />
                 <button className={styles.actionButton} type="submit">
@@ -56,7 +57,8 @@ export default async function ChairPhotosPage() {
                 <input name="id" type="hidden" value={photo.id} />
                 <textarea
                   name="reviewNotes"
-                  placeholder="Review notes"
+                  placeholder="Required review notes"
+                  required
                   rows={2}
                 />
                 <button className={styles.dangerButton} type="submit">

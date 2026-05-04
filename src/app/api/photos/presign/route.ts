@@ -1,14 +1,20 @@
 import { db } from "@/lib/db";
-import { createPendingPhotoUpload, isAllowedImageType } from "@/lib/s3";
+import {
+  isAllowedImageType,
+  isAllowedPhotoSize,
+  photoUploadLimitLabel,
+} from "@/lib/photoUpload";
+import { createPendingPhotoUpload } from "@/lib/s3";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 const presignSchema = z.object({
   fileName: z.string().trim().min(1),
   contentType: z.string().trim().min(1),
+  fileSize: z.number().int().positive(),
   submitterName: z.string().trim().min(1),
   submitterEmail: z.string().trim().email(),
-  caption: z.string().trim().optional(),
+  caption: z.string().trim().min(1),
 });
 
 export async function POST(request: Request) {
@@ -23,10 +29,18 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!isAllowedPhotoSize(parsed.data.fileSize)) {
+    return NextResponse.json(
+      { message: `Photos must be ${photoUploadLimitLabel} or smaller.` },
+      { status: 400 },
+    );
+  }
+
   try {
     const upload = await createPendingPhotoUpload(
       parsed.data.fileName,
       parsed.data.contentType,
+      parsed.data.fileSize,
     );
     const submission = await db.photoSubmission.create({
       data: {
