@@ -25,6 +25,11 @@ enum PhotoStatus {
   REJECTED
 }
 
+enum PhotoPurpose {
+  GALLERY
+  REMEMBRANCE
+}
+
 enum PairingStatus {
   DRAFT
   PUBLISHED
@@ -158,32 +163,37 @@ model RsvpCheckout {
 }
 
 model Feedback {
-  id        String   @id @default(cuid())
-  name      String?
-  email     String?
-  rating    Int?
-  category  String
-  message   String
-  createdAt DateTime @default(now())
+  id                String            @id @default(cuid())
+  name              String?
+  email             String?
+  rating            Int?
+  category          String
+  message           String
+  createdAt         DateTime          @default(now())
+  remembrancePhotos PhotoSubmission[]
 
   @@index([category])
   @@index([createdAt])
 }
 
 model PhotoSubmission {
-  id             String      @id @default(cuid())
+  id             String       @id @default(cuid())
   submitterName  String
   submitterEmail String
   caption        String?
-  s3Key          String      @unique
+  purpose        PhotoPurpose @default(GALLERY)
+  feedbackId     String?
+  s3Key          String       @unique
   approvedS3Key  String?
-  status         PhotoStatus @default(PENDING)
+  status         PhotoStatus  @default(PENDING)
   reviewNotes    String?
   approvedAt     DateTime?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  feedback       Feedback?    @relation(fields: [feedbackId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
+  @@index([feedbackId])
 }
 
 model PairingGroup {

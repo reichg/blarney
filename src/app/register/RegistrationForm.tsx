@@ -366,9 +366,7 @@ export function RegistrationForm({
 
   const submitButtonText = isSubmitting
     ? "Preparing secure Square checkout..."
-    : isGolfMode
-      ? "Continue to golf checkout"
-      : "Continue to BBQ checkout";
+    : "Continue to checkout";
 
   return (
     <form
@@ -520,7 +518,7 @@ export function RegistrationForm({
                     </div>
                     <div className={styles.gridTwo}>
                       <label className={styles.field}>
-                        <span>Golfer {golferNumber} sex</span>
+                        <span>Golfer {golferNumber} gender</span>
                         <select
                           name="golferGender"
                           onChange={(event) => {
@@ -538,10 +536,6 @@ export function RegistrationForm({
                           </option>
                           <option value="MALE">Male</option>
                           <option value="FEMALE">Female</option>
-                          <option value="NON_BINARY">Nonbinary</option>
-                          <option value="PREFER_NOT_TO_SAY">
-                            Prefer not to say
-                          </option>
                         </select>
                       </label>
                       <label className={styles.field}>
@@ -559,7 +553,7 @@ export function RegistrationForm({
                       </label>
                     </div>
                     <label className={styles.field}>
-                      <span>Golfer {golferNumber} average score</span>
+                      <span>Golfer {golferNumber} average Manzanita score (Par 32)</span>
                       <input
                         max="120"
                         min="20"

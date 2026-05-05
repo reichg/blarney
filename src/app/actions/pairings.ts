@@ -1,9 +1,12 @@
 "use server";
 
+import { CHAIR_COOKIE, verifyChairToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { buildPairingGroups } from "@/lib/pairings";
 import { completeRegistrationPaymentStatuses } from "@/lib/payment";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 function normalizeRequiredFormValue(value: unknown) {
@@ -23,7 +26,19 @@ const pairingGroupSchema = z.object({
   teeTime: z.preprocess(normalizeRequiredFormValue, z.string().trim().min(1)),
 });
 
+async function requireChairSession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(CHAIR_COOKIE)?.value;
+  const isAuthorized = await verifyChairToken(token);
+
+  if (!isAuthorized) {
+    redirect("/chair/login");
+  }
+}
+
 export async function generatePairings() {
+  await requireChairSession();
+
   const participants = await db.participant.findMany({
     where: {
       registrations: {
@@ -79,6 +94,8 @@ export async function generatePairings() {
 }
 
 export async function updatePairingGroup(formData: FormData) {
+  await requireChairSession();
+
   const parsed = pairingGroupSchema.parse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -100,6 +117,8 @@ export async function updatePairingGroup(formData: FormData) {
 }
 
 export async function publishPairings() {
+  await requireChairSession();
+
   await db.$transaction([
     db.pairingGroup.updateMany({
       where: { status: "PUBLISHED" },

@@ -3,6 +3,7 @@
 import styles from "@/components/Navigation.module.css";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
 export type NavLink = {
@@ -15,10 +16,19 @@ type MobileNavigationProps = {
   links: NavLink[];
 };
 
+function isActivePath(pathname: string, href: string) {
+  if (href === "/" || href === "/chair") {
+    return pathname === href;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function MobileNavigation({ links }: MobileNavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuId = useId();
   const menuRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!isOpen) {
@@ -88,6 +98,9 @@ export function MobileNavigation({ links }: MobileNavigationProps) {
                 </a>
               ) : (
                 <Link
+                  aria-current={
+                    isActivePath(pathname, link.href) ? "page" : undefined
+                  }
                   className={styles.dropdownLink}
                   href={link.href}
                   key={link.href}

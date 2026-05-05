@@ -24,6 +24,10 @@ export default async function ChairLoginPage({
         <input name="next" type="hidden" value={nextPath} />
         <p className="eyebrow">Chair Access</p>
         <h1>Private dashboard</h1>
+        <p className={styles.pageIntro}>
+          Sign in to reach registrations, responses, photo moderation,
+          remembrance, and pairings.
+        </p>
         <label className={formStyles.field}>
           <span>Password</span>
           <input

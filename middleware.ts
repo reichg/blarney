@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
 
   if (!isAuthorized) {
     const loginUrl = new URL("/chair/login", request.url);
-    loginUrl.searchParams.set("next", pathname);
+    loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(loginUrl);
   }
 

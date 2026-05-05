@@ -1,6 +1,13 @@
+import { PaginationNav } from "@/components/PaginationNav";
 import { getEventSettings } from "@/lib/content";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
+import {
+  buildPaginationState,
+  parsePaginationParams,
+  type PaginationParams,
+  type SearchParamsRecord,
+} from "@/lib/pagination";
 import {
   CalendarDays,
   Flag,
@@ -14,28 +21,49 @@ import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
 
-async function getPublishedPairings() {
+type HomePageProps = {
+  searchParams: Promise<SearchParamsRecord>;
+};
+
+async function getPublishedPairings(pagination: PaginationParams) {
   try {
-    return await db.pairingGroup.findMany({
-      where: { status: "PUBLISHED" },
-      include: {
-        members: {
-          include: { participant: true },
-          orderBy: { slot: "asc" },
+    const where = { status: "PUBLISHED" as const };
+    const [pairings, totalCount] = await Promise.all([
+      db.pairingGroup.findMany({
+        where,
+        include: {
+          members: {
+            include: { participant: true },
+            orderBy: { slot: "asc" },
+          },
         },
-      },
-      orderBy: { sortOrder: "asc" },
-    });
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      db.pairingGroup.count({ where }),
+    ]);
+
+    return {
+      pairings,
+      pagination: buildPaginationState(pagination, totalCount),
+    };
   } catch {
-    return [];
+    return {
+      pairings: [],
+      pagination: buildPaginationState(pagination, 0),
+    };
   }
 }
 
-export default async function Home() {
-  const [settings, pairings] = await Promise.all([
+export default async function Home({ searchParams }: HomePageProps) {
+  const params = await searchParams;
+  const paginationParams = parsePaginationParams(params);
+  const [settings, publishedPairings] = await Promise.all([
     getEventSettings(),
-    getPublishedPairings(),
+    getPublishedPairings(paginationParams),
   ]);
+  const pairings = publishedPairings.pairings;
 
   return (
     <>
@@ -73,6 +101,52 @@ export default async function Home() {
 
       <section className="section">
         <div className="section-inner">
+          <div className="section-inner">
+            <div className={styles.pairingHeader}>
+              <div>
+                <p className="eyebrow">Pairings and tee times</p>
+                <h2 className="section-title">The first tee, once set.</h2>
+              </div>
+              <Link className="secondary-button" href="/register">
+                <Flag aria-hidden="true" size={18} />
+                Add golf details
+              </Link>
+            </div>
+
+            {pairings.length ? (
+              <div className={styles.pairingGrid}>
+                {pairings.map((group) => (
+                  <article className={styles.pairingGroup} key={group.id}>
+                    <h3>{group.name}</h3>
+                    <p>{formatDateTime(group.teeTime)}</p>
+                    <ul className={styles.memberList}>
+                      {group.members.map((member) => (
+                        <li key={member.id}>
+                          <span>
+                            {member.participant.firstName}{" "}
+                            {member.participant.lastName}
+                          </span>
+                          <span>{member.snapshotScore}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.emptyState}>
+                {publishedPairings.pagination.isEmpty
+                  ? "Pairings and tee times will appear here after the chair reviews and publishes them."
+                  : "No published pairings on this page."}
+              </div>
+            )}
+            <PaginationNav
+              label="Published pairings"
+              pagination={publishedPairings.pagination}
+              searchParams={params}
+            />
+          </div>
+          <hr className={styles.sectionDivider} />
           <div className={styles.overviewGrid}>
             <article className={styles.overviewItem}>
               <UsersRound aria-hidden="true" color="var(--brass)" size={24} />
@@ -111,48 +185,6 @@ export default async function Home() {
               </p>
             </article>
           </div>
-        </div>
-      </section>
-
-      <section className="section" id="pairings">
-        <div className="section-inner">
-          <div className={styles.pairingHeader}>
-            <div>
-              <p className="eyebrow">Pairings and tee times</p>
-              <h2 className="section-title">The first tee, once set.</h2>
-            </div>
-            <Link className="secondary-button" href="/register">
-              <Flag aria-hidden="true" size={18} />
-              Add golf details
-            </Link>
-          </div>
-
-          {pairings.length ? (
-            <div className={styles.pairingGrid}>
-              {pairings.map((group) => (
-                <article className={styles.pairingGroup} key={group.id}>
-                  <h3>{group.name}</h3>
-                  <p>{formatDateTime(group.teeTime)}</p>
-                  <ul className={styles.memberList}>
-                    {group.members.map((member) => (
-                      <li key={member.id}>
-                        <span>
-                          {member.participant.firstName}{" "}
-                          {member.participant.lastName}
-                        </span>
-                        <span>{member.snapshotScore}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className={styles.emptyState}>
-              Pairings and tee times will appear here after the chair reviews
-              and publishes them.
-            </div>
-          )}
         </div>
       </section>
     </>

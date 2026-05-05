@@ -1,0 +1,14 @@
+export type ChairLink = {
+  href: string;
+  label: string;
+};
+
+export const chairLinks: ChairLink[] = [
+  { href: "/chair", label: "Dashboard" },
+  { href: "/chair/registrations", label: "Registrations" },
+  { href: "/chair/rsvps", label: "RSVPs" },
+  { href: "/chair/feedback", label: "Feedback" },
+  { href: "/chair/photos", label: "Photos" },
+  { href: "/chair/remembrance", label: "Remembrance" },
+  { href: "/chair/pairings", label: "Pairings" },
+];

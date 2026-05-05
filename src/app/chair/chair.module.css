@@ -1,57 +1,95 @@
 .adminShell {
-  display: grid;
-  grid-template-columns: 17rem minmax(0, 1fr);
+  background: linear-gradient(180deg, rgb(248 246 241 / 86%), rgb(243 240 233));
   min-height: calc(100vh - 4.75rem);
+  padding: clamp(1.25rem, 3vw, 2rem) 0 clamp(1.5rem, 4vw, 3rem);
 }
 
-.sidebar {
-  background: var(--pine);
-  color: var(--white);
-  padding: 1.25rem;
+.shellHeader {
+  display: flex;
+  gap: 1rem 1.5rem;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 84rem;
+  padding: 0 clamp(1.5rem, 4vw, 3rem);
+  width: 100%;
 }
 
-.sidebar h2 {
-  font-family: Georgia, "Times New Roman", serif;
-  margin: 0 0 1rem;
-}
-
-.adminNav {
+.shellHeaderCopy {
   display: grid;
   gap: 0.35rem;
 }
 
-.adminNav a,
-.logoutButton {
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius);
-  color: rgb(255 255 255 / 84%);
-  display: block;
+.shellEyebrow {
+  color: var(--muted);
+  font-size: 0.76rem;
   font-weight: 800;
-  padding: 0.75rem;
-  text-align: left;
-  width: 100%;
+  letter-spacing: 0.14em;
+  margin: 0;
+  text-transform: uppercase;
 }
 
-.adminNav a:hover,
-.adminNav a:focus-visible,
+.shellTitle {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  margin: 0;
+}
+
+.logoutButton {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--pine);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.65rem 1rem;
+  text-decoration: none;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
 .logoutButton:hover,
 .logoutButton:focus-visible {
-  background: rgb(255 255 255 / 12%);
-  color: var(--white);
+  background: rgb(255 255 255 / 92%);
+  border-color: rgb(24 64 49 / 22%);
+  box-shadow: 0 0.8rem 1.8rem rgb(24 64 49 / 10%);
   outline: none;
 }
 
+.logoutForm {
+  flex-shrink: 0;
+  margin: 0;
+}
+
 .content {
-  padding: clamp(1.25rem, 4vw, 3rem);
+  align-content: start;
+  display: grid;
+  gap: clamp(1.1rem, 2vw, 1.6rem);
+  margin: 0 auto;
+  max-width: 84rem;
+  min-width: 0;
+  padding: clamp(1.25rem, 3vw, 2rem) clamp(1.5rem, 4vw, 3rem) 0;
+  width: 100%;
 }
 
 .topline {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
   justify-content: space-between;
-  margin-bottom: 1.5rem;
+  margin: 0;
+}
+
+.pageHeaderCopy {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 52rem;
 }
 
 .topline h1 {
@@ -60,15 +98,71 @@
   margin: 0;
 }
 
+.pageIntro {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+  max-width: 48rem;
+}
+
+.pageMetaBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.pageMeta {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--pine);
+  display: inline-flex;
+  font-size: 0.92rem;
+  font-weight: 800;
+  padding: 0.5rem 0.8rem;
+}
+
 .muted {
   color: var(--muted);
   line-height: 1.6;
 }
 
+.sectionBlock {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.sectionHeader {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  justify-content: space-between;
+}
+
+.sectionHeading {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 52rem;
+}
+
+.sectionTitle {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.25rem, 2.1vw, 1.7rem);
+  margin: 0;
+}
+
+.sectionIntro {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+}
+
 .statGrid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
 }
 
 .stat,
@@ -78,7 +172,35 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  display: grid;
+  gap: 0.55rem;
   padding: 1rem;
+}
+
+.stat {
+  min-height: 9rem;
+}
+
+.statLink {
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.statLink:hover,
+.statLink:focus-visible {
+  border-color: rgb(24 64 49 / 22%);
+  box-shadow: 0 1.2rem 2.6rem rgb(24 64 49 / 10%);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.statLink small {
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 .stat span {
@@ -98,6 +220,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
   overflow-x: auto;
 }
 
@@ -111,14 +234,46 @@
 .table td {
   border-bottom: 1px solid var(--line);
   padding: 0.85rem;
-  text-align: left;
-  vertical-align: top;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .table th {
+  background: rgb(24 64 49 / 4%);
   color: var(--pine);
   font-size: 0.82rem;
   text-transform: uppercase;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.table td > p {
+  margin: 0.35rem 0 0;
+}
+
+.tablePhotoCell {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.tablePhotoThumb {
+  aspect-ratio: 4 / 3;
+  background: var(--surface-strong);
+  border-radius: 0.7rem;
+  flex: 0 0 4.5rem;
+  object-fit: cover;
+  width: 4.5rem;
+}
+
+.tablePhotoCopy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .statusPill {
@@ -132,13 +287,67 @@
 }
 
 .actions {
+  align-items: flex-start;
   display: flex;
   flex-wrap: wrap;
   gap: 0.65rem;
 }
 
+.moderationActions,
+.quickLinkGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.moderationActions {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.quickLinkGrid {
+  grid-template-columns: repeat(auto-fit, minmax(14.5rem, 1fr));
+}
+
+.quickLinkCard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: inherit;
+  display: grid;
+  gap: 0.55rem;
+  min-height: 10rem;
+  padding: 1rem;
+  text-decoration: none;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.quickLinkCard:hover,
+.quickLinkCard:focus-visible {
+  border-color: rgb(24 64 49 / 22%);
+  box-shadow: 0 1.2rem 2.6rem rgb(24 64 49 / 10%);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.quickLinkCard h2 {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.quickLinkCard p {
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0;
+}
+
 .actionButton,
-.dangerButton {
+.dangerButton,
+.secondaryActionButton {
   align-items: center;
   border: 0;
   border-radius: var(--radius);
@@ -166,13 +375,38 @@
   background: var(--rose);
 }
 
+.dangerButton:hover,
+.dangerButton:focus-visible {
+  background: #7a433c;
+  outline: none;
+}
+
+.secondaryActionButton {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--pine);
+}
+
+.secondaryActionButton:hover,
+.secondaryActionButton:focus-visible {
+  background: var(--surface-strong);
+  outline: none;
+}
+
 .compactForm {
   display: grid;
   gap: 0.65rem;
 }
 
+.actionOnlyForm,
+.tableActionForm {
+  display: grid;
+  gap: 0.65rem;
+}
+
 .compactForm input,
-.compactForm textarea {
+.compactForm textarea,
+.tableActionForm textarea {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   min-height: 2.55rem;
@@ -180,11 +414,309 @@
   width: 100%;
 }
 
+.actionOnlyForm button,
+.tableActionForm button {
+  justify-content: center;
+  width: 100%;
+}
+
+.reviewActions {
+  min-width: 16rem;
+}
+
+.notesCell {
+  white-space: pre-wrap;
+}
+
+.emptyState {
+  color: var(--muted);
+}
+
+.selectionBar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.selectionControls,
+.downloadActions,
+.photoActionsRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.selectionSummary {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.selectionToggle {
+  align-items: center;
+  color: var(--pine);
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 0.55rem;
+}
+
+.selectionToggle input {
+  accent-color: var(--pine);
+  block-size: 1rem;
+  inline-size: 1rem;
+}
+
+.toolbarStatus {
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0 0 1rem;
+  min-height: 1.5rem;
+}
+
+.toolbarStatusError {
+  color: var(--rose);
+}
+
+.cardHeader {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
+.photoMeta {
+  display: grid;
+  gap: 0rem;
+  margin: 0.85rem 0 0;
+  text-align: center;
+}
+
+.photoMeta p {
+  margin: 0;
+}
+
+.remembranceNote {
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0.95rem 0 0;
+  padding: 0.85rem 0.95rem;
+}
+
+.remembranceNote p {
+  margin: 0;
+}
+
+.remembranceGrid {
+  align-items: stretch;
+  gap: 1.25rem;
+}
+
+.remembranceCard {
+  gap: 0.25rem;
+  min-width: 0;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.remembranceCardHeader {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  justify-content: space-evenly;
+  padding: 1rem 1rem 0;
+}
+
+.remembranceCardMedia {
+  overflow: hidden;
+}
+
+.remembrancePhotoPreview {
+  border-radius: 0;
+  display: block;
+  transition: transform 0.18s ease;
+}
+
+.remembranceCardBody {
+  display: grid;
+  gap: 0.85rem;
+  height: 100%;
+  min-width: 0;
+  padding: 1rem;
+}
+
+.remembrancePreviewButton {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 0;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.remembrancePreviewButton:focus-visible {
+  outline: 3px solid var(--brass);
+  outline-offset: -3px;
+}
+
+.remembrancePreviewButton:hover .remembrancePhotoPreview,
+.remembrancePreviewButton:focus-visible .remembrancePhotoPreview {
+  transform: scale(1.02);
+}
+
+.remembranceCardCopy {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.remembranceCardCopy p,
+.remembranceCardTitle {
+  overflow-wrap: anywhere;
+}
+
+.remembranceCardTitle {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.remembrancePreviewHint {
+  color: var(--pine);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.remembranceCardNote {
+  margin: 0;
+}
+
+.remembranceCardActions {
+  margin-top: auto;
+  padding: 0 1rem 1rem;
+  justify-content: center;
+}
+
+.remembranceDialog {
+  align-items: center;
+  background: rgb(8 16 21 / 0.84);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.25rem;
+  position: fixed;
+  z-index: 40;
+}
+
+.remembranceDialogPanel {
+  background: linear-gradient(180deg, rgb(255 255 255 / 98%), rgb(243 240 233));
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 0.5rem);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 0.24);
+  max-height: min(92vh, 60rem);
+  max-width: min(92vw, 68rem);
+  overflow: auto;
+  padding: 1rem;
+  width: 100%;
+}
+
+.remembranceDialogTopline {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.remembranceDialogEyebrow {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.remembranceDialogClose {
+  margin-left: auto;
+}
+
+.remembranceDialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.remembranceDialogFigure {
+  margin: 0;
+}
+
+.remembranceDialogImage {
+  background: var(--surface-strong);
+  border-radius: calc(var(--radius) + 0.15rem);
+  display: block;
+  max-height: min(70vh, 42rem);
+  object-fit: contain;
+  width: 100%;
+}
+
+.remembranceDialogContent,
+.remembranceDialogCopy,
+.remembranceDialogMeta {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.remembranceDialogContent {
+  align-content: start;
+}
+
+.remembranceDialogTitle {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.45rem, 2.5vw, 2rem);
+  margin: 0;
+}
+
+.remembranceDialogMeta p,
+.remembranceDialogNote p {
+  margin: 0;
+}
+
+.remembranceDialogNote {
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+  line-height: 1.7;
+  padding: 1rem;
+}
+
+.remembranceDialogNote p {
+  white-space: pre-wrap;
+}
+
+.remembranceDialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
 .photoGrid,
 .pairingGrid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
 }
 
 .photoPreview {
@@ -193,6 +725,11 @@
   border-radius: var(--radius);
   object-fit: cover;
   width: 100%;
+}
+
+.photoGrid.remembranceGrid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 16rem));
+  justify-content: start;
 }
 
 .pairingMembers {
@@ -204,11 +741,13 @@
 
 .pairingMembers li {
   display: flex;
+  gap: 1rem;
   justify-content: space-between;
   list-style: none;
 }
 
 .loginPage {
+  background: linear-gradient(180deg, rgb(248 246 241 / 82%), rgb(243 240 233));
   display: grid;
   min-height: calc(100vh - 4.75rem);
   padding: var(--page-gutter);
@@ -227,27 +766,55 @@
   margin: 0;
 }
 
+.loginPanel .pageIntro {
+  max-width: none;
+}
+
 .error {
   color: var(--rose);
   font-weight: 800;
 }
 
 @media (max-width: 920px) {
-  .adminShell {
+  .shellHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .topline,
+  .sectionHeader,
+  .pageMetaBar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .selectionBar,
+  .selectionControls,
+  .downloadActions,
+  .photoActionsRow,
+  .cardHeader,
+  .remembranceDialogTopline {
+    align-items: center;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .remembranceDialogBody {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .moderationActions {
     grid-template-columns: 1fr;
   }
 
-  .sidebar {
-    position: static;
+  .remembranceDialog {
+    padding: 0.75rem;
   }
 
-  .adminNav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .statGrid,
-  .photoGrid,
-  .pairingGrid {
-    grid-template-columns: 1fr;
+  .remembranceDialogPanel {
+    max-height: 95vh;
+    padding: 0.75rem;
   }
 }

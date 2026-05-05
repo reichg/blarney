@@ -1,23 +1,56 @@
 import styles from "@/app/forms.module.css";
+import { PaginationNav } from "@/components/PaginationNav";
 import { PhotoUploadForm } from "@/components/PhotoUploadForm";
 import { db } from "@/lib/db";
+import {
+  buildPaginationState,
+  parsePaginationParams,
+  type PaginationParams,
+  type SearchParamsRecord,
+} from "@/lib/pagination";
+import { PhotoGallery } from "./PhotoGallery";
 import photoStyles from "./photos.module.css";
 
 export const dynamic = "force-dynamic";
 
-async function getApprovedPhotos() {
+type PhotosPageProps = {
+  searchParams: Promise<SearchParamsRecord>;
+};
+
+async function getApprovedPhotos(pagination: PaginationParams) {
+  const where = {
+    approvedS3Key: { not: null },
+    purpose: "GALLERY" as const,
+    status: "APPROVED" as const,
+  };
+
   try {
-    return await db.photoSubmission.findMany({
-      where: { status: "APPROVED" },
-      orderBy: { approvedAt: "desc" },
-    });
+    const [photos, totalCount] = await Promise.all([
+      db.photoSubmission.findMany({
+        where,
+        orderBy: [{ approvedAt: "desc" }, { id: "desc" }],
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      db.photoSubmission.count({ where }),
+    ]);
+
+    return {
+      photos,
+      pagination: buildPaginationState(pagination, totalCount),
+    };
   } catch {
-    return [];
+    return {
+      photos: [],
+      pagination: buildPaginationState(pagination, 0),
+    };
   }
 }
 
-export default async function PhotosPage() {
-  const photos = await getApprovedPhotos();
+export default async function PhotosPage({ searchParams }: PhotosPageProps) {
+  const params = await searchParams;
+  const paginationParams = parsePaginationParams(params);
+  const { photos, pagination } = await getApprovedPhotos(paginationParams);
 
   return (
     <>
@@ -34,25 +67,24 @@ export default async function PhotosPage() {
         <div className={photoStyles.layout}>
           <div>
             {photos.length ? (
-              <div className={photoStyles.gallery}>
-                {photos.map((photo) => (
-                  <figure className={photoStyles.photo} key={photo.id}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      alt={photo.caption ?? "Blarney tournament photo"}
-                      src={`/api/photos/${photo.id}/view`}
-                    />
-                    {photo.caption ? (
-                      <figcaption>{photo.caption}</figcaption>
-                    ) : null}
-                  </figure>
-                ))}
-              </div>
+              <PhotoGallery
+                photos={photos.map((photo) => ({
+                  id: photo.id,
+                  caption: photo.caption,
+                }))}
+              />
             ) : (
               <div className={photoStyles.emptyGallery}>
-                Approved tournament photos will appear here.
+                {pagination.isEmpty
+                  ? "Approved photos will appear here."
+                  : "No approved photos on this page."}
               </div>
             )}
+            <PaginationNav
+              label="Approved photos"
+              pagination={pagination}
+              searchParams={params}
+            />
           </div>
           <aside className={styles.panel}>
             <h2>Submit a Photo</h2>

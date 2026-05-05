@@ -20,7 +20,7 @@ export default async function RootLayout({
     <html lang="en">
       <body>
         <div className="page-shell">
-          <Navigation remembranceUrl={settings.remembranceUrl} />
+          <Navigation />
           <main className="main-content">{children}</main>
           <footer className="site-footer">
             <div className="site-footer-inner">

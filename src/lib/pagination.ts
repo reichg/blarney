@@ -1,0 +1,123 @@
+import { z } from "zod";
+
+export const DEFAULT_PAGE_SIZE = 50;
+export const MAX_PAGE_SIZE = 50;
+
+export type SearchParamsRecord = Record<string, string | string[] | undefined>;
+
+type PaginationKeyOptions = {
+  pageKey?: string;
+  pageSizeKey?: string;
+  defaultPageSize?: number;
+  maxPageSize?: number;
+};
+
+export type PaginationParams = {
+  page: number;
+  pageSize: number;
+  skip: number;
+  take: number;
+  pageKey: string;
+  pageSizeKey: string;
+};
+
+export type PaginationState = PaginationParams & {
+  totalCount: number;
+  totalPages: number;
+  currentCount: number;
+  startIndex: number;
+  endIndex: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+  isEmpty: boolean;
+};
+
+function normalizeSearchParamValue(value: string | string[] | undefined) {
+  const resolvedValue = Array.isArray(value) ? value[0] : value;
+
+  if (typeof resolvedValue !== "string") {
+    return undefined;
+  }
+
+  const trimmedValue = resolvedValue.trim();
+
+  return trimmedValue.length > 0 ? trimmedValue : undefined;
+}
+
+const positiveIntegerParamSchema = z.preprocess((value) => {
+  const normalizedValue = normalizeSearchParamValue(
+    value as string | string[] | undefined,
+  );
+
+  if (normalizedValue === undefined) {
+    return undefined;
+  }
+
+  return Number(normalizedValue);
+}, z.number().int().min(1));
+
+function parsePositiveInteger(
+  value: string | string[] | undefined,
+  fallback: number,
+) {
+  const result = positiveIntegerParamSchema.safeParse(value);
+
+  return result.success ? result.data : fallback;
+}
+
+export function parsePaginationParams(
+  searchParams: SearchParamsRecord | undefined,
+  options: PaginationKeyOptions = {},
+): PaginationParams {
+  const pageKey = options.pageKey ?? "page";
+  const pageSizeKey = options.pageSizeKey ?? "pageSize";
+  const maxPageSize = Math.max(1, options.maxPageSize ?? MAX_PAGE_SIZE);
+  const defaultPageSize = Math.min(
+    maxPageSize,
+    Math.max(1, options.defaultPageSize ?? DEFAULT_PAGE_SIZE),
+  );
+  const params = searchParams ?? {};
+  const page = parsePositiveInteger(params[pageKey], 1);
+  const pageSize = Math.min(
+    parsePositiveInteger(params[pageSizeKey], defaultPageSize),
+    maxPageSize,
+  );
+
+  return {
+    page,
+    pageSize,
+    skip: (page - 1) * pageSize,
+    take: pageSize,
+    pageKey,
+    pageSizeKey,
+  };
+}
+
+export function buildPaginationState(
+  params: PaginationParams,
+  totalCount: number,
+): PaginationState {
+  const normalizedTotalCount = Math.max(0, totalCount);
+  const totalPages =
+    normalizedTotalCount === 0
+      ? 1
+      : Math.ceil(normalizedTotalCount / params.pageSize);
+  const currentCount = Math.min(
+    params.pageSize,
+    Math.max(normalizedTotalCount - params.skip, 0),
+  );
+  const startIndex = currentCount === 0 ? 0 : params.skip + 1;
+  const endIndex = currentCount === 0 ? 0 : params.skip + currentCount;
+
+  return {
+    ...params,
+    totalCount: normalizedTotalCount,
+    totalPages,
+    currentCount,
+    startIndex,
+    endIndex,
+    hasPreviousPage: params.page > 1,
+    hasNextPage: params.page < totalPages,
+    isEmpty: normalizedTotalCount === 0,
+  };
+}

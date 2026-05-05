@@ -5,6 +5,7 @@ import {
 } from "@/lib/photoUpload";
 import {
   CopyObjectCommand,
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -54,10 +55,33 @@ export function approvedKeyFromPendingKey(key: string) {
     : `approved/${key}`;
 }
 
-export async function createPendingPhotoUpload(
+async function movePhotoObject(sourceKey: string, destinationKey: string) {
+  const bucket = getBucket();
+  const client = getS3Client();
+  const copySource = `${bucket}/${encodeURIComponent(sourceKey).replace(/%2F/g, "/")}`;
+
+  await client.send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      CopySource: copySource,
+      Key: destinationKey,
+    }),
+  );
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: sourceKey,
+    }),
+  );
+
+  return destinationKey;
+}
+
+async function createPhotoUpload(
   fileName: string,
   contentType: string,
   fileSize: number,
+  prefix: "pending" | "remembrance",
 ) {
   if (!isAllowedImageType(contentType)) {
     throw new Error("Unsupported image type.");
@@ -67,7 +91,7 @@ export async function createPendingPhotoUpload(
     throw new Error(`Photos must be ${photoUploadLimitLabel} or smaller.`);
   }
 
-  const key = `pending/${randomUUID()}-${cleanFileName(fileName) || "photo"}`;
+  const key = `${prefix}/${randomUUID()}-${cleanFileName(fileName) || "photo"}`;
   const command = new PutObjectCommand({
     Bucket: getBucket(),
     Key: key,
@@ -80,20 +104,40 @@ export async function createPendingPhotoUpload(
   };
 }
 
-export async function copyPendingPhotoToApproved(key: string) {
-  const approvedKey = approvedKeyFromPendingKey(key);
-  const bucket = getBucket();
-  const copySource = `${bucket}/${encodeURIComponent(key).replace(/%2F/g, "/")}`;
+export async function createPendingPhotoUpload(
+  fileName: string,
+  contentType: string,
+  fileSize: number,
+) {
+  return createPhotoUpload(fileName, contentType, fileSize, "pending");
+}
 
+export async function createRemembrancePhotoUpload(
+  fileName: string,
+  contentType: string,
+  fileSize: number,
+) {
+  return createPhotoUpload(fileName, contentType, fileSize, "remembrance");
+}
+
+export async function movePendingPhotoToApproved(key: string) {
+  return movePhotoObject(key, approvedKeyFromPendingKey(key));
+}
+
+export async function moveApprovedPhotoToPending(
+  approvedKey: string,
+  pendingKey: string,
+) {
+  return movePhotoObject(approvedKey, pendingKey);
+}
+
+export async function deletePhotoObject(key: string) {
   await getS3Client().send(
-    new CopyObjectCommand({
-      Bucket: bucket,
-      CopySource: copySource,
-      Key: approvedKey,
+    new DeleteObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
     }),
   );
-
-  return approvedKey;
 }
 
 export async function getPhotoReadUrl(key: string) {
@@ -103,4 +147,25 @@ export async function getPhotoReadUrl(key: string) {
   });
 
   return getSignedUrl(getS3Client(), command, { expiresIn: 300 });
+}
+
+export async function getPhotoObjectBytes(key: string) {
+  const response = await getS3Client().send(
+    new GetObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+    }),
+  );
+
+  if (!response.Body) {
+    throw new Error("Photo object body is missing.");
+  }
+
+  const body = Buffer.from(await response.Body.transformToByteArray());
+
+  return {
+    body,
+    contentLength: response.ContentLength ?? body.byteLength,
+    contentType: response.ContentType ?? "application/octet-stream",
+  };
 }

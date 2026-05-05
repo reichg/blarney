@@ -1,20 +1,33 @@
+"use client";
+
+import { chairLinks } from "@/app/chair/links";
 import { MobileNavigation, type NavLink } from "@/components/MobileNavigation";
 import styles from "@/components/Navigation.module.css";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-type NavigationProps = {
-  remembranceUrl: string;
-};
+const publicLinks: NavLink[] = [
+  { href: "/", label: "Home" },
+  { href: "/register", label: "Pay/Register" },
+  { href: "/logistics", label: "Logistics" },
+  { href: "/feedback", label: "Feedback" },
+  { href: "/photos", label: "Photos" },
+  { href: "/remembrance", label: "In Remembrance" },
+];
 
-export function Navigation({ remembranceUrl }: NavigationProps) {
-  const links: NavLink[] = [
-    { href: "/", label: "Home" },
-    { href: "/register", label: "Pay/Register" },
-    { href: "/logistics", label: "Logistics" },
-    { href: "/feedback", label: "Feedback" },
-    { href: "/photos", label: "Photos" },
-    { href: remembranceUrl, label: "In Remembrance", external: true },
-  ];
+function isActivePath(pathname: string, href: string) {
+  if (href === "/" || href === "/chair") {
+    return pathname === href;
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function Navigation() {
+  const pathname = usePathname();
+  const isChairRoute =
+    pathname.startsWith("/chair") && pathname !== "/chair/login";
+  const links: NavLink[] = isChairRoute ? chairLinks : publicLinks;
 
   return (
     <header className={styles.header}>
@@ -23,7 +36,10 @@ export function Navigation({ remembranceUrl }: NavigationProps) {
           <span className={styles.brandName}>Blarney 42</span>
           <span className={styles.brandMeta}>Cannon Beach</span>
         </Link>
-        <nav aria-label="Primary navigation" className={styles.desktopNav}>
+        <nav
+          aria-label={isChairRoute ? "Chair navigation" : "Primary navigation"}
+          className={styles.desktopNav}
+        >
           {links.map((link) =>
             link.external ? (
               <a
@@ -37,6 +53,9 @@ export function Navigation({ remembranceUrl }: NavigationProps) {
               </a>
             ) : (
               <Link
+                aria-current={
+                  isActivePath(pathname, link.href) ? "page" : undefined
+                }
                 className={styles.desktopLink}
                 href={link.href}
                 key={link.href}

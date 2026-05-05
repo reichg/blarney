@@ -32,7 +32,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: clamp(1rem, 3vw, 1.5rem);
+  padding: 2rem;
 }
 
 .panel h2,
@@ -49,7 +49,7 @@
 
 .detailList {
   display: grid;
-  gap: 0.75rem;
+  gap: 1.25rem;
   margin: 0;
   padding: 0;
 }
@@ -60,7 +60,7 @@
 
 .form {
   display: grid;
-  gap: 1rem;
+  gap: 2rem;
 }
 
 .formSubsection {

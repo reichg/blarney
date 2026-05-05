@@ -20,6 +20,20 @@
   overflow: hidden;
 }
 
+.photoTrigger {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: block;
+  padding: 0;
+  width: 100%;
+}
+
+.photoTrigger:focus-visible {
+  outline: 3px solid var(--brass);
+  outline-offset: -3px;
+}
+
 .photo img {
   aspect-ratio: 4 / 3;
   display: block;
@@ -42,6 +56,69 @@
   padding: 1.25rem;
 }
 
+.lightbox {
+  align-items: center;
+  background: rgb(8 16 21 / 0.84);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.5rem;
+  position: fixed;
+  z-index: 40;
+}
+
+.lightboxPanel {
+  background: var(--pine-dark);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: calc(var(--radius) + 0.5rem);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 0.35);
+  max-height: min(92vh, 60rem);
+  max-width: min(92vw, 72rem);
+  overflow: auto;
+  padding: 1rem;
+  width: 100%;
+}
+
+.lightboxClose {
+  /* background: transparent; */
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  justify-content: center;
+  margin-left: auto;
+  min-width: 5.5rem;
+  padding: 0.55rem 1rem;
+}
+
+.lightboxClose:focus-visible {
+  outline: 3px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.lightboxFigure {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0.75rem 0 0;
+}
+
+.lightboxImage {
+  display: block;
+  height: auto;
+  max-height: calc(92vh - 10rem);
+  object-fit: contain;
+  width: 100%;
+}
+
+.lightboxCaption {
+  color: var(--muted);
+  line-height: 1.6;
+  padding: 0 0.25rem 0.25rem;
+  text-align: center;
+}
+
 @media (max-width: 980px) {
   .layout {
     grid-template-columns: 1fr;
@@ -55,5 +132,18 @@
 @media (max-width: 560px) {
   .gallery {
     grid-template-columns: 1fr;
+  }
+
+  .lightbox {
+    padding: 0.75rem;
+  }
+
+  .lightboxPanel {
+    max-height: 95vh;
+    padding: 0.75rem;
+  }
+
+  .lightboxImage {
+    max-height: calc(95vh - 8.5rem);
   }
 }

@@ -1,0 +1,116 @@
+.photoPicker {
+  border: 1px solid rgba(24, 64, 49, 0.2);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.nativePicker {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  width: 1px;
+}
+
+.photoPickerBody {
+  align-items: flex-start;
+  color: var(--pine);
+  display: flex;
+  gap: 0.75rem;
+}
+
+.photoPickerBody strong,
+.photoPickerBody span {
+  display: block;
+}
+
+.photoPickerBody strong {
+  font-size: 1rem;
+}
+
+.photoPickerBody span {
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-top: 0.15rem;
+}
+
+.browseButton {
+  align-items: center;
+  background: var(--cream);
+  border: 1px solid rgba(24, 64, 49, 0.2);
+  border-radius: var(--radius);
+  color: var(--pine);
+  display: inline-flex;
+  font-weight: 800;
+  gap: 0.45rem;
+  justify-content: center;
+  min-height: 2.6rem;
+  padding: 0.65rem 0.85rem;
+  width: fit-content;
+}
+
+.browseButton:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.browseMenuWrapper {
+  position: relative;
+  width: fit-content;
+}
+
+.browseMenu {
+  background: var(--white);
+  border: 1px solid rgba(24, 64, 49, 0.2);
+  border-radius: var(--radius);
+  box-shadow: 0 14px 34px rgba(24, 64, 49, 0.16);
+  display: grid;
+  gap: 0.25rem;
+  left: 0;
+  min-width: 12rem;
+  padding: 0.35rem;
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  z-index: 2;
+}
+
+.browseMenuButton {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--pine);
+  display: flex;
+  font-weight: 800;
+  gap: 0.5rem;
+  min-height: 2.4rem;
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+}
+
+.browseMenuButton:hover,
+.browseMenuButton:focus-visible {
+  background: var(--cream);
+}
+
+.selectionStatus {
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .browseMenuWrapper,
+  .browseButton {
+    width: 100%;
+  }
+
+  .browseMenu {
+    min-width: 100%;
+  }
+}

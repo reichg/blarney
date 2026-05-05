@@ -1,16 +1,41 @@
-import { createPendingPhotoUpload } from "@/lib/s3";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createPendingPhotoUpload,
+  createRemembrancePhotoUpload,
+  deletePhotoObject,
+  getPhotoObjectBytes,
+  moveApprovedPhotoToPending,
+  movePendingPhotoToApproved,
+} from "@/lib/s3";
+import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const sendMock = vi.fn();
+
+function stubS3Env() {
+  vi.stubEnv("AWS_S3_BUCKET", "blarney-test");
+  vi.stubEnv("AWS_REGION", "us-west-1");
+  vi.stubEnv("AWS_ACCESS_KEY_ID", "test-access-key");
+  vi.stubEnv("AWS_SECRET_ACCESS_KEY", "test-secret-key");
+}
+
+beforeEach(() => {
+  sendMock.mockReset();
+  vi.spyOn(S3Client.prototype, "send").mockImplementation(sendMock as never);
+});
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
 });
 
 describe("S3 photo uploads", () => {
   it("presigns browser PUT uploads without content length or empty checksums", async () => {
-    vi.stubEnv("AWS_S3_BUCKET", "blarney-test");
-    vi.stubEnv("AWS_REGION", "us-west-1");
-    vi.stubEnv("AWS_ACCESS_KEY_ID", "test-access-key");
-    vi.stubEnv("AWS_SECRET_ACCESS_KEY", "test-secret-key");
+    stubS3Env();
 
     const upload = await createPendingPhotoUpload(
       "Four Stack.png",
@@ -25,5 +50,116 @@ describe("S3 photo uploads", () => {
     expect(uploadUrl.searchParams.has("x-amz-sdk-checksum-algorithm")).toBe(
       false,
     );
+  });
+
+  it("presigns remembrance uploads into the private remembrance prefix", async () => {
+    stubS3Env();
+
+    const upload = await createRemembrancePhotoUpload(
+      "Family Portrait.png",
+      "image/png",
+      12345,
+    );
+    const uploadUrl = new URL(upload.uploadUrl);
+
+    expect(upload.key).toMatch(
+      /^remembrance\/[a-f0-9-]+-family-portrait\.png$/,
+    );
+    expect(uploadUrl.searchParams.get("X-Amz-SignedHeaders")).toBe("host");
+    expect(uploadUrl.searchParams.has("x-amz-checksum-crc32")).toBe(false);
+    expect(uploadUrl.searchParams.has("x-amz-sdk-checksum-algorithm")).toBe(
+      false,
+    );
+  });
+
+  it("moves approved photos out of pending by copying then deleting the original key", async () => {
+    stubS3Env();
+    sendMock.mockResolvedValue({});
+
+    await expect(
+      movePendingPhotoToApproved("pending/four-stack.png"),
+    ).resolves.toBe("approved/four-stack.png");
+
+    expect(sendMock).toHaveBeenCalledTimes(2);
+    expect(sendMock.mock.calls[0][0]).toBeInstanceOf(CopyObjectCommand);
+    expect(sendMock.mock.calls[0][0].input).toMatchObject({
+      Bucket: "blarney-test",
+      CopySource: "blarney-test/pending/four-stack.png",
+      Key: "approved/four-stack.png",
+    });
+    expect(sendMock.mock.calls[1][0]).toBeInstanceOf(DeleteObjectCommand);
+    expect(sendMock.mock.calls[1][0].input).toMatchObject({
+      Bucket: "blarney-test",
+      Key: "pending/four-stack.png",
+    });
+  });
+
+  it("moves approved photos back to their pending key", async () => {
+    stubS3Env();
+    sendMock.mockResolvedValue({});
+
+    await expect(
+      moveApprovedPhotoToPending(
+        "approved/four-stack.png",
+        "pending/four-stack.png",
+      ),
+    ).resolves.toBe("pending/four-stack.png");
+
+    expect(sendMock).toHaveBeenCalledTimes(2);
+    expect(sendMock.mock.calls[0][0]).toBeInstanceOf(CopyObjectCommand);
+    expect(sendMock.mock.calls[0][0].input).toMatchObject({
+      Bucket: "blarney-test",
+      CopySource: "blarney-test/approved/four-stack.png",
+      Key: "pending/four-stack.png",
+    });
+    expect(sendMock.mock.calls[1][0]).toBeInstanceOf(DeleteObjectCommand);
+    expect(sendMock.mock.calls[1][0].input).toMatchObject({
+      Bucket: "blarney-test",
+      Key: "approved/four-stack.png",
+    });
+  });
+
+  it("deletes a pending photo object without requiring a prior existence check", async () => {
+    stubS3Env();
+    sendMock.mockResolvedValue({});
+
+    await expect(deletePhotoObject("pending/four-stack.png")).resolves.toBe(
+      undefined,
+    );
+
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(sendMock.mock.calls[0][0]).toBeInstanceOf(DeleteObjectCommand);
+    expect(sendMock.mock.calls[0][0].input).toMatchObject({
+      Bucket: "blarney-test",
+      Key: "pending/four-stack.png",
+    });
+  });
+
+  it("reads photo bytes and content metadata for protected downloads", async () => {
+    stubS3Env();
+    sendMock.mockResolvedValue({
+      Body: {
+        transformToByteArray: vi
+          .fn()
+          .mockResolvedValue(Uint8Array.from([70, 79, 82, 69])),
+      },
+      ContentLength: 4,
+      ContentType: "image/jpeg",
+    });
+
+    await expect(
+      getPhotoObjectBytes("approved/four-stack.png"),
+    ).resolves.toEqual({
+      body: Buffer.from("FORE"),
+      contentLength: 4,
+      contentType: "image/jpeg",
+    });
+
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(sendMock.mock.calls[0][0]).toBeInstanceOf(GetObjectCommand);
+    expect(sendMock.mock.calls[0][0].input).toMatchObject({
+      Bucket: "blarney-test",
+      Key: "approved/four-stack.png",
+    });
   });
 });
