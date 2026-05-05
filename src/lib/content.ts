@@ -6,10 +6,10 @@ export const defaultSettings = {
   eventTime: "Tee times to be announced",
   eventLocation: "Cannon Beach, Oregon",
   courseName: "Manzanita Links",
-  dayBeforeEventName: "Day-before gathering",
-  registrationPackage: "Golf registration with optional pre-event guests",
+  dayBeforeEventName: "BBQ",
+  registrationPackage: "Golf registration with optional BBQ-only guests",
   registrationPriceLabel:
-    "Golfer registration plus separate adult and child pre-event guest charges handled through Square/Cash",
+    "Golfer registration with BBQ included, plus separate BBQ-only adult and kid charges handled through Square/Cash",
   logisticsSummary:
     "Weekend details, lodging notes, pairings, and tee times will be kept current here.",
   remembranceUrl: "https://example.com/in-remembrance",

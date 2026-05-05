@@ -63,6 +63,87 @@
   gap: 1rem;
 }
 
+.formSubsection {
+  display: grid;
+  gap: 1rem;
+}
+
+.subsectionHeader {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.subsectionHeader h3 {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 0 0 0.35rem;
+}
+
+.golferList {
+  display: grid;
+  gap: 1rem;
+}
+
+.golferRow {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 1rem;
+}
+
+.golferRow legend {
+  color: var(--pine);
+  font-size: 0.92rem;
+  font-weight: 800;
+  padding: 0 0.35rem;
+}
+
+.golferActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.addButton,
+.removeButton {
+  align-items: center;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: inline-flex;
+  font-weight: 800;
+  gap: 0.45rem;
+  justify-content: center;
+  min-height: 2.55rem;
+  padding: 0.65rem 0.85rem;
+  width: fit-content;
+}
+
+.addButton {
+  color: var(--pine);
+}
+
+.removeButton {
+  color: #8c2d2d;
+}
+
+.addButton:hover,
+.addButton:focus-visible,
+.removeButton:hover,
+.removeButton:focus-visible {
+  background: var(--surface-strong);
+  outline: none;
+}
+
+.addButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .gridTwo {
   display: grid;
   gap: 1rem;

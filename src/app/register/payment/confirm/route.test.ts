@@ -1,12 +1,21 @@
-import { createRegistrationPaymentConfirmationToken } from "@/lib/payment";
+import {
+  createRegistrationPaymentConfirmationToken,
+  createRsvpPaymentConfirmationToken,
+} from "@/lib/payment";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { confirmRegistrationCheckoutPayment } = vi.hoisted(() => ({
-  confirmRegistrationCheckoutPayment: vi.fn(),
-}));
+const { confirmRegistrationCheckoutPayment, confirmRsvpCheckoutPayment } =
+  vi.hoisted(() => ({
+    confirmRegistrationCheckoutPayment: vi.fn(),
+    confirmRsvpCheckoutPayment: vi.fn(),
+  }));
 
 vi.mock("@/lib/registrationCheckout", () => ({
   confirmRegistrationCheckoutPayment,
+}));
+
+vi.mock("@/lib/rsvpCheckout", () => ({
+  confirmRsvpCheckoutPayment,
 }));
 
 import { GET } from "@/app/register/payment/confirm/route";
@@ -144,6 +153,45 @@ describe("registration payment confirmation route", () => {
 
     expect(response.headers.get("location")).toBe(
       `${publicSiteUrl}/register/thanks?checkout=checkout-123&payment=processing`,
+    );
+  });
+
+  it("finalizes an RSVP checkout when the signed token matches", async () => {
+    vi.stubEnv("ADMIN_SESSION_SECRET", "payment-confirmation-secret");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", publicSiteUrl);
+    confirmRsvpCheckoutPayment.mockResolvedValue({
+      ok: true,
+      rsvpId: "rsvp-123",
+    });
+
+    const token = await createRsvpPaymentConfirmationToken("rsvp-checkout-123");
+    const response = await GET(
+      new Request(
+        `http://localhost:3000/register/payment/confirm?rsvpCheckout=rsvp-checkout-123&token=${encodeURIComponent(token)}`,
+      ),
+    );
+
+    expect(confirmRsvpCheckoutPayment).toHaveBeenCalledWith(
+      "rsvp-checkout-123",
+    );
+    expect(response.headers.get("location")).toBe(
+      `${publicSiteUrl}/rsvp/thanks?rsvp=rsvp-123&payment=confirmed`,
+    );
+  });
+
+  it("leaves an RSVP checkout pending when the token is invalid", async () => {
+    vi.stubEnv("ADMIN_SESSION_SECRET", "payment-confirmation-secret");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", publicSiteUrl);
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/register/payment/confirm?rsvpCheckout=rsvp-checkout-123&token=invalid",
+      ),
+    );
+
+    expect(confirmRsvpCheckoutPayment).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toBe(
+      `${publicSiteUrl}/rsvp/thanks?rsvpCheckout=rsvp-checkout-123&payment=invalid`,
     );
   });
 });

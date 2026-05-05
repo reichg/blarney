@@ -61,7 +61,7 @@ export default async function Home() {
           <div className="button-row">
             <Link className="primary-button" href="/register">
               <Flag aria-hidden="true" size={18} />
-              Register
+              Register or RSVP
             </Link>
             <Link className="secondary-button" href="/logistics">
               <CalendarDays aria-hidden="true" size={18} />
@@ -76,18 +76,18 @@ export default async function Home() {
           <div className={styles.overviewGrid}>
             <article className={styles.overviewItem}>
               <UsersRound aria-hidden="true" color="var(--brass)" size={24} />
-              <h3>Register and Pay</h3>
+              <h3>Register or RSVP</h3>
               <p>
-                Golfers and family can choose events, add golf details, and
-                continue to the Square/Cash payment link.
+                Register golfers, add BBQ-only adults or kids, or send a
+                BBQ-only RSVP from one Pay/Register form.
               </p>
             </article>
             <article className={styles.overviewItem}>
               <CalendarDays aria-hidden="true" color="var(--brass)" size={24} />
-              <h3>RSVP</h3>
+              <h3>Payment Handoff</h3>
               <p>
-                Day-before attendance, family counts, and notes stay organized
-                for the chair.
+                Golf registration includes BBQ, and BBQ-only RSVPs continue to
+                Square checkout for adult and kid counts.
               </p>
             </article>
             <article className={styles.overviewItem}>

@@ -3,7 +3,9 @@ import { createHash } from "crypto";
 import { jwtVerify, SignJWT } from "jose";
 
 const squareVersion = "2026-03-18";
-const paymentConfirmationPurpose = "registration-payment-confirmation";
+const registrationPaymentConfirmationPurpose =
+  "registration-payment-confirmation";
+const rsvpPaymentConfirmationPurpose = "rsvp-payment-confirmation";
 const encoder = new TextEncoder();
 const paymentConfirmationTokenLifetime = "2h";
 
@@ -70,8 +72,16 @@ type SquareOrderLineItem = {
 };
 
 export type RegistrationGuestCounts = {
-  adultGuestCount: number;
-  childGuestCount: number;
+  golferCount?: number;
+  bbqOnlyAdultCount?: number;
+  bbqOnlyKidCount?: number;
+  adultGuestCount?: number;
+  childGuestCount?: number;
+};
+
+export type RsvpAttendeeCounts = {
+  adultAttendeeCount: number;
+  childAttendeeCount: number;
 };
 
 export type RegistrationPaymentLineItem = {
@@ -85,12 +95,28 @@ export type RegistrationPaymentLineItem = {
 
 export type RegistrationPaymentBreakdown = {
   currency: string;
+  golferCount: number;
   golfPriceCents: number;
   golfPriceLabel: string;
+  bbqOnlyAdultCount: number;
+  bbqOnlyKidCount: number;
   adultGuestCount: number;
   adultGuestPriceCents: number;
   adultGuestPriceLabel: string;
   childGuestCount: number;
+  childGuestPriceCents: number;
+  childGuestPriceLabel: string;
+  totalCents: number;
+  totalLabel: string;
+  lineItems: RegistrationPaymentLineItem[];
+};
+
+export type RsvpPaymentBreakdown = {
+  currency: string;
+  adultAttendeeCount: number;
+  adultGuestPriceCents: number;
+  adultGuestPriceLabel: string;
+  childAttendeeCount: number;
   childGuestPriceCents: number;
   childGuestPriceLabel: string;
   totalCents: number;
@@ -249,6 +275,13 @@ function getRegistrationPaymentLinkIdempotencyKey(checkoutId: string) {
     .slice(0, 45);
 }
 
+function getRsvpPaymentLinkIdempotencyKey(checkoutId: string) {
+  return createHash("sha256")
+    .update(`rsvp-payment-link:${checkoutId}`)
+    .digest("hex")
+    .slice(0, 45);
+}
+
 function buildLineItem(
   label: string,
   quantity: number,
@@ -287,56 +320,78 @@ export function getRegistrationPricing() {
     golfPriceCents: parseMoneyCents("REGISTRATION_GOLF_PRICE_CENTS", 1),
     adultGuestPriceCents: parseMoneyCentsFromNames(
       [
+        "REGISTRATION_BBQ_ADULT_PRICE_CENTS",
         "REGISTRATION_PRE_EVENT_ADULT_PRICE_CENTS",
         "REGISTRATION_PRE_EVENT_GUEST_PRICE_CENTS",
       ],
       0,
     ),
-    childGuestPriceCents: parseMoneyCents(
-      "REGISTRATION_PRE_EVENT_CHILD_PRICE_CENTS",
+    childGuestPriceCents: parseMoneyCentsFromNames(
+      [
+        "REGISTRATION_BBQ_KID_PRICE_CENTS",
+        "REGISTRATION_PRE_EVENT_CHILD_PRICE_CENTS",
+      ],
       0,
     ),
+  };
+}
+
+function normalizeRegistrationGuestCounts(
+  guestCounts: RegistrationGuestCounts,
+) {
+  return {
+    golferCount: guestCounts.golferCount ?? 1,
+    bbqOnlyAdultCount:
+      guestCounts.bbqOnlyAdultCount ?? guestCounts.adultGuestCount ?? 0,
+    bbqOnlyKidCount:
+      guestCounts.bbqOnlyKidCount ?? guestCounts.childGuestCount ?? 0,
   };
 }
 
 export function getRegistrationPaymentBreakdown(
   guestCounts: RegistrationGuestCounts,
 ): RegistrationPaymentBreakdown {
-  if (
-    !Number.isInteger(guestCounts.adultGuestCount) ||
-    guestCounts.adultGuestCount < 0
-  ) {
-    throw new Error("adultGuestCount must be a non-negative integer.");
+  const { golferCount, bbqOnlyAdultCount, bbqOnlyKidCount } =
+    normalizeRegistrationGuestCounts(guestCounts);
+
+  if (!Number.isInteger(golferCount) || golferCount < 1) {
+    throw new Error("golferCount must be a positive integer.");
   }
 
-  if (
-    !Number.isInteger(guestCounts.childGuestCount) ||
-    guestCounts.childGuestCount < 0
-  ) {
-    throw new Error("childGuestCount must be a non-negative integer.");
+  if (!Number.isInteger(bbqOnlyAdultCount) || bbqOnlyAdultCount < 0) {
+    throw new Error("bbqOnlyAdultCount must be a non-negative integer.");
+  }
+
+  if (!Number.isInteger(bbqOnlyKidCount) || bbqOnlyKidCount < 0) {
+    throw new Error("bbqOnlyKidCount must be a non-negative integer.");
   }
 
   const pricing = getRegistrationPricing();
   const lineItems = [
-    buildLineItem("Golf entry", 1, pricing.golfPriceCents, pricing.currency),
+    buildLineItem(
+      "Golf registration (BBQ included)",
+      golferCount,
+      pricing.golfPriceCents,
+      pricing.currency,
+    ),
   ];
 
-  if (guestCounts.adultGuestCount > 0) {
+  if (bbqOnlyAdultCount > 0) {
     lineItems.push(
       buildLineItem(
-        "Pre-event adults",
-        guestCounts.adultGuestCount,
+        "BBQ-only adults",
+        bbqOnlyAdultCount,
         pricing.adultGuestPriceCents,
         pricing.currency,
       ),
     );
   }
 
-  if (guestCounts.childGuestCount > 0) {
+  if (bbqOnlyKidCount > 0) {
     lineItems.push(
       buildLineItem(
-        "Pre-event children",
-        guestCounts.childGuestCount,
+        "BBQ-only kids",
+        bbqOnlyKidCount,
         pricing.childGuestPriceCents,
         pricing.currency,
       ),
@@ -347,13 +402,87 @@ export function getRegistrationPaymentBreakdown(
 
   return {
     ...pricing,
-    adultGuestCount: guestCounts.adultGuestCount,
-    childGuestCount: guestCounts.childGuestCount,
+    golferCount,
+    bbqOnlyAdultCount,
+    bbqOnlyKidCount,
+    adultGuestCount: bbqOnlyAdultCount,
+    childGuestCount: bbqOnlyKidCount,
     golfPriceLabel: formatCurrency(pricing.golfPriceCents, pricing.currency),
     adultGuestPriceLabel: formatCurrency(
       pricing.adultGuestPriceCents,
       pricing.currency,
     ),
+    childGuestPriceLabel: formatCurrency(
+      pricing.childGuestPriceCents,
+      pricing.currency,
+    ),
+    totalCents,
+    totalLabel: formatCurrency(totalCents, pricing.currency),
+    lineItems,
+  };
+}
+
+export function getRsvpPaymentBreakdown(
+  attendeeCounts: RsvpAttendeeCounts,
+): RsvpPaymentBreakdown {
+  if (
+    !Number.isInteger(attendeeCounts.adultAttendeeCount) ||
+    attendeeCounts.adultAttendeeCount < 0
+  ) {
+    throw new Error("adultAttendeeCount must be a non-negative integer.");
+  }
+
+  if (
+    !Number.isInteger(attendeeCounts.childAttendeeCount) ||
+    attendeeCounts.childAttendeeCount < 0
+  ) {
+    throw new Error("childAttendeeCount must be a non-negative integer.");
+  }
+
+  if (
+    attendeeCounts.adultAttendeeCount + attendeeCounts.childAttendeeCount <
+    1
+  ) {
+    throw new Error("At least one RSVP attendee is required for payment.");
+  }
+
+  const pricing = getRegistrationPricing();
+  const lineItems: RegistrationPaymentLineItem[] = [];
+
+  if (attendeeCounts.adultAttendeeCount > 0) {
+    lineItems.push(
+      buildLineItem(
+        "BBQ-only adults",
+        attendeeCounts.adultAttendeeCount,
+        pricing.adultGuestPriceCents,
+        pricing.currency,
+      ),
+    );
+  }
+
+  if (attendeeCounts.childAttendeeCount > 0) {
+    lineItems.push(
+      buildLineItem(
+        "BBQ-only kids",
+        attendeeCounts.childAttendeeCount,
+        pricing.childGuestPriceCents,
+        pricing.currency,
+      ),
+    );
+  }
+
+  const totalCents = lineItems.reduce((sum, item) => sum + item.totalCents, 0);
+
+  return {
+    currency: pricing.currency,
+    adultAttendeeCount: attendeeCounts.adultAttendeeCount,
+    adultGuestPriceCents: pricing.adultGuestPriceCents,
+    adultGuestPriceLabel: formatCurrency(
+      pricing.adultGuestPriceCents,
+      pricing.currency,
+    ),
+    childAttendeeCount: attendeeCounts.childAttendeeCount,
+    childGuestPriceCents: pricing.childGuestPriceCents,
     childGuestPriceLabel: formatCurrency(
       pricing.childGuestPriceCents,
       pricing.currency,
@@ -382,6 +511,10 @@ export function getRegistrationCheckoutPaymentPath(checkoutId: string) {
   return `/register/payment?checkout=${encodeURIComponent(checkoutId)}`;
 }
 
+export function getRsvpCheckoutPaymentPath(checkoutId: string) {
+  return `/register/payment?rsvpCheckout=${encodeURIComponent(checkoutId)}`;
+}
+
 export function getRegistrationPaymentConfirmationPath(
   checkoutId: string,
   token: string,
@@ -389,11 +522,29 @@ export function getRegistrationPaymentConfirmationPath(
   return `/register/payment/confirm?checkout=${encodeURIComponent(checkoutId)}&token=${encodeURIComponent(token)}`;
 }
 
+export function getRsvpPaymentConfirmationPath(
+  checkoutId: string,
+  token: string,
+) {
+  return `/register/payment/confirm?rsvpCheckout=${encodeURIComponent(checkoutId)}&token=${encodeURIComponent(token)}`;
+}
+
 export async function createRegistrationPaymentConfirmationToken(
   checkoutId: string,
 ) {
   return new SignJWT({
-    purpose: paymentConfirmationPurpose,
+    purpose: registrationPaymentConfirmationPurpose,
+    checkoutId,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(paymentConfirmationTokenLifetime)
+    .sign(getPaymentConfirmationSecret());
+}
+
+export async function createRsvpPaymentConfirmationToken(checkoutId: string) {
+  return new SignJWT({
+    purpose: rsvpPaymentConfirmationPurpose,
     checkoutId,
   })
     .setProtectedHeader({ alg: "HS256" })
@@ -413,7 +564,33 @@ export async function verifyRegistrationPaymentConfirmationToken(
     const { payload } = await jwtVerify(token, getPaymentConfirmationSecret());
 
     if (
-      payload.purpose !== paymentConfirmationPurpose ||
+      payload.purpose !== registrationPaymentConfirmationPurpose ||
+      typeof payload.checkoutId !== "string" ||
+      payload.checkoutId.length === 0
+    ) {
+      return null;
+    }
+
+    return {
+      checkoutId: payload.checkoutId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function verifyRsvpPaymentConfirmationToken(
+  token?: string | null,
+) {
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, getPaymentConfirmationSecret());
+
+    if (
+      payload.purpose !== rsvpPaymentConfirmationPurpose ||
       typeof payload.checkoutId !== "string" ||
       payload.checkoutId.length === 0
     ) {
@@ -538,13 +715,19 @@ export async function getRegistrationPaymentLinkState(
 export async function createRegistrationPaymentLink({
   checkoutId,
   email,
+  golferCount,
+  bbqOnlyAdultCount,
+  bbqOnlyKidCount,
   adultGuestCount,
   childGuestCount,
 }: {
   checkoutId: string;
   email: string;
-  adultGuestCount: number;
-  childGuestCount: number;
+  golferCount?: number;
+  bbqOnlyAdultCount?: number;
+  bbqOnlyKidCount?: number;
+  adultGuestCount?: number;
+  childGuestCount?: number;
 }) {
   const accessToken = getRequiredEnv("SQUARE_ACCESS_TOKEN");
   const locationId = getRequiredEnv("SQUARE_LOCATION_ID");
@@ -552,6 +735,9 @@ export async function createRegistrationPaymentLink({
     await createRegistrationPaymentConfirmationToken(checkoutId);
 
   const breakdown = getRegistrationPaymentBreakdown({
+    golferCount,
+    bbqOnlyAdultCount,
+    bbqOnlyKidCount,
     adultGuestCount,
     childGuestCount,
   });
@@ -568,6 +754,69 @@ export async function createRegistrationPaymentLink({
           )}`,
         },
         idempotency_key: getRegistrationPaymentLinkIdempotencyKey(checkoutId),
+        order: {
+          location_id: locationId,
+          line_items: breakdown.lineItems.map((item) =>
+            toSquareOrderLineItem(item, breakdown.currency),
+          ),
+        },
+        pre_populated_data: {
+          buyer_email: email,
+        },
+      }),
+      cache: "no-store",
+    },
+  );
+
+  const payload = await readSquareResponse<SquarePaymentLinkResponse>(response);
+
+  if (!response.ok || !payload.payment_link?.url) {
+    throw new Error(
+      getSquareErrorDetail(payload.errors) ||
+        "Square payment link request failed.",
+    );
+  }
+
+  return {
+    reference: payload.payment_link.id ?? null,
+    orderId: payload.payment_link.order_id ?? null,
+    url: payload.payment_link.url,
+  };
+}
+
+export async function createRsvpPaymentLink({
+  checkoutId,
+  email,
+  adultAttendeeCount,
+  childAttendeeCount,
+}: {
+  checkoutId: string;
+  email: string;
+  adultAttendeeCount: number;
+  childAttendeeCount: number;
+}) {
+  const accessToken = getRequiredEnv("SQUARE_ACCESS_TOKEN");
+  const locationId = getRequiredEnv("SQUARE_LOCATION_ID");
+  const confirmationToken =
+    await createRsvpPaymentConfirmationToken(checkoutId);
+
+  const breakdown = getRsvpPaymentBreakdown({
+    adultAttendeeCount,
+    childAttendeeCount,
+  });
+  const response = await fetch(
+    `${getSquareApiBaseUrl()}/online-checkout/payment-links`,
+    {
+      method: "POST",
+      headers: getSquareRequestHeaders(accessToken),
+      body: JSON.stringify({
+        checkout_options: {
+          redirect_url: `${getSiteUrl()}${getRsvpPaymentConfirmationPath(
+            checkoutId,
+            confirmationToken,
+          )}`,
+        },
+        idempotency_key: getRsvpPaymentLinkIdempotencyKey(checkoutId),
         order: {
           location_id: locationId,
           line_items: breakdown.lineItems.map((item) =>

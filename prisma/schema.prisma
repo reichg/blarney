@@ -42,11 +42,17 @@ enum RegistrationCheckoutStatus {
   PAYMENT_REVIEW
 }
 
+enum RsvpCheckoutStatus {
+  PENDING
+  CONFIRMED
+  PAYMENT_REVIEW
+}
+
 model Participant {
   id            String          @id @default(cuid())
   firstName     String
   lastName      String
-  email         String          @unique
+  email         String?         @unique
   phone         String?
   gender        Gender
   age           Int
@@ -63,19 +69,23 @@ model Participant {
 model Registration {
   id               String                @id @default(cuid())
   participantId    String                @unique
+  checkoutId       String?
   packageSelection String
   adultGuestCount  Int                   @default(0)
   childGuestCount  Int                   @default(0)
   dayBeforeRsvp    Boolean               @default(false)
   paymentStatus    PaymentStatus         @default(EXTERNAL_PENDING)
-  paymentReference String?               @unique
+  paymentReference String?
   notes            String?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   participant      Participant           @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  checkout         RegistrationCheckout?
+  primaryCheckout  RegistrationCheckout? @relation("PrimaryRegistration")
+  checkout         RegistrationCheckout? @relation("RegistrationCheckoutBatch", fields: [checkoutId], references: [id], onDelete: SetNull)
 
   @@index([paymentStatus])
+  @@index([paymentReference])
+  @@index([checkoutId])
   @@index([createdAt])
 }
 
@@ -95,32 +105,56 @@ model RegistrationCheckout {
   lastReconciledAt    DateTime?
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
-  registration        Registration?              @relation(fields: [registrationId], references: [id], onDelete: SetNull)
+  registration        Registration?              @relation("PrimaryRegistration", fields: [registrationId], references: [id], onDelete: SetNull)
+  registrations       Registration[]             @relation("RegistrationCheckoutBatch")
 
   @@index([email])
   @@index([status, createdAt])
 }
 
 model Rsvp {
-  id                 String       @id @default(cuid())
+  id                 String        @id @default(cuid())
   participantId      String?
-  source             RsvpSource   @default(FORM)
+  source             RsvpSource    @default(FORM)
   firstName          String
   lastName           String
-  email              String       @unique
+  email              String        @unique
   attending          Boolean
   adultAttendeeCount Int?
   childAttendeeCount Int?
-  attendeeCount      Int          @default(1)
+  attendeeCount      Int           @default(1)
   familyNames        String?
   dietaryNotes       String?
   notes              String?
-  createdAt          DateTime     @default(now())
-  participant        Participant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  createdAt          DateTime      @default(now())
+  participant        Participant?  @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  checkout           RsvpCheckout?
 
   @@unique([participantId, source], name: "participantId_source")
   @@index([attending])
   @@index([createdAt])
+}
+
+model RsvpCheckout {
+  id                  String             @id @default(cuid())
+  idempotencyKey      String             @unique
+  email               String
+  payload             Json
+  paymentReference    String?            @unique
+  paymentOrderId      String?            @unique
+  paymentUrl          String?
+  status              RsvpCheckoutStatus @default(PENDING)
+  rsvpId              String?            @unique
+  confirmedAt         DateTime?
+  paymentCompletedAt  DateTime?
+  paymentReviewReason String?
+  lastReconciledAt    DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  rsvp                Rsvp?              @relation(fields: [rsvpId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([status, createdAt])
 }
 
 model Feedback {

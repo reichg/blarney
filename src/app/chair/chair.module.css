@@ -139,16 +139,27 @@
 
 .actionButton,
 .dangerButton {
+  align-items: center;
   border: 0;
   border-radius: var(--radius);
   color: var(--white);
+  cursor: pointer;
+  display: inline-flex;
   font-weight: 800;
+  gap: 0.4rem;
   min-height: 2.5rem;
   padding: 0.65rem 0.85rem;
+  text-decoration: none;
 }
 
 .actionButton {
   background: var(--pine);
+}
+
+.actionButton:hover,
+.actionButton:focus-visible {
+  background: var(--pine-2);
+  outline: none;
 }
 
 .dangerButton {

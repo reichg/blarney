@@ -1,5 +1,6 @@
 import { isSquareOrderPaid } from "@/lib/payment";
 import { confirmRegistrationCheckoutPaymentByOrderId } from "@/lib/registrationCheckout";
+import { confirmRsvpCheckoutPaymentByOrderId } from "@/lib/rsvpCheckout";
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -147,6 +148,35 @@ function getCompletedPaymentOrderId(payload: unknown) {
   return { ok: true, orderId } as const;
 }
 
+async function confirmPublicCheckoutPaymentByOrderId(orderId: string) {
+  const registrationConfirmation =
+    await confirmRegistrationCheckoutPaymentByOrderId(orderId);
+
+  if (registrationConfirmation.ok) {
+    return {
+      ok: true as const,
+      kind: "registration" as const,
+      registrationId: registrationConfirmation.registrationId,
+    };
+  }
+
+  if (registrationConfirmation.reason !== "invalid") {
+    return registrationConfirmation;
+  }
+
+  const rsvpConfirmation = await confirmRsvpCheckoutPaymentByOrderId(orderId);
+
+  if (rsvpConfirmation.ok) {
+    return {
+      ok: true as const,
+      kind: "rsvp" as const,
+      rsvpId: rsvpConfirmation.rsvpId,
+    };
+  }
+
+  return rsvpConfirmation;
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
 
@@ -188,11 +218,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, status: completedPayment.reason });
   }
 
-  const confirmation = await confirmRegistrationCheckoutPaymentByOrderId(
+  const confirmation = await confirmPublicCheckoutPaymentByOrderId(
     completedPayment.orderId,
   );
 
   if (confirmation.ok) {
+    if (confirmation.kind === "rsvp") {
+      return NextResponse.json({
+        ok: true,
+        status: "confirmed",
+        rsvpId: confirmation.rsvpId,
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       status: "confirmed",

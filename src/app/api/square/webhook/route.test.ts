@@ -1,12 +1,20 @@
 import { createHmac } from "crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { confirmRegistrationCheckoutPaymentByOrderId } = vi.hoisted(() => ({
+const {
+  confirmRegistrationCheckoutPaymentByOrderId,
+  confirmRsvpCheckoutPaymentByOrderId,
+} = vi.hoisted(() => ({
   confirmRegistrationCheckoutPaymentByOrderId: vi.fn(),
+  confirmRsvpCheckoutPaymentByOrderId: vi.fn(),
 }));
 
 vi.mock("@/lib/registrationCheckout", () => ({
   confirmRegistrationCheckoutPaymentByOrderId,
+}));
+
+vi.mock("@/lib/rsvpCheckout", () => ({
+  confirmRsvpCheckoutPaymentByOrderId,
 }));
 
 import { POST } from "@/app/api/square/webhook/route";
@@ -75,6 +83,10 @@ function buildOrderWebhookBody(overrides = {}) {
 beforeEach(() => {
   vi.stubEnv("SQUARE_WEBHOOK_SIGNATURE_KEY", signatureKey);
   vi.stubEnv("SQUARE_WEBHOOK_NOTIFICATION_URL", notificationUrl);
+  confirmRsvpCheckoutPaymentByOrderId.mockResolvedValue({
+    ok: false,
+    reason: "invalid",
+  });
 });
 
 afterEach(() => {
@@ -122,6 +134,32 @@ describe("Square payment webhook route", () => {
       ok: true,
       status: "confirmed",
       registrationId: "registration-123",
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("materializes an RSVP checkout when no registration checkout matches", async () => {
+    confirmRegistrationCheckoutPaymentByOrderId.mockResolvedValue({
+      ok: false,
+      reason: "invalid",
+    });
+    confirmRsvpCheckoutPaymentByOrderId.mockResolvedValue({
+      ok: true,
+      rsvpId: "rsvp-123",
+    });
+
+    const response = await POST(buildRequest(buildWebhookBody()));
+
+    expect(confirmRegistrationCheckoutPaymentByOrderId).toHaveBeenCalledWith(
+      "order-123",
+    );
+    expect(confirmRsvpCheckoutPaymentByOrderId).toHaveBeenCalledWith(
+      "order-123",
+    );
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      status: "confirmed",
+      rsvpId: "rsvp-123",
     });
     expect(response.status).toBe(200);
   });
@@ -186,6 +224,9 @@ describe("Square payment webhook route", () => {
     const response = await POST(buildRequest(buildWebhookBody()));
 
     expect(confirmRegistrationCheckoutPaymentByOrderId).toHaveBeenCalledWith(
+      "order-123",
+    );
+    expect(confirmRsvpCheckoutPaymentByOrderId).toHaveBeenCalledWith(
       "order-123",
     );
     await expect(response.json()).resolves.toEqual({

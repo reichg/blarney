@@ -34,15 +34,15 @@ function formatRsvpSource(source: RsvpSource): string {
 }
 
 function formatGuestSummary(adultGuestCount: number, childGuestCount: number) {
-  return `Adults: ${adultGuestCount}, Children: ${childGuestCount}`;
+  return `BBQ adults: ${adultGuestCount}, BBQ kids: ${childGuestCount}`;
 }
 
 function formatAttendeeTotal(attendeeCount: number) {
   if (attendeeCount === 0) {
-    return "No attendees";
+    return "No BBQ attendees";
   }
 
-  return `${attendeeCount} total attendee${attendeeCount === 1 ? "" : "s"}`;
+  return `${attendeeCount} total BBQ attendee${attendeeCount === 1 ? "" : "s"}`;
 }
 
 function formatPartySummary(
@@ -65,7 +65,7 @@ function formatPartySummary(
 
   if (rsvp.source === "REGISTRATION" && registration) {
     if (typeof rsvp.participant?.age === "number") {
-      const golferIsAdult = rsvp.participant.age >= 18;
+      const golferIsAdult = rsvp.participant.age >= 15;
       const adultAttendeeCount =
         registration.adultGuestCount + (golferIsAdult ? 1 : 0);
       const childAttendeeCount =
@@ -107,7 +107,7 @@ export default async function ChairRsvpsPage() {
               <th>Email</th>
               <th>Status</th>
               <th>Source</th>
-              <th>Party</th>
+              <th>BBQ party</th>
               <th>Family</th>
               <th>Notes</th>
             </tr>
@@ -131,7 +131,7 @@ export default async function ChairRsvpsPage() {
                     <td>{rsvp.email}</td>
                     <td>
                       <span className={styles.statusPill}>
-                        {rsvp.attending ? "Attending" : "Not attending"}
+                        {rsvp.attending ? "Attending BBQ" : "Not attending"}
                       </span>
                     </td>
                     <td>{formatRsvpSource(rsvp.source)}</td>

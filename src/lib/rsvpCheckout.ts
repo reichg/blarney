@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import {
-  createRegistrationPaymentLink,
+  createRsvpPaymentLink,
   getRegistrationPaymentLinkState,
   hasSquarePaymentConfiguration,
 } from "@/lib/payment";
@@ -8,48 +8,40 @@ import { Prisma } from "@prisma/client";
 import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 
-const optionalTextSchema = z
+const requiredTextSchema = z
   .preprocess(
     (value) => (typeof value === "string" ? value.trim() : value),
-    z.string().optional().nullable(),
+    z.string().trim().min(1),
   )
-  .transform((value) => (value && value.length > 0 ? value : null));
+  .transform((value) => value.trim());
 
-const golferSchema = z.object({
-  firstName: z.string().trim().min(1),
-  lastName: z.string().trim().min(1),
-  gender: z.enum(["MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"]),
-  age: z.coerce.number().int().min(1).max(110),
-  averageScore: z.coerce.number().int().min(20).max(120),
-});
-
-export const registrationCheckoutPayloadSchema = z
+export const rsvpCheckoutPayloadSchema = z
   .object({
-    firstName: z.string().trim().min(1),
-    lastName: z.string().trim().min(1),
+    firstName: requiredTextSchema,
+    lastName: requiredTextSchema,
     email: z
       .string()
       .trim()
       .email()
       .transform((value) => value.toLowerCase()),
-    phone: optionalTextSchema,
-    packageSelection: z.string().trim().min(1),
-    golfers: z.array(golferSchema).min(1).max(20),
-    bbqOnlyAdultCount: z.coerce.number().int().min(0).max(30),
-    bbqOnlyKidCount: z.coerce.number().int().min(0).max(30),
-    notes: optionalTextSchema,
-    dietaryNotes: optionalTextSchema,
+    adultAttendeeCount: z.coerce.number().int().min(0).max(30),
+    childAttendeeCount: z.coerce.number().int().min(0).max(30),
+    familyNames: requiredTextSchema,
+    dietaryNotes: requiredTextSchema,
+    notes: requiredTextSchema,
   })
-  .refine((data) => data.bbqOnlyAdultCount + data.bbqOnlyKidCount <= 30, {
-    message: "Keep additional BBQ-only guests at 30 or fewer.",
-    path: ["bbqOnlyAdultCount"],
+  .refine((data) => data.adultAttendeeCount + data.childAttendeeCount <= 30, {
+    message: "Keep the party size at 30 attendees or fewer.",
+    path: ["adultAttendeeCount"],
+  })
+  .refine((data) => data.adultAttendeeCount + data.childAttendeeCount > 0, {
+    message: "Add at least one attendee when attending.",
+    path: ["adultAttendeeCount"],
   });
 
-export type RegistrationCheckoutPayload = z.infer<
-  typeof registrationCheckoutPayloadSchema
->;
+export type RsvpCheckoutPayload = z.infer<typeof rsvpCheckoutPayloadSchema>;
 
-type RegistrationCheckoutRecord = {
+type RsvpCheckoutRecord = {
   id: string;
   idempotencyKey: string;
   email: string;
@@ -58,14 +50,14 @@ type RegistrationCheckoutRecord = {
   paymentOrderId: string | null;
   paymentUrl: string | null;
   status: string;
-  registrationId: string | null;
+  rsvpId: string | null;
   confirmedAt: Date | null;
   paymentCompletedAt: Date | null;
   paymentReviewReason: string | null;
   lastReconciledAt: Date | null;
 };
 
-export type RegistrationCheckoutPaymentResult =
+export type RsvpCheckoutPaymentResult =
   | {
       ok: true;
       status: "pending";
@@ -77,7 +69,7 @@ export type RegistrationCheckoutPaymentResult =
       ok: true;
       status: "confirmed";
       checkoutId: string;
-      registrationId: string;
+      rsvpId: string;
       paymentUrl: null;
     }
   | {
@@ -90,10 +82,10 @@ export type RegistrationCheckoutPaymentResult =
         | "unavailable";
     };
 
-export type RegistrationCheckoutConfirmationResult =
+export type RsvpCheckoutConfirmationResult =
   | {
       ok: true;
-      registrationId: string;
+      rsvpId: string;
     }
   | {
       ok: false;
@@ -123,91 +115,21 @@ function stableStringify(value: unknown): string {
     .join(",")}}`;
 }
 
-export function getRegistrationCheckoutIdempotencyKey(
-  payload: RegistrationCheckoutPayload,
-) {
+export function getRsvpCheckoutIdempotencyKey(payload: RsvpCheckoutPayload) {
   return createHash("sha256")
-    .update(`registration-checkout:${stableStringify(payload)}`)
+    .update(`rsvp-checkout:${stableStringify(payload)}`)
     .digest("hex");
 }
 
 function parseCheckoutPayload(payload: unknown) {
-  return registrationCheckoutPayloadSchema.parse(payload);
+  return rsvpCheckoutPayloadSchema.parse(payload);
 }
 
-function toCheckoutPayloadJson(payload: RegistrationCheckoutPayload) {
+function toCheckoutPayloadJson(payload: RsvpCheckoutPayload) {
   return payload as unknown as Prisma.InputJsonValue;
 }
 
-function getRegistrationRsvpPartyCounts(payload: RegistrationCheckoutPayload) {
-  const golferCounts = payload.golfers.reduce(
-    (counts, golfer) => {
-      if (golfer.age < 15) {
-        return {
-          adultAttendeeCount: counts.adultAttendeeCount,
-          childAttendeeCount: counts.childAttendeeCount + 1,
-        };
-      }
-
-      return {
-        adultAttendeeCount: counts.adultAttendeeCount + 1,
-        childAttendeeCount: counts.childAttendeeCount,
-      };
-    },
-    { adultAttendeeCount: 0, childAttendeeCount: 0 },
-  );
-
-  return {
-    adultAttendeeCount:
-      golferCounts.adultAttendeeCount + payload.bbqOnlyAdultCount,
-    childAttendeeCount:
-      golferCounts.childAttendeeCount + payload.bbqOnlyKidCount,
-  };
-}
-
-function getGolferFamilyNames(payload: RegistrationCheckoutPayload) {
-  return payload.golfers
-    .map((golfer) => `${golfer.firstName} ${golfer.lastName}`)
-    .join(", ");
-}
-
-async function syncRegistrationRsvp(options: {
-  transaction: Prisma.TransactionClient;
-  participantId: string;
-  payload: RegistrationCheckoutPayload;
-}) {
-  const { adultAttendeeCount, childAttendeeCount } =
-    getRegistrationRsvpPartyCounts(options.payload);
-  const attendeeCount = adultAttendeeCount + childAttendeeCount;
-
-  const existingRsvp = await options.transaction.rsvp.findUnique({
-    where: { email: options.payload.email },
-    select: { id: true, participantId: true },
-  });
-
-  if (existingRsvp) {
-    return;
-  }
-
-  await options.transaction.rsvp.create({
-    data: {
-      participantId: options.participantId,
-      source: "REGISTRATION",
-      firstName: options.payload.firstName,
-      lastName: options.payload.lastName,
-      email: options.payload.email,
-      attending: true,
-      adultAttendeeCount,
-      childAttendeeCount,
-      attendeeCount,
-      familyNames: getGolferFamilyNames(options.payload),
-      dietaryNotes: options.payload.dietaryNotes,
-      notes: options.payload.notes,
-    },
-  });
-}
-
-async function hasRegistrationIdentityConflict(email: string) {
+async function hasRsvpIdentityConflict(email: string) {
   const confirmedRegistrationCheckout = await db.registrationCheckout.findFirst(
     {
       where: {
@@ -244,7 +166,7 @@ async function hasRegistrationIdentityConflict(email: string) {
     return true;
   }
 
-  const activeRsvpCheckout = await db.rsvpCheckout.findFirst({
+  const activeRegistrationCheckout = await db.registrationCheckout.findFirst({
     where: {
       email,
       status: { in: ["PENDING", "PAYMENT_REVIEW"] },
@@ -252,15 +174,13 @@ async function hasRegistrationIdentityConflict(email: string) {
     select: { id: true },
   });
 
-  return Boolean(activeRsvpCheckout);
+  return Boolean(activeRegistrationCheckout);
 }
 
-async function createOrReuseRegistrationCheckout(
-  payload: RegistrationCheckoutPayload,
-) {
-  const idempotencyKey = getRegistrationCheckoutIdempotencyKey(payload);
+async function createOrReuseRsvpCheckout(payload: RsvpCheckoutPayload) {
+  const idempotencyKey = getRsvpCheckoutIdempotencyKey(payload);
 
-  const activeEmailCheckout = await db.registrationCheckout.findFirst({
+  const activeEmailCheckout = await db.rsvpCheckout.findFirst({
     where: {
       email: payload.email,
       status: { in: ["PENDING", "PAYMENT_REVIEW"] },
@@ -272,7 +192,7 @@ async function createOrReuseRegistrationCheckout(
     return activeEmailCheckout;
   }
 
-  const existing = await db.registrationCheckout.findUnique({
+  const existing = await db.rsvpCheckout.findUnique({
     where: { idempotencyKey },
   });
 
@@ -285,7 +205,7 @@ async function createOrReuseRegistrationCheckout(
       ? `${idempotencyKey}:${randomUUID()}`
       : idempotencyKey;
 
-  return db.registrationCheckout.create({
+  return db.rsvpCheckout.create({
     data: {
       idempotencyKey: createIdempotencyKey,
       email: payload.email,
@@ -294,13 +214,13 @@ async function createOrReuseRegistrationCheckout(
   });
 }
 
-async function finalizeRegistrationCheckout(
+async function finalizeRsvpCheckout(
   checkoutId: string,
-): Promise<RegistrationCheckoutConfirmationResult> {
+): Promise<RsvpCheckoutConfirmationResult> {
   try {
     return await db.$transaction(
       async (transaction) => {
-        const checkout = await transaction.registrationCheckout.findUnique({
+        const checkout = await transaction.rsvpCheckout.findUnique({
           where: { id: checkoutId },
         });
 
@@ -308,8 +228,8 @@ async function finalizeRegistrationCheckout(
           return { ok: false, reason: "invalid" };
         }
 
-        if (checkout.registrationId) {
-          return { ok: true, registrationId: checkout.registrationId };
+        if (checkout.rsvpId) {
+          return { ok: true, rsvpId: checkout.rsvpId };
         }
 
         if (!checkout.paymentReference) {
@@ -317,39 +237,16 @@ async function finalizeRegistrationCheckout(
         }
 
         const payload = parseCheckoutPayload(checkout.payload);
-        const existingCheckoutRegistration =
-          await transaction.registration.findFirst({
-            where: { checkoutId: checkout.id },
-            orderBy: { createdAt: "asc" },
-            select: { id: true },
-          });
-
-        if (existingCheckoutRegistration) {
-          await transaction.registrationCheckout.update({
-            where: { id: checkout.id },
-            data: {
-              status: "CONFIRMED",
-              confirmedAt: checkout.confirmedAt ?? new Date(),
-              paymentCompletedAt: checkout.paymentCompletedAt ?? new Date(),
-              paymentReviewReason: null,
-              registrationId: existingCheckoutRegistration.id,
-            },
-          });
-
-          return { ok: true, registrationId: existingCheckoutRegistration.id };
-        }
-
-        const existingConfirmedCheckout =
+        const confirmedRegistrationCheckout =
           await transaction.registrationCheckout.findFirst({
             where: {
               email: payload.email,
               status: "CONFIRMED",
-              NOT: { id: checkout.id },
             },
             select: { id: true },
           });
 
-        if (existingConfirmedCheckout) {
+        if (confirmedRegistrationCheckout) {
           return { ok: false, reason: "duplicate" };
         }
 
@@ -375,73 +272,52 @@ async function finalizeRegistrationCheckout(
           return { ok: false, reason: "duplicate" };
         }
 
-        let primaryRegistrationId: string | null = null;
-        let primaryParticipantId: string | null = null;
-
-        for (const [index, golfer] of payload.golfers.entries()) {
-          const participant = await transaction.participant.create({
-            data: {
-              firstName: golfer.firstName,
-              lastName: golfer.lastName,
-              email: null,
-              phone: payload.phone,
-              gender: golfer.gender,
-              age: golfer.age,
-              averageScore: golfer.averageScore,
-            },
-          });
-
-          const registration = await transaction.registration.create({
-            data: {
-              participantId: participant.id,
-              checkoutId: checkout.id,
-              packageSelection: payload.packageSelection,
-              adultGuestCount: index === 0 ? payload.bbqOnlyAdultCount : 0,
-              childGuestCount: index === 0 ? payload.bbqOnlyKidCount : 0,
-              dayBeforeRsvp: false,
-              paymentStatus: "CONFIRMED",
-              paymentReference: checkout.paymentReference,
-              notes: payload.notes,
-            },
-          });
-
-          primaryRegistrationId ??= registration.id;
-          primaryParticipantId ??= participant.id;
-        }
-
-        if (!primaryRegistrationId || !primaryParticipantId) {
-          return { ok: false, reason: "invalid" };
-        }
-
-        await syncRegistrationRsvp({
-          transaction,
-          participantId: primaryParticipantId,
-          payload,
+        const participant = await transaction.participant.findUnique({
+          where: { email: payload.email },
+          select: { id: true },
+        });
+        const attendeeCount =
+          payload.adultAttendeeCount + payload.childAttendeeCount;
+        const rsvp = await transaction.rsvp.create({
+          data: {
+            participantId: participant?.id ?? null,
+            source: "FORM",
+            firstName: payload.firstName,
+            lastName: payload.lastName,
+            email: payload.email,
+            attending: true,
+            adultAttendeeCount: payload.adultAttendeeCount,
+            childAttendeeCount: payload.childAttendeeCount,
+            attendeeCount,
+            familyNames: payload.familyNames,
+            dietaryNotes: payload.dietaryNotes,
+            notes: payload.notes,
+          },
         });
 
-        await transaction.registrationCheckout.update({
+        await transaction.rsvpCheckout.update({
           where: { id: checkout.id },
           data: {
             status: "CONFIRMED",
             confirmedAt: new Date(),
             paymentCompletedAt: checkout.paymentCompletedAt ?? new Date(),
             paymentReviewReason: null,
-            registrationId: primaryRegistrationId,
+            rsvpId: rsvp.id,
           },
         });
 
-        return { ok: true, registrationId: primaryRegistrationId };
+        return { ok: true, rsvpId: rsvp.id };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   } catch (error) {
-    const checkout = await db.registrationCheckout.findUnique({
+    const checkout = await db.rsvpCheckout.findUnique({
       where: { id: checkoutId },
-      select: { registrationId: true },
+      select: { rsvpId: true },
     });
 
-    if (checkout?.registrationId) {
-      return { ok: true, registrationId: checkout.registrationId };
+    if (checkout?.rsvpId) {
+      return { ok: true, rsvpId: checkout.rsvpId };
     }
 
     if (isUniqueConstraintError(error)) {
@@ -455,8 +331,8 @@ async function finalizeRegistrationCheckout(
 async function markCheckoutPaymentReview(
   checkoutId: string,
   reason: string,
-): Promise<RegistrationCheckoutConfirmationResult> {
-  const checkout = await db.registrationCheckout.update({
+): Promise<RsvpCheckoutConfirmationResult> {
+  const checkout = await db.rsvpCheckout.update({
     where: { id: checkoutId },
     data: {
       status: "PAYMENT_REVIEW",
@@ -465,12 +341,12 @@ async function markCheckoutPaymentReview(
       lastReconciledAt: new Date(),
     },
     select: {
-      registrationId: true,
+      rsvpId: true,
     },
   });
 
-  if (checkout.registrationId) {
-    return { ok: true, registrationId: checkout.registrationId };
+  if (checkout.rsvpId) {
+    return { ok: true, rsvpId: checkout.rsvpId };
   }
 
   return { ok: false, reason: "review" };
@@ -479,8 +355,8 @@ async function markCheckoutPaymentReview(
 async function finalizePaidCheckout(
   checkoutId: string,
   reviewReason: string,
-): Promise<RegistrationCheckoutConfirmationResult> {
-  await db.registrationCheckout.update({
+): Promise<RsvpCheckoutConfirmationResult> {
+  await db.rsvpCheckout.update({
     where: { id: checkoutId },
     data: {
       paymentCompletedAt: new Date(),
@@ -488,7 +364,7 @@ async function finalizePaidCheckout(
     },
   });
 
-  const finalized = await finalizeRegistrationCheckout(checkoutId);
+  const finalized = await finalizeRsvpCheckout(checkoutId);
 
   if (finalized.ok) {
     return finalized;
@@ -501,15 +377,15 @@ async function finalizePaidCheckout(
   return finalized;
 }
 
-async function ensureRegistrationCheckoutPaymentLink(
-  checkout: RegistrationCheckoutRecord,
-): Promise<RegistrationCheckoutPaymentResult> {
-  if (checkout.status === "CONFIRMED" && checkout.registrationId) {
+async function ensureRsvpCheckoutPaymentLink(
+  checkout: RsvpCheckoutRecord,
+): Promise<RsvpCheckoutPaymentResult> {
+  if (checkout.status === "CONFIRMED" && checkout.rsvpId) {
     return {
       ok: true,
       status: "confirmed",
       checkoutId: checkout.id,
-      registrationId: checkout.registrationId,
+      rsvpId: checkout.rsvpId,
       paymentUrl: null,
     };
   }
@@ -520,7 +396,7 @@ async function ensureRegistrationCheckoutPaymentLink(
 
   const payload = parseCheckoutPayload(checkout.payload);
 
-  if (await hasRegistrationIdentityConflict(payload.email)) {
+  if (await hasRsvpIdentityConflict(payload.email)) {
     return { ok: false, reason: "duplicate" };
   }
 
@@ -536,7 +412,7 @@ async function ensureRegistrationCheckoutPaymentLink(
         checkout.paymentReference,
       );
     } catch (error) {
-      console.error("Registration checkout payment resume lookup failed", {
+      console.error("RSVP checkout payment resume lookup failed", {
         checkoutId: checkout.id,
         error,
       });
@@ -547,7 +423,7 @@ async function ensureRegistrationCheckoutPaymentLink(
     const reusablePaymentUrl = paymentLink?.url ?? checkout.paymentUrl;
 
     if (reusablePaymentUrl) {
-      const data: Prisma.RegistrationCheckoutUpdateInput = {};
+      const data: Prisma.RsvpCheckoutUpdateInput = {};
 
       if (paymentLink?.url && paymentLink.url !== checkout.paymentUrl) {
         data.paymentUrl = paymentLink.url;
@@ -564,7 +440,7 @@ async function ensureRegistrationCheckoutPaymentLink(
       if (paymentLink?.isComplete) {
         const finalized = await finalizePaidCheckout(
           checkout.id,
-          "Square shows this checkout as paid, but local registration finalization did not complete.",
+          "Square shows this RSVP checkout as paid, but local RSVP finalization did not complete.",
         );
 
         if (finalized.ok) {
@@ -572,7 +448,7 @@ async function ensureRegistrationCheckoutPaymentLink(
             ok: true,
             status: "confirmed",
             checkoutId: checkout.id,
-            registrationId: finalized.registrationId,
+            rsvpId: finalized.rsvpId,
             paymentUrl: null,
           };
         }
@@ -591,7 +467,7 @@ async function ensureRegistrationCheckoutPaymentLink(
       }
 
       if (Object.keys(data).length > 0) {
-        await db.registrationCheckout.update({
+        await db.rsvpCheckout.update({
           where: { id: checkout.id },
           data,
         });
@@ -607,19 +483,18 @@ async function ensureRegistrationCheckoutPaymentLink(
     }
   }
 
-  const paymentLink = await createRegistrationPaymentLink({
+  const paymentLink = await createRsvpPaymentLink({
     checkoutId: checkout.id,
     email: payload.email,
-    golferCount: payload.golfers.length,
-    bbqOnlyAdultCount: payload.bbqOnlyAdultCount,
-    bbqOnlyKidCount: payload.bbqOnlyKidCount,
+    adultAttendeeCount: payload.adultAttendeeCount,
+    childAttendeeCount: payload.childAttendeeCount,
   });
 
   if (!paymentLink.reference) {
     return { ok: false, reason: "unavailable" };
   }
 
-  const data: Prisma.RegistrationCheckoutUpdateInput = {
+  const data: Prisma.RsvpCheckoutUpdateInput = {
     paymentReference: paymentLink.reference,
     paymentUrl: paymentLink.url,
   };
@@ -628,7 +503,7 @@ async function ensureRegistrationCheckoutPaymentLink(
     data.paymentOrderId = paymentLink.orderId;
   }
 
-  await db.registrationCheckout.update({
+  await db.rsvpCheckout.update({
     where: { id: checkout.id },
     data,
   });
@@ -642,22 +517,20 @@ async function ensureRegistrationCheckoutPaymentLink(
   };
 }
 
-export async function createRegistrationCheckoutPayment(
-  payload: RegistrationCheckoutPayload,
-) {
-  const parsedPayload = registrationCheckoutPayloadSchema.parse(payload);
+export async function createRsvpCheckoutPayment(payload: RsvpCheckoutPayload) {
+  const parsedPayload = rsvpCheckoutPayloadSchema.parse(payload);
 
-  if (await hasRegistrationIdentityConflict(parsedPayload.email)) {
+  if (await hasRsvpIdentityConflict(parsedPayload.email)) {
     return { ok: false, reason: "duplicate" } as const;
   }
 
-  const checkout = await createOrReuseRegistrationCheckout(parsedPayload);
+  const checkout = await createOrReuseRsvpCheckout(parsedPayload);
 
-  return ensureRegistrationCheckoutPaymentLink(checkout);
+  return ensureRsvpCheckoutPaymentLink(checkout);
 }
 
-export async function getRegistrationCheckoutPayment(checkoutId: string) {
-  const checkout = await db.registrationCheckout.findUnique({
+export async function getRsvpCheckoutPayment(checkoutId: string) {
+  const checkout = await db.rsvpCheckout.findUnique({
     where: { id: checkoutId },
   });
 
@@ -665,13 +538,13 @@ export async function getRegistrationCheckoutPayment(checkoutId: string) {
     return { ok: false, reason: "not_found" } as const;
   }
 
-  return ensureRegistrationCheckoutPaymentLink(checkout);
+  return ensureRsvpCheckoutPaymentLink(checkout);
 }
 
-export async function confirmRegistrationCheckoutPayment(
+export async function confirmRsvpCheckoutPayment(
   checkoutId: string,
-): Promise<RegistrationCheckoutConfirmationResult> {
-  const checkout = await db.registrationCheckout.findUnique({
+): Promise<RsvpCheckoutConfirmationResult> {
+  const checkout = await db.rsvpCheckout.findUnique({
     where: { id: checkoutId },
   });
 
@@ -679,8 +552,8 @@ export async function confirmRegistrationCheckoutPayment(
     return { ok: false, reason: "invalid" };
   }
 
-  if (checkout.status === "CONFIRMED" && checkout.registrationId) {
-    return { ok: true, registrationId: checkout.registrationId };
+  if (checkout.status === "CONFIRMED" && checkout.rsvpId) {
+    return { ok: true, rsvpId: checkout.rsvpId };
   }
 
   if (checkout.status === "PAYMENT_REVIEW") {
@@ -706,7 +579,7 @@ export async function confirmRegistrationCheckoutPayment(
       checkout.paymentReference,
     );
   } catch (error) {
-    console.error("Registration checkout payment lookup failed", {
+    console.error("RSVP checkout payment lookup failed", {
       checkoutId: checkout.id,
       error,
     });
@@ -723,7 +596,7 @@ export async function confirmRegistrationCheckoutPayment(
   }
 
   if (paymentLink.orderId && paymentLink.orderId !== checkout.paymentOrderId) {
-    await db.registrationCheckout.update({
+    await db.rsvpCheckout.update({
       where: { id: checkout.id },
       data: {
         paymentOrderId: paymentLink.orderId,
@@ -742,20 +615,20 @@ export async function confirmRegistrationCheckoutPayment(
 
   return finalizePaidCheckout(
     checkout.id,
-    "Square return reconciliation showed this checkout as paid, but local registration finalization did not complete.",
+    "Square return reconciliation showed this RSVP checkout as paid, but local RSVP finalization did not complete.",
   );
 }
 
-export async function confirmRegistrationCheckoutPaymentByOrderId(
+export async function confirmRsvpCheckoutPaymentByOrderId(
   paymentOrderId: string,
-): Promise<RegistrationCheckoutConfirmationResult> {
+): Promise<RsvpCheckoutConfirmationResult> {
   const orderId = paymentOrderId.trim();
 
   if (!orderId) {
     return { ok: false, reason: "invalid" };
   }
 
-  const checkout = await db.registrationCheckout.findUnique({
+  const checkout = await db.rsvpCheckout.findUnique({
     where: { paymentOrderId: orderId },
   });
 
@@ -763,8 +636,8 @@ export async function confirmRegistrationCheckoutPaymentByOrderId(
     return { ok: false, reason: "invalid" };
   }
 
-  if (checkout.status === "CONFIRMED" && checkout.registrationId) {
-    return { ok: true, registrationId: checkout.registrationId };
+  if (checkout.status === "CONFIRMED" && checkout.rsvpId) {
+    return { ok: true, rsvpId: checkout.rsvpId };
   }
 
   if (checkout.status === "PAYMENT_REVIEW") {
@@ -773,6 +646,6 @@ export async function confirmRegistrationCheckoutPaymentByOrderId(
 
   return finalizePaidCheckout(
     checkout.id,
-    "Square webhook showed this checkout as paid, but local registration finalization did not complete.",
+    "Square webhook showed this RSVP checkout as paid, but local RSVP finalization did not complete.",
   );
 }

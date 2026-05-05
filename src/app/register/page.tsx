@@ -1,4 +1,5 @@
 import { submitRegistration } from "@/app/actions/registration";
+import { submitRsvp } from "@/app/actions/rsvp";
 import styles from "@/app/forms.module.css";
 import { RegistrationForm } from "@/app/register/RegistrationForm";
 import { getEventSettings } from "@/lib/content";
@@ -7,11 +8,12 @@ import { getOptionalRegistrationPaymentBreakdown } from "@/lib/payment";
 export default async function RegisterPage() {
   const settings = await getEventSettings();
   const pricing = getOptionalRegistrationPaymentBreakdown({
-    adultGuestCount: 0,
-    childGuestCount: 0,
+    golferCount: 1,
+    bbqOnlyAdultCount: 0,
+    bbqOnlyKidCount: 0,
   });
   const registrationPriceLabel = pricing
-    ? `${pricing.golfPriceLabel} golfer registration, plus ${pricing.adultGuestPriceLabel} per adult and ${pricing.childGuestPriceLabel} per child for the pre-event.`
+    ? `${pricing.golfPriceLabel} per golfer with BBQ included. BBQ-only guests are ${pricing.adultGuestPriceLabel} per adult and ${pricing.childGuestPriceLabel} per kid.`
     : settings.registrationPriceLabel;
 
   return (
@@ -20,7 +22,7 @@ export default async function RegisterPage() {
         <div className={styles.pageHeaderInner}>
           <p className="eyebrow">Pay/Register</p>
           <h1 className="section-title">
-            Reserve your place for {settings.eventTitle}.
+            Register or RSVP for {settings.eventTitle}.
           </h1>
           <p>{registrationPriceLabel}</p>
         </div>
@@ -30,24 +32,19 @@ export default async function RegisterPage() {
           <aside className={styles.panel}>
             <h2>Registration Details</h2>
             <ul className={styles.detailList}>
-              <li>
-                One golfer registration with optional per-person pre-event
-                guests.
-              </li>
+              <li>Golf registration includes BBQ for every golfer.</li>
               {pricing ? (
                 <li>
-                  {pricing.golfPriceLabel} per golfer,{" "}
-                  {pricing.adultGuestPriceLabel} per adult guest, and{" "}
-                  {pricing.childGuestPriceLabel} per child guest.
+                  Add extra BBQ-only adults or kids who are not golfing, or use
+                  BBQ-only RSVP for a non-golfing party.
                 </li>
               ) : null}
-              <li>Average Manzanita score helps create fair groups.</li>
               <li>
-                Scores of 41 and below are grouped as good golfers for pairing.
+                Golfers under 15 count as kids for BBQ totals. Golfers are not
+                charged again for BBQ.
               </li>
               <li>
-                Secure Square checkout comes next. Your registration is
-                finalized only after payment succeeds.
+                Average Manzanita score (Par 32) helps create fair groups for golfers.
               </li>
             </ul>
           </aside>
@@ -60,7 +57,8 @@ export default async function RegisterPage() {
             adultGuestPriceLabel={pricing?.adultGuestPriceLabel ?? null}
             childGuestPriceCents={pricing?.childGuestPriceCents ?? null}
             childGuestPriceLabel={pricing?.childGuestPriceLabel ?? null}
-            submitAction={submitRegistration}
+            submitRegistrationAction={submitRegistration}
+            submitRsvpAction={submitRsvp}
           />
         </div>
       </section>

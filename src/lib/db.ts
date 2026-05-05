@@ -6,7 +6,10 @@ const globalForPrisma = globalThis as unknown as {
   prismaSchemaSignature?: string;
 };
 
-const requiredPrismaDelegates = ["registrationCheckout"] as const;
+const requiredPrismaDelegates = [
+  "registrationCheckout",
+  "rsvpCheckout",
+] as const;
 
 const connectionString =
   process.env.DATABASE_URL ??

@@ -10,7 +10,6 @@ export function Navigation({ remembranceUrl }: NavigationProps) {
   const links: NavLink[] = [
     { href: "/", label: "Home" },
     { href: "/register", label: "Pay/Register" },
-    { href: "/rsvp", label: "RSVP" },
     { href: "/logistics", label: "Logistics" },
     { href: "/feedback", label: "Feedback" },
     { href: "/photos", label: "Photos" },

@@ -1,10 +1,13 @@
 import {
   createRegistrationPaymentConfirmationToken,
   createRegistrationPaymentLink,
+  createRsvpPaymentLink,
   getRegistrationPaymentBreakdown,
   getRegistrationPaymentLinkState,
+  getRsvpPaymentBreakdown,
   hasSquarePaymentConfiguration,
   verifyRegistrationPaymentConfirmationToken,
+  verifyRsvpPaymentConfirmationToken,
 } from "@/lib/payment";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -14,22 +17,77 @@ afterEach(() => {
 });
 
 describe("registration payment pricing", () => {
-  it("adds golf, adult guests, and child guests to the total", () => {
+  it("adds golfers, BBQ-only adults, and BBQ-only kids to the total", () => {
+    vi.stubEnv("REGISTRATION_GOLF_PRICE_CENTS", "12500");
+    vi.stubEnv("REGISTRATION_BBQ_ADULT_PRICE_CENTS", "3500");
+    vi.stubEnv("REGISTRATION_BBQ_KID_PRICE_CENTS", "1500");
+
+    const breakdown = getRegistrationPaymentBreakdown({
+      golferCount: 3,
+      bbqOnlyAdultCount: 2,
+      bbqOnlyKidCount: 1,
+    });
+
+    expect(breakdown.golferCount).toBe(3);
+    expect(breakdown.golfPriceCents).toBe(12500);
+    expect(breakdown.adultGuestPriceCents).toBe(3500);
+    expect(breakdown.childGuestPriceCents).toBe(1500);
+    expect(breakdown.totalCents).toBe(46000);
+    expect(breakdown.totalLabel).toBe("$460.00");
+    expect(breakdown.lineItems).toHaveLength(3);
+  });
+
+  it("keeps legacy pre-event price env names as BBQ pricing fallback", () => {
     vi.stubEnv("REGISTRATION_GOLF_PRICE_CENTS", "12500");
     vi.stubEnv("REGISTRATION_PRE_EVENT_ADULT_PRICE_CENTS", "3500");
     vi.stubEnv("REGISTRATION_PRE_EVENT_CHILD_PRICE_CENTS", "1500");
 
     const breakdown = getRegistrationPaymentBreakdown({
-      adultGuestCount: 2,
-      childGuestCount: 1,
+      golferCount: 1,
+      bbqOnlyAdultCount: 1,
+      bbqOnlyKidCount: 1,
     });
 
-    expect(breakdown.golfPriceCents).toBe(12500);
-    expect(breakdown.adultGuestPriceCents).toBe(3500);
-    expect(breakdown.childGuestPriceCents).toBe(1500);
-    expect(breakdown.totalCents).toBe(21000);
-    expect(breakdown.totalLabel).toBe("$210.00");
-    expect(breakdown.lineItems).toHaveLength(3);
+    expect(breakdown.totalCents).toBe(17500);
+    expect(breakdown.lineItems).toEqual([
+      expect.objectContaining({
+        label: "Golf registration (BBQ included)",
+        quantity: 1,
+      }),
+      expect.objectContaining({ label: "BBQ-only adults", quantity: 1 }),
+      expect.objectContaining({ label: "BBQ-only kids", quantity: 1 }),
+    ]);
+  });
+
+  it("adds RSVP-only adult and child attendees without a golf line item", () => {
+    vi.stubEnv("REGISTRATION_GOLF_PRICE_CENTS", "12500");
+    vi.stubEnv("REGISTRATION_PRE_EVENT_ADULT_PRICE_CENTS", "3500");
+    vi.stubEnv("REGISTRATION_PRE_EVENT_CHILD_PRICE_CENTS", "1500");
+
+    const breakdown = getRsvpPaymentBreakdown({
+      adultAttendeeCount: 2,
+      childAttendeeCount: 1,
+    });
+
+    expect(breakdown.totalCents).toBe(8500);
+    expect(breakdown.totalLabel).toBe("$85.00");
+    expect(breakdown.lineItems).toEqual([
+      expect.objectContaining({ label: "BBQ-only adults", quantity: 2 }),
+      expect.objectContaining({ label: "BBQ-only kids", quantity: 1 }),
+    ]);
+  });
+
+  it("requires at least one RSVP attendee for payment", () => {
+    vi.stubEnv("REGISTRATION_GOLF_PRICE_CENTS", "12500");
+    vi.stubEnv("REGISTRATION_PRE_EVENT_ADULT_PRICE_CENTS", "3500");
+    vi.stubEnv("REGISTRATION_PRE_EVENT_CHILD_PRICE_CENTS", "1500");
+
+    expect(() =>
+      getRsvpPaymentBreakdown({
+        adultAttendeeCount: 0,
+        childAttendeeCount: 0,
+      }),
+    ).toThrow("At least one RSVP attendee is required for payment.");
   });
 
   it("requires a positive golf price", () => {
@@ -108,7 +166,7 @@ describe("registration payment pricing", () => {
 
     expect(body.order.line_items).toEqual([
       {
-        name: "Golf entry",
+        name: "Golf registration (BBQ included)",
         quantity: "1",
         base_price_money: {
           amount: 12500,
@@ -116,7 +174,7 @@ describe("registration payment pricing", () => {
         },
       },
       {
-        name: "Pre-event adults",
+        name: "BBQ-only adults",
         quantity: "2",
         base_price_money: {
           amount: 3500,
@@ -124,7 +182,7 @@ describe("registration payment pricing", () => {
         },
       },
       {
-        name: "Pre-event children",
+        name: "BBQ-only kids",
         quantity: "1",
         base_price_money: {
           amount: 1500,
@@ -141,6 +199,74 @@ describe("registration payment pricing", () => {
       verifyRegistrationPaymentConfirmationToken(confirmationToken),
     ).resolves.toEqual({ checkoutId: "checkout-123" });
     expect(body.quick_pay).toBeUndefined();
+  });
+
+  it("creates an RSVP-only Square payment link without golf line items", async () => {
+    vi.stubEnv("REGISTRATION_GOLF_PRICE_CENTS", "12500");
+    vi.stubEnv("REGISTRATION_PRE_EVENT_ADULT_PRICE_CENTS", "3500");
+    vi.stubEnv("REGISTRATION_PRE_EVENT_CHILD_PRICE_CENTS", "1500");
+    vi.stubEnv("ADMIN_SESSION_SECRET", "payment-confirmation-secret");
+    vi.stubEnv("SQUARE_ENVIRONMENT", "sandbox");
+    vi.stubEnv("SQUARE_ACCESS_TOKEN", "sandbox-token");
+    vi.stubEnv("SQUARE_LOCATION_ID", "location-id");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "http://localhost:3000");
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        payment_link: {
+          id: "payment-link-id",
+          order_id: "order-123",
+          url: "https://square.link/u/example",
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      createRsvpPaymentLink({
+        checkoutId: "rsvp-checkout-123",
+        email: "family@example.com",
+        adultAttendeeCount: 2,
+        childAttendeeCount: 1,
+      }),
+    ).resolves.toEqual({
+      reference: "payment-link-id",
+      orderId: "order-123",
+      url: "https://square.link/u/example",
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse(requestInit.body as string);
+    const redirectUrl = new URL(body.checkout_options.redirect_url);
+    const confirmationToken = redirectUrl.searchParams.get("token");
+
+    expect(body.order.line_items).toEqual([
+      {
+        name: "BBQ-only adults",
+        quantity: "2",
+        base_price_money: {
+          amount: 3500,
+          currency: "USD",
+        },
+      },
+      {
+        name: "BBQ-only kids",
+        quantity: "1",
+        base_price_money: {
+          amount: 1500,
+          currency: "USD",
+        },
+      },
+    ]);
+    expect(redirectUrl.pathname).toBe("/register/payment/confirm");
+    expect(redirectUrl.searchParams.get("rsvpCheckout")).toBe(
+      "rsvp-checkout-123",
+    );
+    await expect(
+      verifyRsvpPaymentConfirmationToken(confirmationToken),
+    ).resolves.toEqual({ checkoutId: "rsvp-checkout-123" });
   });
 
   it("requires an explicit payment confirmation secret in production", async () => {

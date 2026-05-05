@@ -25,10 +25,20 @@ type CheckoutStatusResponse =
 
 type RegistrationConfirmationPollerProps = {
   checkoutId: string;
+  confirmedMessage?: string;
+  missingMessage?: string;
+  reviewMessage?: string;
+  statusPath?: string;
+  timeoutMessage?: string;
 };
 
 export function RegistrationConfirmationPoller({
   checkoutId,
+  confirmedMessage = "Payment confirmed. Loading your registration summary...",
+  missingMessage = "We could not find this checkout. Contact the chair if your payment receipt shows a completed charge.",
+  reviewMessage = "Square may have completed this payment, but the registration needs chair review. Do not pay again if you have a Square receipt.",
+  statusPath = `/api/register/checkout/${encodeURIComponent(checkoutId)}`,
+  timeoutMessage = "Square has not sent confirmation yet. Do not pay again if you have a receipt; contact the chair with your payment receipt.",
 }: RegistrationConfirmationPollerProps) {
   const [message, setMessage] = useState(
     "Waiting for Square to confirm your payment...",
@@ -43,10 +53,7 @@ export function RegistrationConfirmationPoller({
       attempts += 1;
 
       try {
-        const response = await fetch(
-          `/api/register/checkout/${encodeURIComponent(checkoutId)}`,
-          { cache: "no-store" },
-        );
+        const response = await fetch(statusPath, { cache: "no-store" });
         const status = (await response.json()) as CheckoutStatusResponse;
 
         if (!isActive) {
@@ -54,29 +61,23 @@ export function RegistrationConfirmationPoller({
         }
 
         if (status.ok && status.status === "confirmed") {
-          setMessage("Payment confirmed. Loading your registration summary...");
+          setMessage(confirmedMessage);
           window.location.replace(status.thanksPath);
           return;
         }
 
         if (!status.ok) {
-          setMessage(
-            "We could not find this checkout. Contact the chair if your payment receipt shows a completed charge.",
-          );
+          setMessage(missingMessage);
           return;
         }
 
         if (status.status === "review") {
-          setMessage(
-            "Square may have completed this payment, but the registration needs chair review. Do not pay again if you have a Square receipt.",
-          );
+          setMessage(reviewMessage);
           return;
         }
 
         if (attempts >= 45) {
-          setMessage(
-            "Square has not sent confirmation yet. Do not pay again if you have a receipt; contact the chair with your payment receipt.",
-          );
+          setMessage(timeoutMessage);
           return;
         }
 
@@ -106,7 +107,13 @@ export function RegistrationConfirmationPoller({
         clearTimeout(timeoutId);
       }
     };
-  }, [checkoutId]);
+  }, [
+    confirmedMessage,
+    missingMessage,
+    reviewMessage,
+    statusPath,
+    timeoutMessage,
+  ]);
 
   return (
     <div aria-live="polite" className={styles.summaryCard}>

@@ -7,6 +7,7 @@ import {
   hasSquarePaymentConfiguration,
   isCompleteRegistrationPaymentStatus,
 } from "@/lib/payment";
+import { registrationCheckoutPayloadSchema } from "@/lib/registrationCheckout";
 import { reconcileRegistrationPayment } from "@/lib/registrationPayment";
 import { CreditCard } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -300,7 +301,16 @@ export default async function RegisterThanksPage({
 
   const rawRegistration = registrationId
     ? await db.registration
-        .findUnique({ where: { id: registrationId } })
+        .findUnique({
+          where: { id: registrationId },
+          include: {
+            checkout: {
+              select: {
+                payload: true,
+              },
+            },
+          },
+        })
         .catch(() => null)
     : null;
   const isSquarePaymentConfigured = hasSquarePaymentConfiguration();
@@ -324,10 +334,20 @@ export default async function RegisterThanksPage({
   const isRegistrationComplete = registration
     ? isCompleteRegistrationPaymentStatus(registration.paymentStatus)
     : false;
+  const parsedRegistrationPayload = registration?.checkout
+    ? registrationCheckoutPayloadSchema.safeParse(registration.checkout.payload)
+    : null;
   const breakdown = registration
     ? getOptionalRegistrationPaymentBreakdown({
-        adultGuestCount: registration.adultGuestCount,
-        childGuestCount: registration.childGuestCount,
+        golferCount: parsedRegistrationPayload?.success
+          ? parsedRegistrationPayload.data.golfers.length
+          : 1,
+        bbqOnlyAdultCount: parsedRegistrationPayload?.success
+          ? parsedRegistrationPayload.data.bbqOnlyAdultCount
+          : registration.adultGuestCount,
+        bbqOnlyKidCount: parsedRegistrationPayload?.success
+          ? parsedRegistrationPayload.data.bbqOnlyKidCount
+          : registration.childGuestCount,
       })
     : null;
   const checkoutPaymentPath = checkoutId

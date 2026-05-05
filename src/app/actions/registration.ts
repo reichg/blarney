@@ -21,11 +21,26 @@ const requiredTextSchema = z.preprocess(
   z.string().trim().min(1),
 );
 
+const optionalTextSchema = z
+  .preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().optional().nullable(),
+  )
+  .transform((value) => (value && value.length > 0 ? value : null));
+
 const requiredIntSchema = (minimum: number, maximum: number) =>
   z.preprocess(
     normalizeRequiredFormValue,
     z.coerce.number().int().min(minimum).max(maximum),
   );
+
+const golferSubmitSchema = z.object({
+  firstName: requiredTextSchema,
+  lastName: requiredTextSchema,
+  gender: z.enum(["MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"]),
+  age: requiredIntSchema(1, 110),
+  averageScore: requiredIntSchema(20, 120),
+});
 
 const registrationSubmitSchema = z
   .object({
@@ -36,22 +51,100 @@ const registrationSubmitSchema = z
       .trim()
       .email()
       .transform((value) => value.toLowerCase()),
-    phone: requiredTextSchema,
-    gender: z.enum(["MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"]),
-    age: requiredIntSchema(1, 110),
-    averageScore: requiredIntSchema(20, 120),
+    phone: optionalTextSchema,
     packageSelection: requiredTextSchema,
-    adultGuestCount: requiredIntSchema(0, 20),
-    childGuestCount: requiredIntSchema(0, 20),
-    dayBeforeRsvp: z
-      .preprocess(normalizeRequiredFormValue, z.enum(["yes", "no"]))
-      .transform((value) => value === "yes"),
-    notes: requiredTextSchema,
+    golfers: z.array(golferSubmitSchema).min(1).max(20),
+    bbqOnlyAdultCount: requiredIntSchema(0, 30),
+    bbqOnlyKidCount: requiredIntSchema(0, 30),
+    notes: optionalTextSchema,
+    dietaryNotes: optionalTextSchema,
   })
-  .refine((data) => data.adultGuestCount + data.childGuestCount <= 20, {
-    message: "Keep total pre-event guests at 20 or fewer.",
-    path: ["adultGuestCount"],
+  .refine((data) => data.bbqOnlyAdultCount + data.bbqOnlyKidCount <= 30, {
+    message: "Keep additional BBQ-only guests at 30 or fewer.",
+    path: ["bbqOnlyAdultCount"],
   });
+
+function getFirstFormValue(formData: FormData, names: string[]) {
+  for (const name of names) {
+    const value = formData.get(name);
+
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getFormValues(formData: FormData, names: string[]) {
+  for (const name of names) {
+    const values = formData.getAll(name);
+
+    if (values.length > 0) {
+      return values;
+    }
+  }
+
+  return [];
+}
+
+function parseGolfersFromFormData(formData: FormData) {
+  const rawGolfers = formData.get("golfers");
+
+  if (typeof rawGolfers === "string" && rawGolfers.trim().length > 0) {
+    try {
+      return JSON.parse(rawGolfers) as unknown;
+    } catch {
+      return rawGolfers;
+    }
+  }
+
+  const firstNames = getFormValues(formData, [
+    "golferFirstName",
+    "golferFirstName[]",
+    "golfers.firstName",
+  ]);
+  const lastNames = getFormValues(formData, [
+    "golferLastName",
+    "golferLastName[]",
+    "golfers.lastName",
+  ]);
+  const genders = getFormValues(formData, [
+    "golferGender",
+    "golferGender[]",
+    "golfers.gender",
+  ]);
+  const ages = getFormValues(formData, [
+    "golferAge",
+    "golferAge[]",
+    "golfers.age",
+  ]);
+  const averageScores = getFormValues(formData, [
+    "golferAverageScore",
+    "golferAverageScore[]",
+    "golfers.averageScore",
+  ]);
+
+  if (firstNames.length > 0) {
+    return firstNames.map((firstName, index) => ({
+      firstName,
+      lastName: lastNames[index],
+      gender: genders[index],
+      age: ages[index],
+      averageScore: averageScores[index],
+    }));
+  }
+
+  return [
+    {
+      firstName: getFirstFormValue(formData, ["golferFirstName", "firstName"]),
+      lastName: getFirstFormValue(formData, ["golferLastName", "lastName"]),
+      gender: formData.get("gender"),
+      age: formData.get("age"),
+      averageScore: formData.get("averageScore"),
+    },
+  ];
+}
 
 function getRegistrationPaymentErrorMessage(error: unknown) {
   return error instanceof Error && process.env.NODE_ENV !== "production"
@@ -82,18 +175,22 @@ export async function submitRegistration(
   formData: FormData,
 ): Promise<SubmitRegistrationResult> {
   const parsed = registrationSubmitSchema.safeParse({
-    firstName: formData.get("firstName"),
-    lastName: formData.get("lastName"),
-    email: formData.get("email"),
+    firstName: getFirstFormValue(formData, ["firstName", "contactFirstName"]),
+    lastName: getFirstFormValue(formData, ["lastName", "contactLastName"]),
+    email: getFirstFormValue(formData, ["email", "contactEmail"]),
     phone: formData.get("phone"),
-    gender: formData.get("gender"),
-    age: formData.get("age"),
-    averageScore: formData.get("averageScore"),
     packageSelection: formData.get("packageSelection"),
-    adultGuestCount: formData.get("adultGuestCount"),
-    childGuestCount: formData.get("childGuestCount"),
-    dayBeforeRsvp: formData.get("dayBeforeRsvp"),
+    golfers: parseGolfersFromFormData(formData),
+    bbqOnlyAdultCount: getFirstFormValue(formData, [
+      "bbqOnlyAdultCount",
+      "adultGuestCount",
+    ]),
+    bbqOnlyKidCount: getFirstFormValue(formData, [
+      "bbqOnlyKidCount",
+      "childGuestCount",
+    ]),
     notes: formData.get("notes"),
+    dietaryNotes: formData.get("dietaryNotes"),
   });
 
   if (!parsed.success) {

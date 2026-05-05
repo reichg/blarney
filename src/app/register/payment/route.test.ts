@@ -1,11 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { getRegistrationCheckoutPayment } = vi.hoisted(() => ({
-  getRegistrationCheckoutPayment: vi.fn(),
-}));
+const { getRegistrationCheckoutPayment, getRsvpCheckoutPayment } = vi.hoisted(
+  () => ({
+    getRegistrationCheckoutPayment: vi.fn(),
+    getRsvpCheckoutPayment: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/registrationCheckout", () => ({
   getRegistrationCheckoutPayment,
+}));
+
+vi.mock("@/lib/rsvpCheckout", () => ({
+  getRsvpCheckoutPayment,
 }));
 
 import { GET } from "@/app/register/payment/route";
@@ -108,6 +115,49 @@ describe("registration payment route", () => {
 
     expect(response.headers.get("location")).toBe(
       `${publicSiteUrl}/register/thanks?checkout=checkout-123&payment=review`,
+    );
+  });
+
+  it("redirects an RSVP checkout to its Square payment URL", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", publicSiteUrl);
+    getRsvpCheckoutPayment.mockResolvedValue({
+      ok: true,
+      status: "pending",
+      checkoutId: "rsvp-checkout-123",
+      paymentReference: "payment-link-1",
+      paymentUrl: "https://square.link/u/rsvp-existing",
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/register/payment?rsvpCheckout=rsvp-checkout-123",
+      ),
+    );
+
+    expect(getRsvpCheckoutPayment).toHaveBeenCalledWith("rsvp-checkout-123");
+    expect(response.headers.get("location")).toBe(
+      "https://square.link/u/rsvp-existing",
+    );
+  });
+
+  it("redirects confirmed RSVP checkouts to RSVP thanks", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", publicSiteUrl);
+    getRsvpCheckoutPayment.mockResolvedValue({
+      ok: true,
+      status: "confirmed",
+      checkoutId: "rsvp-checkout-123",
+      rsvpId: "rsvp-123",
+      paymentUrl: null,
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/register/payment?rsvpCheckout=rsvp-checkout-123",
+      ),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `${publicSiteUrl}/rsvp/thanks?rsvp=rsvp-123&payment=confirmed`,
     );
   });
 });

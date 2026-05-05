@@ -1,5 +1,6 @@
 import styles from "@/app/chair/chair.module.css";
 import { db } from "@/lib/db";
+import { Download } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +12,13 @@ function formatGuestSummary(adultGuestCount: number, childGuestCount: number) {
   const parts = [];
 
   if (adultGuestCount > 0) {
-    parts.push(`${adultGuestCount} adult${adultGuestCount === 1 ? "" : "s"}`);
+    parts.push(
+      `${adultGuestCount} BBQ adult${adultGuestCount === 1 ? "" : "s"}`,
+    );
   }
 
   if (childGuestCount > 0) {
-    parts.push(`${childGuestCount} child${childGuestCount === 1 ? "" : "ren"}`);
+    parts.push(`${childGuestCount} BBQ kid${childGuestCount === 1 ? "" : "s"}`);
   }
 
   return parts.join(", ");
@@ -40,7 +43,14 @@ function formatPaymentStatus(paymentStatus: string) {
 async function getRegistrations() {
   try {
     return await db.registration.findMany({
-      include: { participant: true },
+      include: {
+        checkout: {
+          select: {
+            email: true,
+          },
+        },
+        participant: true,
+      },
       orderBy: { createdAt: "desc" },
     });
   } catch {
@@ -58,6 +68,24 @@ export default async function ChairRegistrationsPage() {
           <p className="eyebrow">Private</p>
           <h1>Registrations</h1>
         </div>
+        <div className={styles.actions}>
+          <a
+            className={styles.actionButton}
+            download
+            href="/api/chair/registrations/export"
+          >
+            <Download aria-hidden="true" size={16} />
+            Export CSV
+          </a>
+          <a
+            className={styles.actionButton}
+            download
+            href="/api/chair/registrations/export?scope=golfers"
+          >
+            <Download aria-hidden="true" size={16} />
+            Export golfers CSV
+          </a>
+        </div>
       </div>
       <div className={styles.tableWrap}>
         <table className={styles.table}>
@@ -67,7 +95,7 @@ export default async function ChairRegistrationsPage() {
               <th>Contact</th>
               <th>Golf</th>
               <th>Package</th>
-              <th>Guests</th>
+              <th>BBQ-only guests</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -79,7 +107,9 @@ export default async function ChairRegistrationsPage() {
                   {registration.participant.lastName}
                 </td>
                 <td>
-                  {registration.participant.email}
+                  {registration.checkout?.email ??
+                    registration.participant.email ??
+                    ""}
                   <br />
                   {registration.participant.phone ?? ""}
                 </td>
