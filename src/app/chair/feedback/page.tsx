@@ -7,6 +7,7 @@ import {
   type PaginationParams,
   type SearchParamsRecord,
 } from "@/lib/pagination";
+import { REMEMBRANCE_FEEDBACK_CATEGORY } from "@/lib/remembrance";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +15,22 @@ type ChairFeedbackPageProps = {
   searchParams: Promise<SearchParamsRecord>;
 };
 
+const chairFeedbackWhere = {
+  category: {
+    not: REMEMBRANCE_FEEDBACK_CATEGORY,
+  },
+};
+
 async function getFeedback(pagination: PaginationParams) {
   try {
     const [feedback, totalCount] = await Promise.all([
       db.feedback.findMany({
+        where: chairFeedbackWhere,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: pagination.skip,
         take: pagination.take,
       }),
-      db.feedback.count(),
+      db.feedback.count({ where: chairFeedbackWhere }),
     ]);
 
     return {
@@ -51,8 +59,8 @@ export default async function ChairFeedbackPage({
           <p className="eyebrow">Private</p>
           <h1>Feedback</h1>
           <p className={styles.pageIntro}>
-            Private notes from the public site land here, including general
-            event feedback and remembrance messages.
+            Private notes from the public feedback form land here for chair
+            review.
           </p>
           <div className={styles.pageMetaBar}>
             <span className={styles.pageMeta}>
@@ -67,8 +75,8 @@ export default async function ChairFeedbackPage({
           <div className={styles.sectionHeading}>
             <h2 className={styles.sectionTitle}>Recent messages</h2>
             <p className={styles.sectionIntro}>
-              These notes stay private to chair routes and help separate general
-              issues from remembrance-related follow-up.
+              These notes stay private to chair routes. Remembrance entries are
+              reviewed separately on the remembrance screen.
             </p>
           </div>
         </div>

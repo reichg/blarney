@@ -181,7 +181,7 @@ export default async function ChairRsvpsPage({
                       <td>{rsvp.email}</td>
                       <td>
                         <span className={styles.statusPill}>
-                          {rsvp.attending ? "Attending BBQ" : "Not attending"}
+                          {rsvp.attending ? "BBQ RSVP" : "Legacy no-BBQ RSVP"}
                         </span>
                       </td>
                       <td>{formatRsvpSource(rsvp.source)}</td>

@@ -53,7 +53,7 @@ function buildRsvpThanksUrl(
   } = {},
 ) {
   const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  const thanksUrl = new URL("/rsvp/thanks", configuredSiteUrl || request.url);
+  const thanksUrl = new URL("/register/thanks", configuredSiteUrl || request.url);
 
   if (options.rsvpCheckoutId) {
     thanksUrl.searchParams.set("rsvpCheckout", options.rsvpCheckoutId);

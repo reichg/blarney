@@ -18,7 +18,7 @@ const optionalTextSchema = z
 const golferSchema = z.object({
   firstName: z.string().trim().min(1),
   lastName: z.string().trim().min(1),
-  gender: z.enum(["MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"]),
+  gender: z.enum(["MALE", "FEMALE"]),
   age: z.coerce.number().int().min(1).max(110),
   averageScore: z.coerce.number().int().min(20).max(120),
 });

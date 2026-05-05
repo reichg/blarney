@@ -1,9 +1,16 @@
 import { db } from "@/lib/db";
 import { completeRegistrationPaymentStatuses } from "@/lib/payment";
+import { REMEMBRANCE_FEEDBACK_CATEGORY } from "@/lib/remembrance";
 import Link from "next/link";
 import styles from "./chair.module.css";
 
 export const dynamic = "force-dynamic";
+
+const chairFeedbackWhere = {
+  category: {
+    not: REMEMBRANCE_FEEDBACK_CATEGORY,
+  },
+};
 
 async function getDashboardCounts() {
   try {
@@ -23,7 +30,7 @@ async function getDashboardCounts() {
       }),
       db.registration.count({ where: { paymentStatus: "EXTERNAL_PENDING" } }),
       db.rsvp.count(),
-      db.feedback.count(),
+      db.feedback.count({ where: chairFeedbackWhere }),
       db.photoSubmission.count({ where: { status: "PENDING" } }),
       db.pairingGroup.count({ where: { status: "DRAFT" } }),
       db.pairingGroup.count({ where: { status: "PUBLISHED" } }),
@@ -112,7 +119,10 @@ export default async function ChairDashboardPage() {
           >
             <span>Feedback</span>
             <strong>{counts.feedback}</strong>
-            <small>Private public-site messages and remembrance notes.</small>
+            <small>
+              Private public-site feedback messages. Remembrance entries are
+              reviewed separately.
+            </small>
           </Link>
           <Link
             className={`${styles.stat} ${styles.statLink}`}

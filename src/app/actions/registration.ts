@@ -37,7 +37,7 @@ const requiredIntSchema = (minimum: number, maximum: number) =>
 const golferSubmitSchema = z.object({
   firstName: requiredTextSchema,
   lastName: requiredTextSchema,
-  gender: z.enum(["MALE", "FEMALE", "NON_BINARY", "PREFER_NOT_TO_SAY"]),
+  gender: z.enum(["MALE", "FEMALE"]),
   age: requiredIntSchema(1, 110),
   averageScore: requiredIntSchema(20, 120),
 });

@@ -35,7 +35,7 @@ export const rsvpCheckoutPayloadSchema = z
     path: ["adultAttendeeCount"],
   })
   .refine((data) => data.adultAttendeeCount + data.childAttendeeCount > 0, {
-    message: "Add at least one attendee when attending.",
+    message: "Add at least one attendee to RSVP.",
     path: ["adultAttendeeCount"],
   });
 

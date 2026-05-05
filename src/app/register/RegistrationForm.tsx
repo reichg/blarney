@@ -273,7 +273,6 @@ export function RegistrationForm({
       return;
     }
 
-    formData.set("attending", "yes");
     formData.set("adultAttendeeCount", String(rsvpAdultCount));
     formData.set("childAttendeeCount", String(rsvpKidCount));
 
@@ -553,7 +552,9 @@ export function RegistrationForm({
                       </label>
                     </div>
                     <label className={styles.field}>
-                      <span>Golfer {golferNumber} average Manzanita score (Par 32)</span>
+                      <span>
+                        Golfer {golferNumber} average Manzanita score (Par 32)
+                      </span>
                       <input
                         max="120"
                         min="20"
@@ -711,6 +712,15 @@ export function RegistrationForm({
             </p>
           </fieldset>
           <label className={styles.field}>
+            <span>Family or guest names</span>
+            <textarea
+              name="familyNames"
+              placeholder="List everyone joining the BBQ."
+              required
+              rows={3}
+            />
+          </label>
+          <label className={styles.field}>
             <span>Dietary notes</span>
             <textarea
               name="dietaryNotes"
@@ -724,6 +734,7 @@ export function RegistrationForm({
             <textarea
               name="notes"
               placeholder="If none, write None."
+              required
               rows={3}
             />
           </label>

@@ -233,6 +233,7 @@
 .table th,
 .table td {
   border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
   padding: 0.85rem;
   text-align: center;
   vertical-align: middle;
@@ -371,6 +372,13 @@
   outline: none;
 }
 
+.actionButton:disabled,
+.dangerButton:disabled,
+.secondaryActionButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .dangerButton {
   background: var(--rose);
 }
@@ -406,7 +414,9 @@
 
 .compactForm input,
 .compactForm textarea,
-.tableActionForm textarea {
+.compactForm select,
+.tableActionForm textarea,
+.tableActionForm select {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   min-height: 2.55rem;
@@ -416,6 +426,11 @@
 
 .actionOnlyForm button,
 .tableActionForm button {
+  justify-content: center;
+  width: 100%;
+}
+
+.fullWidthButton {
   justify-content: center;
   width: 100%;
 }
@@ -430,6 +445,52 @@
 
 .emptyState {
   color: var(--muted);
+}
+
+.pairingNotice {
+  gap: 0.35rem;
+}
+
+.pairingNoticeSuccess {
+  background: rgb(231 239 234 / 94%);
+  border-color: rgb(24 64 49 / 16%);
+}
+
+.pairingNoticeError {
+  background: rgb(123 67 60 / 7%);
+  border-color: rgb(123 67 60 / 18%);
+}
+
+.pairingNoticeTitle {
+  font-weight: 800;
+  margin: 0;
+}
+
+.pairingNoticeSuccess .pairingNoticeTitle {
+  color: var(--pine);
+}
+
+.pairingNoticeError .pairingNoticeTitle {
+  color: var(--rose);
+}
+
+.pairingNoticeBody {
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0;
+  max-width: 44rem;
+}
+
+.sectionActionStack {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 24rem;
+}
+
+.sectionActionHint {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
 }
 
 .selectionBar {
@@ -740,10 +801,85 @@
 }
 
 .pairingMembers li {
+  align-items: center;
   display: flex;
   gap: 1rem;
   justify-content: space-between;
   list-style: none;
+  min-width: 0;
+}
+
+.pairingCreateTitle,
+.pairingGroupTitle {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 0;
+}
+
+.pairingCreateTitle {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.pairingGroupTitle {
+  font-size: 1.15rem;
+}
+
+.pairingMetaLine {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.pairingGroupActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.pairingDeleteForm {
+  flex: 1;
+}
+
+.pairingMemberName {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pairingMemberScore {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.pairingRemoveForm {
+  display: inline;
+  margin: 0;
+}
+
+.pairingRemoveButton {
+  background: transparent;
+  border: 0;
+  color: var(--rose);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0;
+}
+
+.pairingRemoveButton:hover,
+.pairingRemoveButton:focus-visible {
+  color: #7a433c;
+  outline: none;
+  text-decoration: underline;
+}
+
+.pairingEmptyState {
+  color: var(--muted);
+  margin: 0.75rem 0 0;
 }
 
 .loginPage {

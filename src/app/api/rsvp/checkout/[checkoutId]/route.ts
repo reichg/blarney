@@ -54,7 +54,7 @@ export async function GET(
       ok: true,
       status: "confirmed",
       rsvpId: checkout.rsvpId,
-      thanksPath: `/rsvp/thanks?rsvp=${encodeURIComponent(
+      thanksPath: `/register/thanks?rsvp=${encodeURIComponent(
         checkout.rsvpId,
       )}&payment=confirmed`,
     });
@@ -67,7 +67,7 @@ export async function GET(
       ok: true,
       status: "confirmed",
       rsvpId: checkoutConfirmation.rsvpId,
-      thanksPath: `/rsvp/thanks?rsvp=${encodeURIComponent(
+      thanksPath: `/register/thanks?rsvp=${encodeURIComponent(
         checkoutConfirmation.rsvpId,
       )}&payment=confirmed`,
     });
