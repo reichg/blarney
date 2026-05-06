@@ -31,7 +31,7 @@ export default async function ChairRemembrancePage({
     await listChairRemembrancePhotosPage(paginationParams);
   const remembrancePhotos = photos.map((photo) => ({
     id: photo.id,
-    title: photo.caption ?? "Remembrance photo",
+    title: photo.caption ?? "N/A",
     caption: photo.caption,
     submitterEmail: photo.submitterEmail,
     submitterName: photo.submitterName,

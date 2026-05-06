@@ -29,6 +29,18 @@ type PairingDistributionGroup = {
   badCount: number;
 };
 
+const pairingGenderSortOrder: Record<Gender, number> = {
+  MALE: 0,
+  FEMALE: 1,
+  NON_BINARY: 2,
+  PREFER_NOT_TO_SAY: 3,
+};
+
+type SortablePairingGolfer = Pick<
+  PairingApplicant,
+  "id" | "firstName" | "lastName" | "gender" | "age" | "averageScore"
+>;
+
 export function isGoodGolfer(averageScore: number) {
   return averageScore <= 41;
 }
@@ -63,6 +75,20 @@ function compareApplicantsBySkill(
   return compareApplicantIdentity(left, right);
 }
 
+function compareApplicantsByPairingListOrder(
+  left: SortablePairingGolfer,
+  right: SortablePairingGolfer,
+) {
+  const genderDifference =
+    pairingGenderSortOrder[left.gender] - pairingGenderSortOrder[right.gender];
+
+  if (genderDifference !== 0) {
+    return genderDifference;
+  }
+
+  return compareApplicantsBySkill(left, right);
+}
+
 function compareApplicantsByAge(
   left: PairingApplicant,
   right: PairingApplicant,
@@ -85,6 +111,12 @@ export function identifyOlderAnchors(
   return [...applicants]
     .sort(compareApplicantsByAge)
     .slice(0, Math.min(groupCount, applicants.length));
+}
+
+export function sortPairingGolfers<T extends SortablePairingGolfer>(
+  golfers: T[],
+) {
+  return [...golfers].sort(compareApplicantsByPairingListOrder);
 }
 
 function addApplicantToGroup(

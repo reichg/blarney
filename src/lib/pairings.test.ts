@@ -2,6 +2,7 @@ import {
   buildPairingGroups,
   identifyOlderAnchors,
   isGoodGolfer,
+  sortPairingGolfers,
   type PairingApplicant,
 } from "@/lib/pairings";
 import { describe, expect, it } from "vitest";
@@ -230,6 +231,76 @@ describe("pairing builder", () => {
   it("uses 41 and below as the good-golfer threshold", () => {
     expect(isGoodGolfer(41)).toBe(true);
     expect(isGoodGolfer(42)).toBe(false);
+  });
+
+  it("sorts the chair pairing golfer list by gender, score, then age", () => {
+    const golfers = [
+      applicant({
+        id: "nora",
+        firstName: "Nora",
+        lastName: "Neutral",
+        gender: "NON_BINARY",
+        age: 48,
+        averageScore: 41,
+      }),
+      applicant({
+        id: "beth",
+        firstName: "Beth",
+        lastName: "Bird",
+        gender: "FEMALE",
+        age: 60,
+        averageScore: 40,
+      }),
+      applicant({
+        id: "uma",
+        firstName: "Uma",
+        lastName: "Unset",
+        gender: "PREFER_NOT_TO_SAY",
+        age: 75,
+        averageScore: 39,
+      }),
+      applicant({
+        id: "mark",
+        firstName: "Mark",
+        lastName: "Mulligan",
+        gender: "MALE",
+        age: 54,
+        averageScore: 44,
+      }),
+      applicant({
+        id: "cara",
+        firstName: "Cara",
+        lastName: "Caddie",
+        gender: "FEMALE",
+        age: 64,
+        averageScore: 40,
+      }),
+      applicant({
+        id: "liam",
+        firstName: "Liam",
+        lastName: "Links",
+        gender: "MALE",
+        age: 62,
+        averageScore: 39,
+      }),
+    ];
+
+    expect(sortPairingGolfers(golfers).map((golfer) => golfer.id)).toEqual([
+      "liam",
+      "mark",
+      "cara",
+      "beth",
+      "nora",
+      "uma",
+    ]);
+    expect(golfers.map((golfer) => golfer.id)).toEqual([
+      "nora",
+      "beth",
+      "uma",
+      "mark",
+      "cara",
+      "liam",
+    ]);
   });
 
   it("identifies older anchors from overall age ordering with stable tie-breaking", () => {

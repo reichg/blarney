@@ -1,13 +1,86 @@
-# Blarney 42 Project Instructions
+# Repository instructions for GitHub Copilot
 
-- Use `pnpm` for package management and scripts.
-- Keep the app on Next.js App Router, React, TypeScript, and CSS Modules.
-- Use Prisma with Postgres for persistent data. Prisma Client is configured for Prisma 7 with `@prisma/adapter-pg`.
-- Keep all database writes validated with Zod before calling Prisma.
-- Store chair-only pages under `/chair/*` and protect them with the single-password, signed HTTP-only cookie flow.
-- Do not expose pending photos, rejected photos, unpublished pairings, chair notes, or secrets in public routes.
-- Route public photo submissions through presigned S3 uploads to the `pending/` prefix. Only approved submissions should appear publicly.
-- Keep payment handling as an external Square/Cash handoff unless the scope explicitly changes.
-- Pairing generation should remain deterministic: split by gender, classify good golfers as Manzanita average score `<= 41`, sort by score and age, and cap groups at four.
-- Keep MVP scope focused. Do not add full user accounts, Square webhooks, automated reconciliation, email notifications, or CMS features unless requested.
-- Before handing off code changes, run the relevant checks: `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm prisma validate`, and `pnpm build` when route behavior changed.
+This repository uses an **Orchestrator-only** agent workflow.
+
+The user should manually select only the **Orchestrator** custom agent. All other roles are internal specialists represented by hidden/programmatic agent profiles and project skills.
+
+## Stack
+
+- Package manager: pnpm
+- Backend: PostgreSQL, Prisma, Zod, Next.js App Router, TypeScript
+- Frontend: TypeScript, React, CSS Modules
+- Testing: Vitest
+
+## Mandatory workflow
+
+For any non-trivial request:
+
+1. Orchestrator creates a plan.
+2. Orchestrator creates specialist work orders.
+3. Orchestrator delegates to hidden/programmatic specialists when supported.
+4. If programmatic custom-agent invocation is unavailable, Orchestrator must apply the corresponding `.github/skills/**/SKILL.md` instructions as internal specialist roles.
+5. Specialists return structured reports.
+6. Testing Agent validates behavior changes.
+7. Review Agent performs final gate.
+8. Orchestrator summarizes final result.
+
+## Engineering standards
+
+- Use pnpm.
+- Make minimal, focused changes.
+- Preserve existing project patterns.
+- Keep API routes thin.
+- Keep backend business logic in service modules.
+- Keep UI presentation separate from data fetching and transformation logic.
+- Use Zod at API, form, env/config, and external-data boundaries.
+- Use Prisma only from server-side modules.
+- Use CSS Modules for styling.
+- Add or update Vitest tests when behavior changes.
+- Avoid broad refactors and unrelated formatting.
+- Do not add dependencies unless clearly necessary.
+- Never expose secrets, tokens, sensitive fields, raw database errors, or stack traces to clients.
+- Use comments only where they clarify non-obvious behavior.
+
+## Preferred validation
+
+Use existing package scripts first:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+```
+
+For Vitest directly:
+
+```bash
+pnpm vitest run
+```
+
+For Prisma changes:
+
+```bash
+pnpm prisma validate
+pnpm prisma generate
+```
+
+Do not run destructive database commands or production-affecting commands unless explicitly requested.
+
+
+## Strict Orchestrator delegation protocol
+
+The Orchestrator must not start implementation on non-trivial tasks until it completes the Delegation Routing table.
+
+Required routing rules:
+
+- Architecture impact requires Architecture Agent.
+- API impact requires API Agent.
+- Backend service or Prisma impact requires Backend Services Agent.
+- Backend auth, authorization, validation, secrets, sensitive data, or safe-error impact requires Backend Security Agent.
+- React markup, component, accessibility, or CSS Module impact requires Frontend UI Agent.
+- Frontend API client, hook, form, or data transformation impact requires Frontend API and Logic Agent.
+- XSS, token, browser storage, redirect, unsafe rendering, external link, or public env-var impact requires Frontend Security Agent.
+- Any behavior change requires Testing Agent.
+- Any code change requires Review Agent.
+
+If a required specialist cannot be invoked programmatically, the Orchestrator must apply that specialist's skill file internally and produce a labeled Specialist Report.

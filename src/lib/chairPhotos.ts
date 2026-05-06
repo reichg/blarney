@@ -130,11 +130,7 @@ export function listReviewedChairGalleryPhotosPage(
   return listChairPhotosPage({
     pagination,
     purpose: "GALLERY",
-    where: {
-      status: {
-        not: "PENDING",
-      },
-    },
+    where: { status: "APPROVED" },
   });
 }
 

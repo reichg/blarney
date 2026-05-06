@@ -206,7 +206,7 @@ export async function submitRsvp(
     }
 
     if (checkoutPayment.status === "confirmed") {
-      const thanksPath = `/register/thanks?rsvp=${encodeURIComponent(checkoutPayment.rsvpId)}&payment=confirmed`;
+      const thanksPath = `/rsvp/thanks?rsvp=${encodeURIComponent(checkoutPayment.rsvpId)}&payment=confirmed`;
 
       return {
         ok: true,
@@ -222,7 +222,7 @@ export async function submitRsvp(
     }
 
     const paymentPath = getRsvpCheckoutPaymentPath(checkoutPayment.checkoutId);
-    const thanksPath = `/register/thanks?rsvpCheckout=${encodeURIComponent(checkoutPayment.checkoutId)}`;
+    const thanksPath = `/rsvp/thanks?rsvpCheckout=${encodeURIComponent(checkoutPayment.checkoutId)}`;
 
     return {
       ok: true,

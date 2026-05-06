@@ -20,11 +20,13 @@
 
 .leadCard,
 .detailCard {
-  background: var(--surface);
+  padding: clamp(1.1rem, 3vw, 1.5rem);
+}
+
+.leadCard {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: clamp(1.1rem, 3vw, 1.5rem);
 }
 
 .leadCard {

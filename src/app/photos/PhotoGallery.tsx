@@ -1,5 +1,6 @@
 "use client";
 
+import { ModularCard } from "@/components/ModularCard";
 import { useEffect, useId, useRef, useState } from "react";
 import photoStyles from "./photos.module.css";
 
@@ -62,7 +63,7 @@ export function PhotoGallery({ photos }: PhotoGalleryProps) {
     <>
       <div className={photoStyles.gallery}>
         {photos.map((photo, index) => (
-          <figure className={photoStyles.photo} key={photo.id}>
+          <ModularCard as="figure" className={photoStyles.photo} key={photo.id}>
             <button
               aria-haspopup="dialog"
               aria-label={`Open photo ${index + 1} full size`}
@@ -77,7 +78,7 @@ export function PhotoGallery({ photos }: PhotoGalleryProps) {
               />
             </button>
             {photo.caption ? <figcaption>{photo.caption}</figcaption> : null}
-          </figure>
+          </ModularCard>
         ))}
       </div>
 

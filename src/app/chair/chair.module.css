@@ -159,6 +159,311 @@
   margin: 0;
 }
 
+.listSurface {
+  display: grid;
+  gap: 1rem;
+}
+
+.listControls {
+  align-items: end;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: minmax(14rem, 1fr) minmax(11rem, 16rem) auto;
+  padding: 1rem;
+}
+
+.listControlField {
+  color: var(--pine);
+  display: grid;
+  font-weight: 800;
+  gap: 0.35rem;
+}
+
+.listControlField input,
+.listControlField select {
+  background: rgb(255 255 255 / 88%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--pine);
+  min-height: 2.55rem;
+  padding: 0.65rem;
+  width: 100%;
+}
+
+.listResultCount {
+  color: var(--muted);
+  font-weight: 800;
+  margin: 0;
+}
+
+.cardGrid,
+.compactCardGrid {
+  align-items: stretch;
+  display: grid;
+  gap: 1rem;
+}
+
+.cardGrid {
+  grid-auto-rows: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 25rem), 1fr));
+}
+
+.compactCardGrid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+}
+
+.previewCard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 18rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.previewCardHeader {
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem 0;
+}
+
+.previewCardButton {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+  text-align: left;
+  width: 100%;
+}
+
+.previewCardButton:hover,
+.previewCardButton:focus-visible {
+  background: rgb(24 64 49 / 4%);
+  outline: 3px solid var(--brass);
+  outline-offset: -3px;
+}
+
+.previewCardHint {
+  color: var(--pine);
+  font-size: 0.88rem;
+  font-weight: 800;
+  margin-top: auto;
+}
+
+.previewCardActions {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem 1rem;
+}
+
+.cardTitle {
+  color: var(--pine);
+  display: -webkit-box;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+  line-clamp: 2;
+  line-height: 1.25;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.cardKicker,
+.cardMeta,
+.cardText {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cardKicker {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cardText {
+  display: -webkit-box;
+  line-clamp: 3;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.cardMetaGrid,
+.detailGrid,
+.detailStack {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.cardMetaGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metric {
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  color: var(--pine);
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.65rem;
+}
+
+.metric span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metric strong {
+  overflow-wrap: anywhere;
+}
+
+.detailGrid {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.detailItem {
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.8rem;
+}
+
+.detailItem span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.detailItem p {
+  color: var(--pine);
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.detailDialog {
+  align-items: center;
+  background: rgb(8 16 21 / 0.84);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.25rem;
+  position: fixed;
+  z-index: 45;
+}
+
+.detailDialogPanel {
+  background: linear-gradient(180deg, rgb(255 255 255 / 98%), rgb(243 240 233));
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 0.5rem);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 0.24);
+  max-height: min(92vh, 58rem);
+  max-width: min(92vw, 58rem);
+  overflow: auto;
+  padding: 1rem;
+  width: 100%;
+}
+
+.detailDialogTopline {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.detailDialogEyebrow {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.detailDialogClose {
+  margin-left: auto;
+}
+
+.detailDialogBody {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.detailDialogTitle {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.45rem, 2.5vw, 2rem);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.placeholderBox {
+  align-items: center;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+  display: grid;
+  font-weight: 800;
+  justify-items: center;
+  min-height: 7rem;
+  padding: 1rem;
+}
+
+.detailImage {
+  aspect-ratio: 4 / 3;
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  display: block;
+  max-height: min(62vh, 38rem);
+  object-fit: contain;
+  width: 100%;
+}
+
+.photoReviewGrid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 25rem), 1fr));
+}
+
+.photoReviewCard {
+  min-height: 29rem;
+}
+
+.pairingGolferCard,
+.pairingGroupCard {
+  align-content: start;
+  min-height: 16rem;
+}
+
+.pairingCardTopline {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
 .statGrid {
   display: grid;
   gap: 1rem;
@@ -574,11 +879,6 @@
   margin: 0;
 }
 
-.remembranceGrid {
-  align-items: stretch;
-  gap: 1.25rem;
-}
-
 .remembranceCard {
   gap: 0.25rem;
   min-width: 0;
@@ -593,6 +893,14 @@
   gap: 0.5rem;
   justify-content: space-evenly;
   padding: 1rem 1rem 0;
+}
+
+.remembranceCardHeaderRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
 }
 
 .remembranceCardMedia {
@@ -667,6 +975,10 @@
   margin-top: auto;
   padding: 0 1rem 1rem;
   justify-content: center;
+}
+
+.remembrancePreviewCard {
+  min-height: 22rem;
 }
 
 .remembranceDialog {
@@ -789,7 +1101,7 @@
 }
 
 .photoGrid.remembranceGrid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 16rem));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
   justify-content: start;
 }
 
@@ -814,6 +1126,19 @@
   color: var(--pine);
   font-family: Georgia, "Times New Roman", serif;
   margin: 0;
+}
+
+.pairingPreviewMembers {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pairingPreviewMember {
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem;
 }
 
 .pairingCreateTitle {
@@ -842,8 +1167,16 @@
 }
 
 .pairingMemberName {
+  display: grid;
+  gap: 0.15rem;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.pairingMemberMeta {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .pairingMemberScore {
@@ -917,6 +1250,10 @@
     flex-direction: column;
   }
 
+  .listControls {
+    grid-template-columns: 1fr;
+  }
+
   .topline,
   .sectionHeader,
   .pageMetaBar {
@@ -952,5 +1289,18 @@
   .remembranceDialogPanel {
     max-height: 95vh;
     padding: 0.75rem;
+  }
+
+  .detailDialog {
+    padding: 0.75rem;
+  }
+
+  .detailDialogPanel {
+    max-height: 95vh;
+    padding: 0.75rem;
+  }
+
+  .pairingCardTopline {
+    flex-direction: column;
   }
 }

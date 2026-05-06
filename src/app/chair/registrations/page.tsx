@@ -1,6 +1,14 @@
 import styles from "@/app/chair/chair.module.css";
+import {
+  displayValue,
+  joinSearchText,
+  uniqueFilterOptions,
+} from "@/app/chair/display";
+import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
+import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { PaginationNav } from "@/components/PaginationNav";
 import { db } from "@/lib/db";
+import { formatDateTime } from "@/lib/format";
 import {
   buildPaginationState,
   parsePaginationParams,
@@ -51,6 +59,10 @@ function formatPaymentStatus(paymentStatus: string) {
   return paymentStatus.replaceAll("_", " ");
 }
 
+function formatBoolean(value: boolean) {
+  return value ? "Yes" : "No";
+}
+
 async function getRegistrations(pagination: PaginationParams) {
   try {
     const [registrations, totalCount] = await Promise.all([
@@ -89,6 +101,48 @@ export default async function ChairRegistrationsPage({
   const paginationParams = parsePaginationParams(params);
   const { registrations, pagination } =
     await getRegistrations(paginationParams);
+  const registrationSearchItems = registrations.map((registration) => {
+    const participant = registration.participant;
+    const paymentLabel = formatPaymentStatus(registration.paymentStatus);
+
+    return {
+      id: registration.id,
+      searchText: joinSearchText([
+        participant.firstName,
+        participant.lastName,
+        participant.email,
+        participant.phone,
+        participant.gender,
+        participant.age,
+        participant.averageScore,
+        registration.checkout?.email,
+        registration.packageSelection,
+        paymentLabel,
+        registration.paymentReference,
+        registration.notes,
+      ]),
+      filters: [
+        `payment:${registration.paymentStatus}`,
+        `package:${registration.packageSelection}`,
+        `gender:${participant.gender}`,
+      ],
+    };
+  });
+  const registrationFilters = [
+    { value: "payment:CONFIRMED", label: "Complete" },
+    { value: "payment:WAIVED", label: "Complete (waived)" },
+    { value: "payment:EXTERNAL_PENDING", label: "Pending payment" },
+    ...uniqueFilterOptions(
+      registrations.map((registration) => ({
+        value: `package:${registration.packageSelection}`,
+        label: registration.packageSelection,
+      })),
+    ),
+    { value: "gender:MALE", label: "Male golfers" },
+    { value: "gender:FEMALE", label: "Female golfers" },
+    { value: "gender:NON_BINARY", label: "Non-binary golfers" },
+    { value: "gender:PREFER_NOT_TO_SAY", label: "Prefer not to say" },
+  ];
 
   return (
     <>
@@ -137,65 +191,132 @@ export default async function ChairRegistrationsPage({
             </p>
           </div>
         </div>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Contact</th>
-                <th>Golf</th>
-                <th>Package</th>
-                <th>BBQ-only guests</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registrations.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className={styles.muted}>
-                    {pagination.isEmpty
-                      ? "No registrations yet."
-                      : "No registrations on this page."}
-                  </td>
-                </tr>
-              ) : (
-                registrations.map((registration) => (
-                  <tr key={registration.id}>
-                    <td>
-                      {registration.participant.firstName}{" "}
-                      {registration.participant.lastName}
-                    </td>
-                    <td>
-                      {registration.checkout?.email ??
-                        registration.participant.email ??
-                        ""}
-                      <br />
-                      {registration.participant.phone ?? ""}
-                    </td>
-                    <td>
-                      {registration.participant.gender.replaceAll("_", " ")}
-                      <br />
-                      Age {registration.participant.age}, score{" "}
-                      {registration.participant.averageScore}
-                    </td>
-                    <td>{registration.packageSelection}</td>
-                    <td>
-                      {formatGuestSummary(
-                        registration.adultGuestCount,
-                        registration.childGuestCount,
-                      )}
-                    </td>
-                    <td>
-                      <span className={styles.statusPill}>
-                        {formatPaymentStatus(registration.paymentStatus)}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {registrations.length === 0 ? (
+          <section className={styles.panel}>
+            <p className={styles.emptyState}>
+              {pagination.isEmpty
+                ? "No registrations yet."
+                : "No registrations on this page."}
+            </p>
+          </section>
+        ) : (
+          <FilterableCardGrid
+            emptyMessage="No registrations match this search on the current page."
+            filterAllLabel="All registrations"
+            filters={registrationFilters}
+            items={registrationSearchItems}
+            resultLabel="registrations"
+            searchLabel="Search registrations"
+            searchPlaceholder="Search names, emails, packages, notes"
+          >
+            {registrations.map((registration) => {
+              const participant = registration.participant;
+              const fullName = `${participant.firstName} ${participant.lastName}`;
+              const paymentLabel = formatPaymentStatus(
+                registration.paymentStatus,
+              );
+              const contactEmail =
+                registration.checkout?.email ?? participant.email;
+              const guestSummary = formatGuestSummary(
+                registration.adultGuestCount,
+                registration.childGuestCount,
+              );
+
+              return (
+                <PreviewDetailCard
+                  eyebrow="Registration"
+                  key={registration.id}
+                  openLabel={`Open registration details for ${fullName}`}
+                  preview={
+                    <>
+                      <p className={styles.cardKicker}>{paymentLabel}</p>
+                      <h3 className={styles.cardTitle}>{fullName}</h3>
+                      <p className={styles.cardMeta}>
+                        {displayValue(contactEmail)}
+                        <br />
+                        {displayValue(participant.phone)}
+                      </p>
+                      <div className={styles.cardMetaGrid}>
+                        <span className={styles.metric}>
+                          <span>Package</span>
+                          <strong>{registration.packageSelection}</strong>
+                        </span>
+                        <span className={styles.metric}>
+                          <span>Guests</span>
+                          <strong>{guestSummary}</strong>
+                        </span>
+                      </div>
+                    </>
+                  }
+                  title={fullName}
+                >
+                  <div className={styles.detailGrid}>
+                    <div className={styles.detailItem}>
+                      <span>Contact email</span>
+                      <p>{displayValue(contactEmail)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Participant email</span>
+                      <p>{displayValue(participant.email)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Phone</span>
+                      <p>{displayValue(participant.phone)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Gender</span>
+                      <p>{participant.gender.replaceAll("_", " ")}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Age</span>
+                      <p>{participant.age}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Average score</span>
+                      <p>{participant.averageScore}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Package</span>
+                      <p>{registration.packageSelection}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>BBQ adult guests</span>
+                      <p>{registration.adultGuestCount}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>BBQ kid guests</span>
+                      <p>{registration.childGuestCount}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Day-before RSVP</span>
+                      <p>{formatBoolean(registration.dayBeforeRsvp)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Payment status</span>
+                      <p>{paymentLabel}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Payment reference</span>
+                      <p>{displayValue(registration.paymentReference)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Created</span>
+                      <p>{formatDateTime(registration.createdAt)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Updated</span>
+                      <p>{formatDateTime(registration.updatedAt)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Notes</span>
+                      <p>{displayValue(registration.notes)}</p>
+                    </div>
+                  </div>
+                </PreviewDetailCard>
+              );
+            })}
+          </FilterableCardGrid>
+        )}
       </section>
       <PaginationNav
         label="Registrations"

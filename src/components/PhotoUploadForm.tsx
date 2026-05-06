@@ -99,7 +99,11 @@ export function PhotoUploadForm() {
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
-      <div className={formStyles.gridTwo}>
+      <p className={styles.formIntro}>
+        Add your contact info, one caption for the selected set, and the photos
+        you want reviewed.
+      </p>
+      <div className={`${formStyles.gridTwo} ${styles.contactFields}`}>
         <label className={formStyles.field}>
           <span>Name</span>
           <input name="submitterName" required type="text" />
@@ -109,40 +113,47 @@ export function PhotoUploadForm() {
           <input name="submitterEmail" required type="email" />
         </label>
       </div>
-      <label className={formStyles.field}>
-        <span>Caption</span>
-        <textarea
-          name="caption"
-          placeholder="Describe the photo or set of photos."
-          required
-          rows={3}
-        />
-      </label>
-      <fieldset className={formStyles.fieldset}>
-        <legend>Photos</legend>
-        <small className={formStyles.fieldHint} id="photo-upload-help">
-          Use Browse to select one photo, multiple photos, or a folder. One
-          caption applies to every selected photo. {acceptedPhotoTypeLabel};{" "}
-          {photoUploadLimitLabel} max per photo.
-        </small>
-        <PhotoBrowsePicker
+      <div className={styles.detailsGrid}>
+        <label className={`${formStyles.field} ${styles.captionField}`}>
+          <span>Caption</span>
+          <textarea
+            name="caption"
+            placeholder="Describe the photo or set of photos."
+            required
+            rows={4}
+          />
+        </label>
+        <fieldset className={`${formStyles.fieldset} ${styles.photoFieldset}`}>
+          <legend>Photos</legend>
+          <div className={styles.photoFieldsetBody}>
+            <small className={formStyles.fieldHint} id="photo-upload-help">
+              One caption applies to every selected photo.{" "}
+              {acceptedPhotoTypeLabel}; {photoUploadLimitLabel} max per photo.
+            </small>
+            <PhotoBrowsePicker
+              description="Select one photo, several photos, or a folder."
+              disabled={isSubmitting}
+              helpTextId="photo-upload-help"
+              title="Choose photos"
+            />
+          </div>
+        </fieldset>
+      </div>
+      <div className={styles.formFooter}>
+        <div
+          aria-live="polite"
+          className={`${styles.status} ${error ? styles.error : ""}`}
+        >
+          {error || status}
+        </div>
+        <button
+          className={styles.uploadButton}
           disabled={isSubmitting}
-          helpTextId="photo-upload-help"
-        />
-      </fieldset>
-      <button
-        className={styles.uploadButton}
-        disabled={isSubmitting}
-        type="submit"
-      >
-        <Upload aria-hidden="true" size={18} />
-        Submit for review
-      </button>
-      <div
-        aria-live="polite"
-        className={`${styles.status} ${error ? styles.error : ""}`}
-      >
-        {error || status}
+          type="submit"
+        >
+          <Upload aria-hidden="true" size={18} />
+          Submit for review
+        </button>
       </div>
     </form>
   );

@@ -1,6 +1,7 @@
 import formStyles from "@/app/forms.module.css";
-import { RemembranceForm } from "@/app/remembrance/RemembranceForm";
 import styles from "@/app/remembrance/remembrance.module.css";
+import { RemembranceForm } from "@/app/remembrance/RemembranceForm";
+import { ModularCard } from "@/components/ModularCard";
 
 export default function RemembrancePage() {
   return (
@@ -33,7 +34,7 @@ export default function RemembrancePage() {
               </p>
             </div>
             <div className={styles.detailGrid}>
-              <section className={styles.detailCard}>
+              <ModularCard as="section" className={styles.detailCard}>
                 <h2>What to send</h2>
                 <ul className={styles.detailList}>
                   <li>A short remembrance or story.</li>
@@ -44,15 +45,15 @@ export default function RemembrancePage() {
                     An optional photo that helps the chair recognize the memory.
                   </li>
                 </ul>
-              </section>
-              <section className={styles.detailCard}>
+              </ModularCard>
+              <ModularCard as="section" className={styles.detailCard}>
                 <h2>How it is handled</h2>
                 <p>
                   Remembrance notes go to the chair privately. Optional photos
                   stay private to the chair and are kept out of the public photo
                   gallery.
                 </p>
-              </section>
+              </ModularCard>
             </div>
           </div>
           <aside className={`${formStyles.panel} ${styles.formCard}`}>

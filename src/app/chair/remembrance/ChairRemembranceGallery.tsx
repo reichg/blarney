@@ -1,7 +1,9 @@
 "use client";
 
 import styles from "@/app/chair/chair.module.css";
-import { useEffect, useRef, useState } from "react";
+import { filterChairListItems } from "@/app/chair/listFiltering";
+import { RemembrancePhotoCard } from "@/app/chair/remembrance/RemembrancePhotoCard";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type RemembrancePhoto = {
   id: string;
@@ -32,30 +34,51 @@ export function ChairRemembranceGallery({
   photos,
 }: ChairRemembranceGalleryProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [activePhotoId, setActivePhotoId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [filterValue, setFilterValue] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const selectAllRef = useRef<HTMLInputElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
+  const searchItems = useMemo(
+    () =>
+      photos.map((photo) => ({
+        id: photo.id,
+        searchText: [
+          photo.title,
+          photo.caption ?? "N/A",
+          photo.submitterEmail,
+          photo.submitterName,
+          photo.note ?? "N/A",
+          photo.receivedAtLabel,
+        ].join(" "),
+        filters: [
+          photo.caption ? "caption:yes" : "caption:no",
+          photo.note ? "note:yes" : "note:no",
+        ],
+      })),
+    [photos],
+  );
+  const filteredSearchItems = useMemo(
+    () => filterChairListItems(searchItems, query, filterValue),
+    [filterValue, query, searchItems],
+  );
+  const visiblePhotoIds = new Set(filteredSearchItems.map((item) => item.id));
+  const filteredPhotos = photos.filter((photo) =>
+    visiblePhotoIds.has(photo.id),
+  );
   const photoIds = photos.map((photo) => photo.id);
+  const shownPhotoIds = filteredPhotos.map((photo) => photo.id);
   const selectedPhotoIds = selectedIds.filter((id) => photoIds.includes(id));
-  const activePhoto =
-    activePhotoId === null
-      ? null
-      : (photos.find((photo) => photo.id === activePhotoId) ?? null);
+  const visibleSelectedPhotoIds = selectedIds.filter((id) =>
+    shownPhotoIds.includes(id),
+  );
 
   const allSelected =
-    photos.length > 0 && selectedPhotoIds.length === photos.length;
+    filteredPhotos.length > 0 &&
+    visibleSelectedPhotoIds.length === filteredPhotos.length;
   const hasSelection = selectedPhotoIds.length > 0;
-  const someSelected = hasSelection && !allSelected;
-  const activePhotoTitleId = activePhoto
-    ? `chair-remembrance-title-${activePhoto.id}`
-    : undefined;
-  const activePhotoDescriptionId = activePhoto
-    ? `chair-remembrance-description-${activePhoto.id}`
-    : undefined;
+  const someSelected = visibleSelectedPhotoIds.length > 0 && !allSelected;
 
   useEffect(() => {
     if (!selectAllRef.current) {
@@ -64,31 +87,6 @@ export function ChairRemembranceGallery({
 
     selectAllRef.current.indeterminate = someSelected;
   }, [someSelected]);
-
-  useEffect(() => {
-    if (!activePhoto) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    closeButtonRef.current?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setActivePhotoId(null);
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      lastFocusedElementRef.current?.focus();
-    };
-  }, [activePhoto]);
 
   function togglePhotoSelection(id: string) {
     setSelectedIds((currentIds) =>
@@ -99,23 +97,17 @@ export function ChairRemembranceGallery({
   }
 
   function toggleSelectAll() {
-    setSelectedIds((currentIds) =>
-      currentIds.filter((id) => photoIds.includes(id)).length === photos.length
-        ? []
-        : photoIds,
-    );
-  }
+    setSelectedIds((currentIds) => {
+      const currentVisibleIds = currentIds.filter((id) =>
+        shownPhotoIds.includes(id),
+      );
 
-  function openPhotoDetails(
-    id: string,
-    event: React.MouseEvent<HTMLButtonElement>,
-  ) {
-    lastFocusedElementRef.current = event.currentTarget;
-    setActivePhotoId(id);
-  }
+      if (currentVisibleIds.length === filteredPhotos.length) {
+        return currentIds.filter((id) => !shownPhotoIds.includes(id));
+      }
 
-  function closePhotoDetails() {
-    setActivePhotoId(null);
+      return [...new Set([...currentIds, ...shownPhotoIds])];
+    });
   }
 
   async function downloadArchive(payload: { ids?: string[]; mode?: "all" }) {
@@ -200,20 +192,48 @@ export function ChairRemembranceGallery({
   return (
     <>
       <section className={styles.panel}>
+        <div className={styles.listControls}>
+          <label className={styles.listControlField}>
+            <span>Search remembrance</span>
+            <input
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search captions, names, emails, notes"
+              type="search"
+              value={query}
+            />
+          </label>
+          <label className={styles.listControlField}>
+            <span>Filter</span>
+            <select
+              onChange={(event) => setFilterValue(event.target.value)}
+              value={filterValue}
+            >
+              <option value="">All remembrance photos</option>
+              <option value="caption:yes">Has caption</option>
+              <option value="caption:no">No caption</option>
+              <option value="note:yes">Has note</option>
+              <option value="note:no">No note</option>
+            </select>
+          </label>
+          <p aria-live="polite" className={styles.listResultCount}>
+            Showing {filteredPhotos.length} of {photos.length} remembrance
+            photos on this page
+          </p>
+        </div>
         <div className={styles.selectionBar}>
           <div className={styles.selectionControls}>
             <label className={styles.selectionToggle}>
               <input
-                aria-label={`Select all ${photos.length} remembrance photos`}
+                aria-label={`Select all ${filteredPhotos.length} shown remembrance photos`}
                 checked={allSelected}
                 onChange={toggleSelectAll}
                 ref={selectAllRef}
                 type="checkbox"
               />
-              <span>Select all on this page</span>
+              <span>Select all shown</span>
             </label>
             <span className={styles.selectionSummary}>
-              {selectedPhotoIds.length} of {photos.length} on this page selected
+              {selectedPhotoIds.length} selected on this page
             </span>
           </div>
           <div className={styles.downloadActions}>
@@ -246,139 +266,27 @@ export function ChairRemembranceGallery({
         aria-busy={isDownloading}
         className={`${styles.photoGrid} ${styles.remembranceGrid}`}
       >
-        {photos.map((photo) => {
-          const isSelected = selectedPhotoIds.includes(photo.id);
+        {filteredPhotos.length ? (
+          filteredPhotos.map((photo) => {
+            const isSelected = selectedPhotoIds.includes(photo.id);
 
-          return (
-            <article
-              className={`${styles.panel} ${styles.remembranceCard}`}
-              key={photo.id}
-            >
-              <div className={styles.remembranceCardHeader}>
-                <label className={styles.selectionToggle}>
-                  <input
-                    aria-label={`Select ${photo.title}`}
-                    checked={isSelected}
-                    onChange={() => togglePhotoSelection(photo.id)}
-                    type="checkbox"
-                  />
-                  <span>Select</span>
-                </label>
-                <span className={styles.muted}>{photo.receivedAtLabel}</span>
-              </div>
-              <button
-                aria-haspopup="dialog"
-                aria-label={`Open remembrance details for ${photo.title}`}
-                className={styles.remembrancePreviewButton}
-                onClick={(event) => openPhotoDetails(photo.id, event)}
-                type="button"
-              >
-                <div className={styles.remembranceCardMedia}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    alt={photo.caption ?? "Remembrance photo preview"}
-                    className={`${styles.photoPreview} ${styles.remembrancePhotoPreview}`}
-                    src={`/api/chair/photos/${photo.id}/view`}
-                  />
-                </div>
-                <div className={styles.remembranceCardBody}>
-                  <div className={styles.remembranceCardCopy}>
-                    <div className={styles.photoMeta}>
-                      <p className={styles.muted}>{photo.submitterName}</p>
-                    </div>
-                  </div>
-                </div>
-              </button>
-              <div
-                className={`${styles.photoActionsRow} ${styles.remembranceCardActions}`}
-              >
-                <a
-                  className={styles.secondaryActionButton}
-                  href={`/api/chair/remembrance/${photo.id}/download`}
-                >
-                  Download photo
-                </a>
-              </div>
-            </article>
-          );
-        })}
+            return (
+              <RemembrancePhotoCard
+                isSelected={isSelected}
+                key={photo.id}
+                onToggleSelect={togglePhotoSelection}
+                photo={photo}
+              />
+            );
+          })
+        ) : (
+          <article className={styles.panel}>
+            <p className={styles.emptyState}>
+              No remembrance photos match this search on the current page.
+            </p>
+          </article>
+        )}
       </section>
-      {activePhoto ? (
-        <div
-          aria-describedby={activePhotoDescriptionId}
-          aria-labelledby={activePhotoTitleId}
-          aria-modal="true"
-          className={styles.remembranceDialog}
-          onClick={closePhotoDetails}
-          role="dialog"
-        >
-          <div
-            className={styles.remembranceDialogPanel}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.remembranceDialogTopline}>
-              <p className={styles.remembranceDialogEyebrow}>
-                Private remembrance
-              </p>
-              <button
-                className={`${styles.secondaryActionButton} ${styles.remembranceDialogClose}`}
-                onClick={closePhotoDetails}
-                ref={closeButtonRef}
-                type="button"
-              >
-                Close
-              </button>
-            </div>
-            <div className={styles.remembranceDialogBody}>
-              <h2
-                className={styles.remembranceDialogTitle}
-                id={activePhotoTitleId}
-              >
-                {activePhoto.title}
-              </h2>
-              <div className={styles.remembranceDialogMeta}>
-                <p>
-                  <strong>Submitted by:</strong> {activePhoto.submitterName}
-                </p>
-                <p>
-                  <strong>Email:</strong> {activePhoto.submitterEmail}
-                </p>
-                <p>
-                  <strong>Received:</strong> {activePhoto.receivedAtLabel}
-                </p>
-              </div>
-              <figure className={styles.remembranceDialogFigure}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt={activePhoto.caption ?? "Remembrance photo preview"}
-                  className={styles.remembranceDialogImage}
-                  src={`/api/chair/photos/${activePhoto.id}/view`}
-                />
-              </figure>
-              <div className={styles.remembranceDialogContent}>
-                <div
-                  className={styles.remembranceDialogCopy}
-                  id={activePhotoDescriptionId}
-                >
-                  {activePhoto.note ? (
-                    <div className={styles.remembranceDialogNote}>
-                      <p>{activePhoto.note}</p>
-                    </div>
-                  ) : null}
-                </div>
-                <div className={styles.remembranceDialogActions}>
-                  <a
-                    className={styles.actionButton}
-                    href={`/api/chair/remembrance/${activePhoto.id}/download`}
-                  >
-                    Download photo
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import {
   approvePhoto,
   deletePendingPhoto,
+  rejectPhoto,
   returnApprovedPhotoToPending,
 } from "@/app/actions/chairPhotos";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -176,6 +177,24 @@ describe("chair photo actions", () => {
       },
     });
     expect(revalidatePath).toHaveBeenCalledWith("/photos");
+    expect(revalidatePath).toHaveBeenCalledWith("/chair/photos");
+    expect(revalidatePath).toHaveBeenCalledWith("/chair/remembrance");
+  });
+
+  it("rejects a pending photo by deleting it from S3 and removing the database row", async () => {
+    photoFindUniqueOrThrow.mockResolvedValue({
+      id: "photo-1",
+      s3Key: "pending/photo-1.jpg",
+      status: "PENDING",
+    });
+
+    await expect(rejectPhoto(buildReviewFormData())).resolves.toBeUndefined();
+
+    expect(deletePhotoObject).toHaveBeenCalledWith("pending/photo-1.jpg");
+    expect(photoDelete).toHaveBeenCalledWith({
+      where: { id: "photo-1" },
+    });
+    expect(photoUpdate).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/chair/photos");
     expect(revalidatePath).toHaveBeenCalledWith("/chair/remembrance");
   });

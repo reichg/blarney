@@ -1,13 +1,21 @@
 import styles from "@/app/chair/chair.module.css";
+import { displayValue, joinSearchText } from "@/app/chair/display";
+import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
+import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { PaginationNav } from "@/components/PaginationNav";
+import {
+  getChairRsvpPartyCounts,
+  sumChairRsvpPartyCounts,
+} from "@/lib/chairRsvps";
 import { db } from "@/lib/db";
+import { formatDateTime } from "@/lib/format";
 import {
   buildPaginationState,
   parsePaginationParams,
   type PaginationParams,
   type SearchParamsRecord,
 } from "@/lib/pagination";
-import type { RsvpSource } from "@prisma/client";
+import type { Prisma, RsvpSource } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +23,29 @@ type ChairRsvpsPageProps = {
   searchParams: Promise<SearchParamsRecord>;
 };
 
+const chairRsvpPartyCountsSelect = {
+  source: true,
+  adultAttendeeCount: true,
+  childAttendeeCount: true,
+  attendeeCount: true,
+  participant: {
+    select: {
+      age: true,
+      registrations: {
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: {
+          adultGuestCount: true,
+          childGuestCount: true,
+        },
+        take: 1,
+      },
+    },
+  },
+} satisfies Prisma.RsvpSelect;
+
 async function getRsvps(pagination: PaginationParams) {
   try {
-    const [rsvps, totalCount] = await Promise.all([
+    const [rsvps, totalCount, rsvpPartyCounts] = await Promise.all([
       db.rsvp.findMany({
         include: {
           participant: {
@@ -39,16 +67,21 @@ async function getRsvps(pagination: PaginationParams) {
         take: pagination.take,
       }),
       db.rsvp.count(),
+      db.rsvp.findMany({
+        select: chairRsvpPartyCountsSelect,
+      }),
     ]);
 
     return {
       rsvps,
       pagination: buildPaginationState(pagination, totalCount),
+      partyTotals: sumChairRsvpPartyCounts(rsvpPartyCounts),
     };
   } catch {
     return {
       rsvps: [],
       pagination: buildPaginationState(pagination, 0),
+      partyTotals: sumChairRsvpPartyCounts([]),
     };
   }
 }
@@ -69,38 +102,31 @@ function formatAttendeeTotal(attendeeCount: number) {
   return `${attendeeCount} total BBQ attendee${attendeeCount === 1 ? "" : "s"}`;
 }
 
+function formatRsvpStatus(attending: boolean) {
+  return attending ? "BBQ RSVP" : "Legacy no-BBQ RSVP";
+}
+
 function formatPartySummary(
   rsvp: Awaited<ReturnType<typeof getRsvps>>["rsvps"][number],
 ) {
-  if (rsvp.adultAttendeeCount !== null && rsvp.childAttendeeCount !== null) {
+  const partyCounts = getChairRsvpPartyCounts(rsvp);
+
+  if (partyCounts) {
     return {
       primary: formatGuestSummary(
-        rsvp.adultAttendeeCount,
-        rsvp.childAttendeeCount,
+        partyCounts.adultAttendeeCount,
+        partyCounts.childAttendeeCount,
       ),
       secondary:
-        rsvp.attendeeCount === 0
+        partyCounts.attendeeCount === 0
           ? undefined
-          : formatAttendeeTotal(rsvp.attendeeCount),
+          : formatAttendeeTotal(partyCounts.attendeeCount),
     };
   }
 
   const registration = rsvp.participant?.registrations[0];
 
   if (rsvp.source === "REGISTRATION" && registration) {
-    if (typeof rsvp.participant?.age === "number") {
-      const golferIsAdult = rsvp.participant.age >= 15;
-      const adultAttendeeCount =
-        registration.adultGuestCount + (golferIsAdult ? 1 : 0);
-      const childAttendeeCount =
-        registration.childGuestCount + (golferIsAdult ? 0 : 1);
-
-      return {
-        primary: formatGuestSummary(adultAttendeeCount, childAttendeeCount),
-        secondary: formatAttendeeTotal(rsvp.attendeeCount),
-      };
-    }
-
     return {
       primary: `${formatGuestSummary(registration.adultGuestCount, registration.childGuestCount)}, plus registrant`,
       secondary: formatAttendeeTotal(rsvp.attendeeCount),
@@ -117,7 +143,39 @@ export default async function ChairRsvpsPage({
 }: ChairRsvpsPageProps) {
   const params = await searchParams;
   const paginationParams = parsePaginationParams(params);
-  const { rsvps, pagination } = await getRsvps(paginationParams);
+  const { rsvps, pagination, partyTotals } = await getRsvps(paginationParams);
+  const rsvpSearchItems = rsvps.map((rsvp) => {
+    const partySummary = formatPartySummary(rsvp);
+
+    return {
+      id: rsvp.id,
+      searchText: joinSearchText([
+        rsvp.firstName,
+        rsvp.lastName,
+        rsvp.email,
+        formatRsvpStatus(rsvp.attending),
+        formatRsvpSource(rsvp.source),
+        partySummary.primary,
+        partySummary.secondary,
+        rsvp.familyNames,
+        rsvp.dietaryNotes,
+        rsvp.notes,
+      ]),
+      filters: [
+        `source:${rsvp.source}`,
+        `attending:${rsvp.attending ? "yes" : "no"}`,
+        rsvp.notes ? "notes:yes" : "notes:no",
+      ],
+    };
+  });
+  const rsvpFilters = [
+    { value: "attending:yes", label: "BBQ RSVPs" },
+    { value: "attending:no", label: "Legacy no-BBQ" },
+    { value: "source:FORM", label: "RSVP form" },
+    { value: "source:REGISTRATION", label: "Registration sourced" },
+    { value: "notes:yes", label: "Has notes" },
+    { value: "notes:no", label: "No notes" },
+  ];
 
   return (
     <>
@@ -131,8 +189,12 @@ export default async function ChairRsvpsPage({
           </p>
           <div className={styles.pageMetaBar}>
             <span className={styles.pageMeta}>
-              {pagination.totalCount} total RSVP
-              {pagination.totalCount === 1 ? "" : "s"}
+              {partyTotals.adultAttendeeCount} adult attendee
+              {partyTotals.adultAttendeeCount === 1 ? "" : "s"}
+            </span>
+            <span className={styles.pageMeta}>
+              {partyTotals.childAttendeeCount} kid attendee
+              {partyTotals.childAttendeeCount === 1 ? "" : "s"}
             </span>
           </div>
         </div>
@@ -147,64 +209,113 @@ export default async function ChairRsvpsPage({
             </p>
           </div>
         </div>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Source</th>
-                <th>BBQ party</th>
-                <th>Family</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rsvps.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className={styles.muted}>
-                    {pagination.isEmpty
-                      ? "No RSVPs yet."
-                      : "No RSVPs on this page."}
-                  </td>
-                </tr>
-              ) : (
-                rsvps.map((rsvp) => {
-                  const partySummary = formatPartySummary(rsvp);
+        {rsvps.length === 0 ? (
+          <section className={styles.panel}>
+            <p className={styles.emptyState}>
+              {pagination.isEmpty ? "No RSVPs yet." : "No RSVPs on this page."}
+            </p>
+          </section>
+        ) : (
+          <FilterableCardGrid
+            emptyMessage="No RSVPs match this search on the current page."
+            filterAllLabel="All RSVPs"
+            filters={rsvpFilters}
+            items={rsvpSearchItems}
+            resultLabel="RSVPs"
+            searchLabel="Search RSVPs"
+            searchPlaceholder="Search names, emails, families, notes"
+          >
+            {rsvps.map((rsvp) => {
+              const partySummary = formatPartySummary(rsvp);
+              const fullName = `${rsvp.firstName} ${rsvp.lastName}`;
+              const statusLabel = formatRsvpStatus(rsvp.attending);
+              const sourceLabel = formatRsvpSource(rsvp.source);
 
-                  return (
-                    <tr key={rsvp.id}>
-                      <td>
-                        {rsvp.firstName} {rsvp.lastName}
-                      </td>
-                      <td>{rsvp.email}</td>
-                      <td>
-                        <span className={styles.statusPill}>
-                          {rsvp.attending ? "BBQ RSVP" : "Legacy no-BBQ RSVP"}
+              return (
+                <PreviewDetailCard
+                  eyebrow="RSVP"
+                  key={rsvp.id}
+                  openLabel={`Open RSVP details for ${fullName}`}
+                  preview={
+                    <>
+                      <p className={styles.cardKicker}>{sourceLabel}</p>
+                      <h3 className={styles.cardTitle}>{fullName}</h3>
+                      <p className={styles.cardMeta}>
+                        {displayValue(rsvp.email)}
+                      </p>
+                      <div className={styles.cardMetaGrid}>
+                        <span className={styles.metric}>
+                          <span>Status</span>
+                          <strong>{statusLabel}</strong>
                         </span>
-                      </td>
-                      <td>{formatRsvpSource(rsvp.source)}</td>
-                      <td>
-                        <div>{partySummary.primary}</div>
-                        {partySummary.secondary ? (
-                          <div className={styles.muted}>
-                            {partySummary.secondary}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td>{rsvp.familyNames}</td>
-                      <td className={styles.notesCell}>
-                        {rsvp.dietaryNotes}
-                        {rsvp.notes ? <p>{rsvp.notes}</p> : null}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        <span className={styles.metric}>
+                          <span>Party</span>
+                          <strong>{partySummary.primary}</strong>
+                        </span>
+                      </div>
+                      <p className={styles.cardText}>
+                        {displayValue(rsvp.familyNames)}
+                      </p>
+                    </>
+                  }
+                  title={fullName}
+                >
+                  <div className={styles.detailGrid}>
+                    <div className={styles.detailItem}>
+                      <span>Email</span>
+                      <p>{displayValue(rsvp.email)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Status</span>
+                      <p>{statusLabel}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Source</span>
+                      <p>{sourceLabel}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Adult attendees</span>
+                      <p>{displayValue(rsvp.adultAttendeeCount)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Kid attendees</span>
+                      <p>{displayValue(rsvp.childAttendeeCount)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Total attendees</span>
+                      <p>{rsvp.attendeeCount}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Party summary</span>
+                      <p>
+                        {partySummary.primary}
+                        {partySummary.secondary
+                          ? `\n${partySummary.secondary}`
+                          : ""}
+                      </p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Family</span>
+                      <p>{displayValue(rsvp.familyNames)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Dietary notes</span>
+                      <p>{displayValue(rsvp.dietaryNotes)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Notes</span>
+                      <p>{displayValue(rsvp.notes)}</p>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Received</span>
+                      <p>{formatDateTime(rsvp.createdAt)}</p>
+                    </div>
+                  </div>
+                </PreviewDetailCard>
+              );
+            })}
+          </FilterableCardGrid>
+        )}
       </section>
       <PaginationNav
         label="RSVPs"

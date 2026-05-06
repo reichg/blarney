@@ -1,9 +1,78 @@
 .layout {
-  display: grid;
-  gap: 2rem;
-  grid-template-columns: minmax(0, 1.35fr) minmax(20rem, 0.65fr);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1.75rem, 4vw, 2.5rem);
   margin: 0 auto;
   width: min(1180px, 100%);
+}
+
+.uploadPanel {
+  display: grid;
+  gap: clamp(1.35rem, 3vw, 1.85rem);
+  max-width: min(80rem, 100%);
+  padding: clamp(1.65rem, 3vw, 2.2rem);
+}
+
+.uploadIntro {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+  margin: 0 auto;
+  max-width: 120rem;
+  text-align: center;
+}
+
+.uploadEyebrow {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.uploadIntro h2 {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.95rem, 3.8vw, 2.6rem);
+  line-height: 1.08;
+  margin: 0;
+  max-width: 50rem;
+}
+
+.uploadLead {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+  max-width: 54ch;
+}
+
+.uploadFormShell {
+  margin: 0 auto;
+  min-width: 0;
+  width: min(780px, 100%);
+}
+
+.gallerySection {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.galleryHeader {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.galleryHeader h2 {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 0;
+}
+
+.galleryHeader p {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
 }
 
 .gallery {
@@ -13,9 +82,6 @@
 }
 
 .photo {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
   margin: 0;
   overflow: hidden;
 }
@@ -120,16 +186,16 @@
 }
 
 @media (max-width: 980px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
   .gallery {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 560px) {
+  .uploadIntro h2 {
+    max-width: none;
+  }
+
   .gallery {
     grid-template-columns: 1fr;
   }

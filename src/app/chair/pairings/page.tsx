@@ -1,16 +1,17 @@
 import {
-  assignPairingMember,
   createPairingGroup,
-  deletePairingGroup,
   generatePairings,
   publishPairings,
-  removePairingMember,
   unpublishPairings,
-  updatePairingGroup,
 } from "@/app/actions/pairings";
 import styles from "@/app/chair/chair.module.css";
+import { joinSearchText } from "@/app/chair/display";
+import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
+import { PairingGolferCard } from "@/app/chair/pairings/PairingGolferCard";
+import { PairingGroupCard } from "@/app/chair/pairings/PairingGroupCard";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
+import { sortPairingGolfers } from "@/lib/pairings";
 import { type SearchParamsRecord } from "@/lib/pagination";
 import { completeRegistrationPaymentStatuses } from "@/lib/payment";
 import type { Gender, PairingStatus, Participant } from "@prisma/client";
@@ -99,13 +100,28 @@ async function submitUnpublishPairings() {
   redirect(`${chairPairingsPath}?pairings=unpublished`);
 }
 
-function datetimeLocalValue(value: Date | null) {
-  if (!value) {
-    return "";
-  }
+function buildGroupSearchText(group: PairingGroupWithMembers) {
+  return joinSearchText([
+    group.name,
+    group.status,
+    group.sortOrder,
+    group.teeTime ? formatDateTime(group.teeTime) : null,
+    ...group.members.flatMap((member) => [
+      member.participant.firstName,
+      member.participant.lastName,
+      member.snapshotAge,
+      member.snapshotGender,
+      member.snapshotScore,
+    ]),
+  ]);
+}
 
-  const offsetMs = value.getTimezoneOffset() * 60 * 1000;
-  return new Date(value.getTime() - offsetMs).toISOString().slice(0, 16);
+function buildGroupFilters(group: PairingGroupWithMembers) {
+  return [
+    `status:${group.status}`,
+    group.teeTime ? "tee:yes" : "tee:no",
+    group.members.length >= 4 ? "capacity:full" : "capacity:open",
+  ];
 }
 
 async function getPairingData() {
@@ -161,9 +177,10 @@ async function getPairingData() {
       draftAssignment: assignmentByParticipantId.get(participant.id) ?? null,
     }));
 
-    const unassignedGolferCount = golfers.filter(
-      (participant) => !participant.draftAssignment,
-    ).length;
+    const unassignedGolfers = sortPairingGolfers(
+      golfers.filter((participant) => !participant.draftAssignment),
+    );
+    const unassignedGolferCount = unassignedGolfers.length;
 
     const nextSortOrder =
       draftGroups.length > 0
@@ -175,7 +192,7 @@ async function getPairingData() {
     return {
       draftGroups,
       publishedGroups,
-      golfers,
+      unassignedGolfers,
       paidGolferCount: paidGolfers.length,
       nextSortOrder,
       unassignedGolferCount,
@@ -184,7 +201,7 @@ async function getPairingData() {
     return {
       draftGroups: [],
       publishedGroups: [],
-      golfers: [],
+      unassignedGolfers: [],
       paidGolferCount: 0,
       nextSortOrder: 1,
       unassignedGolferCount: 0,
@@ -200,11 +217,44 @@ export default async function ChairPairingsPage({
   const {
     draftGroups,
     publishedGroups,
-    golfers,
+    unassignedGolfers,
     paidGolferCount,
     nextSortOrder,
     unassignedGolferCount,
   } = await getPairingData();
+  const golferSearchItems = unassignedGolfers.map((golfer) => ({
+    id: golfer.id,
+    searchText: joinSearchText([
+      golfer.firstName,
+      golfer.lastName,
+      golfer.age,
+      golfer.gender,
+      golfer.averageScore,
+    ]),
+    filters: [`gender:${golfer.gender}`],
+  }));
+  const golferFilters = [
+    { value: "gender:MALE", label: "Male golfers" },
+    { value: "gender:FEMALE", label: "Female golfers" },
+    { value: "gender:NON_BINARY", label: "Non-binary golfers" },
+    { value: "gender:PREFER_NOT_TO_SAY", label: "Prefer not to say" },
+  ];
+  const draftGroupSearchItems = draftGroups.map((group) => ({
+    id: group.id,
+    searchText: buildGroupSearchText(group),
+    filters: buildGroupFilters(group),
+  }));
+  const publishedGroupSearchItems = publishedGroups.map((group) => ({
+    id: group.id,
+    searchText: buildGroupSearchText(group),
+    filters: buildGroupFilters(group),
+  }));
+  const groupFilters = [
+    { value: "tee:yes", label: "Has tee time" },
+    { value: "tee:no", label: "No tee time" },
+    { value: "capacity:full", label: "Full groups" },
+    { value: "capacity:open", label: "Open groups" },
+  ];
 
   return (
     <>
@@ -270,93 +320,44 @@ export default async function ChairPairingsPage({
           <div className={styles.sectionHeading}>
             <h2 className={styles.sectionTitle}>Golfers</h2>
             <p className={styles.sectionIntro}>
-              Paid golfers and their current draft group assignment.
+              Paid golfers who are still available to assign to a draft group.
             </p>
           </div>
         </div>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Age</th>
-                <th>Gender</th>
-                <th>Score</th>
-                <th>Draft group</th>
-                <th>Assign or move</th>
-              </tr>
-            </thead>
-            <tbody>
-              {golfers.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No paid golfers are ready for pairings.</td>
-                </tr>
-              ) : (
-                golfers.map((golfer) => (
-                  <tr key={golfer.id}>
-                    <td>
-                      {golfer.firstName} {golfer.lastName}
-                    </td>
-                    <td>{golfer.age}</td>
-                    <td>{golfer.gender}</td>
-                    <td>{golfer.averageScore}</td>
-                    <td>
-                      {golfer.draftAssignment ? (
-                        <span className={styles.statusPill}>
-                          {golfer.draftAssignment.groupName}
-                        </span>
-                      ) : (
-                        <span className={styles.muted}>Unassigned</span>
-                      )}
-                    </td>
-                    <td>
-                      {draftGroups.length > 0 ? (
-                        <form
-                          action={assignPairingMember}
-                          className={styles.tableActionForm}
-                        >
-                          <input
-                            name="participantId"
-                            type="hidden"
-                            value={golfer.id}
-                          />
-                          <select
-                            name="groupId"
-                            required
-                            defaultValue={golfer.draftAssignment?.groupId ?? ""}
-                          >
-                            <option value="">Select group</option>
-                            {draftGroups.map((group) => {
-                              const isCurrentGroup =
-                                golfer.draftAssignment?.groupId === group.id;
-
-                              return (
-                                <option
-                                  key={group.id}
-                                  value={group.id}
-                                  disabled={
-                                    group.members.length >= 4 && !isCurrentGroup
-                                  }
-                                >
-                                  {group.name} ({group.members.length}/4)
-                                </option>
-                              );
-                            })}
-                          </select>
-                          <button className={styles.actionButton} type="submit">
-                            {golfer.draftAssignment ? "Move" : "Assign"}
-                          </button>
-                        </form>
-                      ) : (
-                        <span className={styles.muted}>No draft groups</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {unassignedGolfers.length === 0 ? (
+          <section className={styles.panel}>
+            <p className={styles.emptyState}>
+              No unassigned paid golfers are ready for pairings.
+            </p>
+          </section>
+        ) : (
+          <FilterableCardGrid
+            className={styles.compactCardGrid}
+            emptyMessage="No unassigned golfers match this search."
+            filterAllLabel="All unassigned golfers"
+            filters={golferFilters}
+            items={golferSearchItems}
+            resultLabel="unassigned golfers"
+            searchLabel="Search unassigned golfers"
+            searchPlaceholder="Search names, scores, genders"
+          >
+            {unassignedGolfers.map((golfer) => {
+              return (
+                <PairingGolferCard
+                  golfer={golfer}
+                  groupOptions={draftGroups.map((group) => ({
+                    disabled:
+                      group.members.length >= 4 &&
+                      golfer.draftAssignment?.groupId !== group.id,
+                    id: group.id,
+                    label: `${group.name} (${group.members.length}/4)`,
+                  }))}
+                  key={golfer.id}
+                />
+              );
+            })}
+          </FilterableCardGrid>
+        )}
       </section>
 
       <section className={styles.sectionBlock}>
@@ -399,19 +400,28 @@ export default async function ChairPairingsPage({
           </form>
         </div>
 
-        <section className={styles.pairingGrid}>
-          {draftGroups.length === 0 ? (
-            <div className={styles.panel}>
-              <p className={styles.emptyState}>
-                Draft groups will appear here after you generate or create them.
-              </p>
-            </div>
-          ) : (
-            draftGroups.map((group) => (
+        {draftGroups.length === 0 ? (
+          <div className={styles.panel}>
+            <p className={styles.emptyState}>
+              Draft groups will appear here after you generate or create them.
+            </p>
+          </div>
+        ) : (
+          <FilterableCardGrid
+            className={styles.compactCardGrid}
+            emptyMessage="No draft groups match this search."
+            filterAllLabel="All draft groups"
+            filters={groupFilters}
+            items={draftGroupSearchItems}
+            resultLabel="draft groups"
+            searchLabel="Search draft groups"
+            searchPlaceholder="Search groups, tee times, golfers"
+          >
+            {draftGroups.map((group) => (
               <PairingGroupCard key={group.id} group={group} isDraft={true} />
-            ))
-          )}
-        </section>
+            ))}
+          </FilterableCardGrid>
+        )}
       </section>
 
       {publishedGroups.length > 0 && (
@@ -445,122 +455,22 @@ export default async function ChairPairingsPage({
               </p>
             </div>
           </div>
-          <section className={styles.pairingGrid}>
+          <FilterableCardGrid
+            className={styles.compactCardGrid}
+            emptyMessage="No published groups match this search."
+            filterAllLabel="All published groups"
+            filters={groupFilters}
+            items={publishedGroupSearchItems}
+            resultLabel="published groups"
+            searchLabel="Search published groups"
+            searchPlaceholder="Search groups, tee times, golfers"
+          >
             {publishedGroups.map((group) => (
               <PairingGroupCard key={group.id} group={group} isDraft={false} />
             ))}
-          </section>
+          </FilterableCardGrid>
         </section>
       )}
     </>
-  );
-}
-
-function PairingGroupCard({
-  group,
-  isDraft,
-}: {
-  group: PairingGroupWithMembers;
-  isDraft: boolean;
-}) {
-  return (
-    <article className={styles.panel}>
-      {isDraft ? (
-        <>
-          <form action={updatePairingGroup} className={styles.compactForm}>
-            <input name="id" type="hidden" value={group.id} />
-            <label>
-              Name
-              <input
-                name="name"
-                required
-                type="text"
-                defaultValue={group.name}
-              />
-            </label>
-            <label>
-              Sort order
-              <input
-                min="1"
-                name="sortOrder"
-                required
-                type="number"
-                defaultValue={group.sortOrder}
-              />
-            </label>
-            <label>
-              Tee time (optional)
-              <input
-                name="teeTime"
-                type="datetime-local"
-                defaultValue={datetimeLocalValue(group.teeTime)}
-              />
-            </label>
-            <button className={styles.actionButton} type="submit">
-              Save group
-            </button>
-          </form>
-          <div className={styles.pairingGroupActions}>
-            <form
-              action={deletePairingGroup}
-              className={styles.pairingDeleteForm}
-            >
-              <input name="id" type="hidden" value={group.id} />
-              <button
-                className={`${styles.dangerButton} ${styles.fullWidthButton}`}
-                type="submit"
-                disabled={group.members.length > 0}
-              >
-                Delete group
-              </button>
-            </form>
-          </div>
-        </>
-      ) : (
-        <>
-          <h3 className={styles.pairingGroupTitle}>{group.name}</h3>
-          <p className={styles.pairingMetaLine}>
-            Sort order: {group.sortOrder}
-          </p>
-        </>
-      )}
-
-      <p className={styles.pairingMetaLine}>
-        <span className={styles.statusPill}>{group.status}</span>
-        {group.teeTime && <> / {formatDateTime(group.teeTime)}</>}
-      </p>
-
-      {group.members.length > 0 ? (
-        <ul className={styles.pairingMembers}>
-          {group.members.map((member) => (
-            <li key={member.id}>
-              <span className={styles.pairingMemberName}>
-                {member.participant.firstName} {member.participant.lastName}
-              </span>
-              <span className={styles.pairingMemberScore}>
-                {member.snapshotScore}
-                {isDraft && (
-                  <form
-                    action={removePairingMember}
-                    className={styles.pairingRemoveForm}
-                  >
-                    <input name="memberId" type="hidden" value={member.id} />
-                    <button
-                      className={styles.pairingRemoveButton}
-                      type="submit"
-                      title="Remove from group"
-                    >
-                      Remove
-                    </button>
-                  </form>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className={styles.pairingEmptyState}>No members yet.</p>
-      )}
-    </article>
   );
 }

@@ -45,6 +45,21 @@ async function requireChairSession() {
   }
 }
 
+async function deletePendingPhotoById(id: string, errorMessage: string) {
+  const photo = await db.photoSubmission.findUniqueOrThrow({
+    where: { id },
+  });
+
+  if (photo.status !== "PENDING") {
+    throw new Error(errorMessage);
+  }
+
+  await deletePhotoObject(photo.s3Key);
+  await db.photoSubmission.delete({
+    where: { id },
+  });
+}
+
 export async function approvePhoto(formData: FormData) {
   await requireChairSession();
 
@@ -81,26 +96,14 @@ export async function approvePhoto(formData: FormData) {
 export async function rejectPhoto(formData: FormData) {
   await requireChairSession();
 
-  const parsed = photoReviewSchema.parse({
+  const parsed = photoIdSchema.parse({
     id: formData.get("id"),
-    reviewNotes: formData.get("reviewNotes"),
   });
 
-  const photo = await db.photoSubmission.findUniqueOrThrow({
-    where: { id: parsed.id },
-  });
-
-  if (photo.status !== "PENDING") {
-    throw new Error("Only pending photos can be rejected.");
-  }
-
-  await db.photoSubmission.update({
-    where: { id: parsed.id },
-    data: {
-      reviewNotes: parsed.reviewNotes,
-      status: "REJECTED",
-    },
-  });
+  await deletePendingPhotoById(
+    parsed.id,
+    "Only pending photos can be rejected.",
+  );
 
   revalidatePath("/chair/photos");
   revalidatePath("/chair/remembrance");
@@ -149,18 +152,10 @@ export async function deletePendingPhoto(formData: FormData) {
     id: formData.get("id"),
   });
 
-  const photo = await db.photoSubmission.findUniqueOrThrow({
-    where: { id: parsed.id },
-  });
-
-  if (photo.status !== "PENDING") {
-    throw new Error("Only pending photos can be deleted.");
-  }
-
-  await deletePhotoObject(photo.s3Key);
-  await db.photoSubmission.delete({
-    where: { id: parsed.id },
-  });
+  await deletePendingPhotoById(
+    parsed.id,
+    "Only pending photos can be deleted.",
+  );
 
   revalidatePath("/chair/photos");
   revalidatePath("/chair/remembrance");

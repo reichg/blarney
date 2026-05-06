@@ -60,12 +60,38 @@ export default async function PhotosPage({ searchParams }: PhotosPageProps) {
           <h1 className="section-title">
             Tournament memories, carefully kept.
           </h1>
-          <p>Approved photos appear here after chair review.</p>
+          <p>Share a favorite shot, then browse the approved gallery below.</p>
         </div>
       </header>
       <section className={styles.formSection}>
         <div className={photoStyles.layout}>
-          <div>
+          <section
+            aria-labelledby="photo-upload-heading"
+            className={`${styles.panel} ${photoStyles.uploadPanel}`}
+          >
+            <div className={photoStyles.uploadIntro}>
+              <p className={photoStyles.uploadEyebrow}>Photo submissions</p>
+              <h2 id="photo-upload-heading">Share a tournament moment</h2>
+              <p className={photoStyles.uploadLead}>
+                Send one photo or a full batch for chair review. Every selected
+                file stays private until the chair approves it for the gallery.
+              </p>
+            </div>
+            <div className={photoStyles.uploadFormShell}>
+              <PhotoUploadForm />
+            </div>
+          </section>
+          <section
+            aria-labelledby="approved-photos-heading"
+            className={photoStyles.gallerySection}
+          >
+            <div className={photoStyles.galleryHeader}>
+              <h2 id="approved-photos-heading">Approved photos</h2>
+              <p>
+                Browse the latest gallery uploads that have been approved for
+                public display.
+              </p>
+            </div>
             {photos.length ? (
               <PhotoGallery
                 photos={photos.map((photo) => ({
@@ -85,12 +111,7 @@ export default async function PhotosPage({ searchParams }: PhotosPageProps) {
               pagination={pagination}
               searchParams={params}
             />
-          </div>
-          <aside className={styles.panel}>
-            <h2>Submit a Photo</h2>
-            <p>Photos upload to S3 for chair review before public display.</p>
-            <PhotoUploadForm />
-          </aside>
+          </section>
         </div>
       </section>
     </>

@@ -11,10 +11,11 @@ For your response, include:
 2. Scope: frontend, backend, docs, or full-stack
 3. Implementation order
 4. Agent assignments
-5. Key files likely involved
-6. Data, validation, security, or UX concerns
-7. Testing and verification checklist
-8. Final handoff summary
+5. Delegate to proper agents and report back the completed task.
+6. Key files likely involved
+7. Data, validation, security, or UX concerns
+8. Testing and verification checklist
+9. Final handoff summary
 
 Project context:
 

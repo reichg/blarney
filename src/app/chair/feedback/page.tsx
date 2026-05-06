@@ -1,6 +1,14 @@
 import styles from "@/app/chair/chair.module.css";
+import {
+  displayValue,
+  joinSearchText,
+  uniqueFilterOptions,
+} from "@/app/chair/display";
+import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
+import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { PaginationNav } from "@/components/PaginationNav";
 import { db } from "@/lib/db";
+import { formatDateTime } from "@/lib/format";
 import {
   buildPaginationState,
   parsePaginationParams,
@@ -51,6 +59,28 @@ export default async function ChairFeedbackPage({
   const params = await searchParams;
   const paginationParams = parsePaginationParams(params);
   const { feedback, pagination } = await getFeedback(paginationParams);
+  const feedbackSearchItems = feedback.map((item) => ({
+    id: item.id,
+    searchText: joinSearchText([
+      item.name,
+      item.email,
+      item.category,
+      item.rating,
+      item.message,
+    ]),
+    filters: [
+      `category:${item.category}`,
+      item.rating === null ? "rating:none" : "rating:provided",
+    ],
+  }));
+  const feedbackFilters = uniqueFilterOptions([
+    { value: "rating:provided", label: "Has rating" },
+    { value: "rating:none", label: "No rating" },
+    ...feedback.map((item) => ({
+      value: `category:${item.category}`,
+      label: item.category,
+    })),
+  ]);
 
   return (
     <>
@@ -80,42 +110,89 @@ export default async function ChairFeedbackPage({
             </p>
           </div>
         </div>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>From</th>
-                <th>Category</th>
-                <th>Rating</th>
-                <th>Message</th>
-              </tr>
-            </thead>
-            <tbody>
-              {feedback.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className={styles.muted}>
-                    {pagination.isEmpty
-                      ? "No feedback yet."
-                      : "No feedback on this page."}
-                  </td>
-                </tr>
-              ) : (
-                feedback.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      {item.name ?? "Anonymous"}
-                      <br />
-                      {item.email ?? ""}
-                    </td>
-                    <td>{item.category}</td>
-                    <td>{item.rating ?? "-"}</td>
-                    <td className={styles.notesCell}>{item.message}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {feedback.length === 0 ? (
+          <section className={styles.panel}>
+            <p className={styles.emptyState}>
+              {pagination.isEmpty
+                ? "No feedback yet."
+                : "No feedback on this page."}
+            </p>
+          </section>
+        ) : (
+          <FilterableCardGrid
+            emptyMessage="No feedback messages match this search on the current page."
+            filterAllLabel="All feedback"
+            filters={feedbackFilters}
+            items={feedbackSearchItems}
+            resultLabel="messages"
+            searchLabel="Search feedback"
+            searchPlaceholder="Search names, emails, categories, messages"
+          >
+            {feedback.map((item) => {
+              const sender = item.name ?? "Anonymous";
+              const ratingLabel =
+                item.rating === null ? "N/A" : `${item.rating}`;
+
+              return (
+                <PreviewDetailCard
+                  eyebrow="Feedback"
+                  key={item.id}
+                  openLabel={`Open feedback details from ${sender}`}
+                  preview={
+                    <>
+                      <p className={styles.cardKicker}>{item.category}</p>
+                      <h3 className={styles.cardTitle}>{sender}</h3>
+                      <p className={styles.cardMeta}>
+                        {displayValue(item.email)}
+                      </p>
+                      <div className={styles.cardMetaGrid}>
+                        <span className={styles.metric}>
+                          <span>Rating</span>
+                          <strong>{ratingLabel}</strong>
+                        </span>
+                        <span className={styles.metric}>
+                          <span>Received</span>
+                          <strong>{formatDateTime(item.createdAt)}</strong>
+                        </span>
+                      </div>
+                      <p className={styles.cardText}>{item.message}</p>
+                    </>
+                  }
+                  title={sender}
+                >
+                  <div className={styles.detailStack}>
+                    <div className={styles.detailGrid}>
+                      <div className={styles.detailItem}>
+                        <span>Name</span>
+                        <p>{sender}</p>
+                      </div>
+                      <div className={styles.detailItem}>
+                        <span>Email</span>
+                        <p>{displayValue(item.email)}</p>
+                      </div>
+                      <div className={styles.detailItem}>
+                        <span>Category</span>
+                        <p>{item.category}</p>
+                      </div>
+                      <div className={styles.detailItem}>
+                        <span>Rating</span>
+                        <p>{ratingLabel}</p>
+                      </div>
+                      <div className={styles.detailItem}>
+                        <span>Received</span>
+                        <p>{formatDateTime(item.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className={styles.detailItem}>
+                      <span>Message</span>
+                      <p>{item.message}</p>
+                    </div>
+                  </div>
+                </PreviewDetailCard>
+              );
+            })}
+          </FilterableCardGrid>
+        )}
       </section>
       <PaginationNav
         label="Feedback"

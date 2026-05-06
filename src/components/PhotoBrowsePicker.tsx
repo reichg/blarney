@@ -112,8 +112,7 @@ export function PhotoBrowsePicker({
         type="file"
       />
       <div className={styles.photoPickerBody}>
-        <Images aria-hidden="true" size={24} />
-        <div>
+        <div className={styles.photoPickerCopy}>
           <strong>{title}</strong>
           <span>{description}</span>
         </div>
@@ -140,7 +139,6 @@ export function PhotoBrowsePicker({
               role="menuitem"
               type="button"
             >
-              <Images aria-hidden="true" size={18} />
               Photos
             </button>
             <button
@@ -149,7 +147,6 @@ export function PhotoBrowsePicker({
               role="menuitem"
               type="button"
             >
-              <FolderOpen aria-hidden="true" size={18} />
               Folder
             </button>
           </div>
