@@ -625,12 +625,6 @@ export function RegistrationForm({
                 <dt>Golfers under 15</dt>
                 <dd>{golferKidCount}</dd>
               </div>
-              {golferUnknownAgeCount > 0 ? (
-                <div>
-                  <dt>Golfers needing age</dt>
-                  <dd>{golferUnknownAgeCount}</dd>
-                </div>
-              ) : null}
               <div>
                 <dt>Additional BBQ-only adults</dt>
                 <dd>{bbqOnlyAdultCount}</dd>
