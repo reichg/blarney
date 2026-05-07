@@ -315,7 +315,6 @@ describe("registration checkout payments", () => {
         firstName: "Morgan",
         lastName: "Payer",
         email: "morgan@example.com",
-        attending: true,
         adultAttendeeCount: 3,
         childAttendeeCount: 2,
         attendeeCount: 5,

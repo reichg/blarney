@@ -102,19 +102,19 @@ async function main() {
   });
   console.log("");
 
-  // Sample RSVP attendance
-  const attendanceStats = await prisma.rsvp.groupBy({
-    by: ["attending"],
+  const attendeeTotals = await prisma.rsvp.aggregate({
     where: { email: { contains: "@example.com" } },
-    _count: true,
+    _sum: {
+      attendeeCount: true,
+      adultAttendeeCount: true,
+      childAttendeeCount: true,
+    },
   });
 
-  console.log("RSVP Attendance:");
-  attendanceStats.forEach((stat) => {
-    console.log(
-      `  ${stat.attending ? "Attending" : "Not attending"}: ${stat._count}`,
-    );
-  });
+  console.log("RSVP Attendee Totals:");
+  console.log(`  Adults: ${attendeeTotals._sum.adultAttendeeCount ?? 0}`);
+  console.log(`  Kids: ${attendeeTotals._sum.childAttendeeCount ?? 0}`);
+  console.log(`  Total: ${attendeeTotals._sum.attendeeCount ?? 0}`);
   console.log("");
 }
 

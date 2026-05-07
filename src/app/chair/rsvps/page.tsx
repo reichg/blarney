@@ -63,12 +63,7 @@ function parseRsvpFilter(searchParams: SearchParamsRecord | undefined) {
     chairRsvpFilterParamKey,
   );
 
-  if (
-    filterValue === "attending:yes" ||
-    filterValue === "attending:no" ||
-    filterValue === "notes:yes" ||
-    filterValue === "notes:no"
-  ) {
+  if (filterValue === "notes:yes" || filterValue === "notes:no") {
     return filterValue;
   }
 
@@ -87,10 +82,6 @@ function parseRsvpFilter(searchParams: SearchParamsRecord | undefined) {
 
 function buildRsvpWhere(filterValue: string): Prisma.RsvpWhereInput {
   switch (filterValue) {
-    case "attending:yes":
-      return { attending: true };
-    case "attending:no":
-      return { attending: false };
     case "notes:yes":
       return {
         AND: [{ notes: { not: null } }, { NOT: { notes: "" } }],
@@ -279,11 +270,7 @@ export default async function ChairRsvpsPage({
         rsvp.dietaryNotes,
         rsvp.notes,
       ]),
-      filters: [
-        `source:${rsvp.source}`,
-        `attending:${rsvp.attending ? "yes" : "no"}`,
-        rsvp.notes ? "notes:yes" : "notes:no",
-      ],
+      filters: [`source:${rsvp.source}`, rsvp.notes ? "notes:yes" : "notes:no"],
     };
   });
   const rsvpFilters = [

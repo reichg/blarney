@@ -188,7 +188,6 @@ export interface RsvpData {
   firstName: string;
   lastName: string;
   email: string;
-  attending: boolean;
   adultAttendeeCount: number;
   childAttendeeCount: number;
   attendeeCount: number;
@@ -347,7 +346,6 @@ export function generateStandaloneRsvp(
     firstName,
     lastName,
     email: `rsvp-${slug}@example.com`,
-    attending: true,
     adultAttendeeCount,
     childAttendeeCount,
     attendeeCount,

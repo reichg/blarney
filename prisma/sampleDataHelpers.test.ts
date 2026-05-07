@@ -118,14 +118,13 @@ describe("sampleDataHelpers", () => {
     );
 
     for (const sample of samples) {
-      expect(sample.attending).toBe(true);
       expect(sample.attendeeCount).toBe(
         sample.adultAttendeeCount + sample.childAttendeeCount,
       );
       expect(sample.attendeeCount).toBeGreaterThan(0);
       expect(sample.attendeeCount).toBeLessThanOrEqual(30);
       expect(sample.familyNames.trim().length).toBeGreaterThan(0);
-      expect(sample.dietaryNotes.trim().length).toBeGreaterThan(0);
+      expect(sample.dietaryNotes?.trim().length ?? 0).toBeGreaterThan(0);
       expect(sample.notes.trim().length).toBeGreaterThan(0);
     }
   });
@@ -169,7 +168,7 @@ describe("sampleDataHelpers", () => {
       for (const photo of sample.photos) {
         expect(photo.submitterName).toBe(sample.name);
         expect(photo.submitterEmail).toBe(sample.email);
-        expect(photo.caption.trim().length).toBeGreaterThan(0);
+        expect(photo.caption?.trim().length ?? 0).toBeGreaterThan(0);
       }
     }
   });

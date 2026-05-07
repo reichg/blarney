@@ -38,7 +38,9 @@ const {
   filterableCardGrid: vi.fn(({ children }) =>
     createElement("section", null, children),
   ),
-  paginationNav: vi.fn(() => createElement("nav", null, "pagination")),
+  paginationNav: vi.fn((_: PaginationNavProps) =>
+    createElement("nav", null, "pagination"),
+  ),
   requireChairPageAuth: vi.fn(async () => {}),
   rsvpCount: vi.fn(),
   rsvpFindMany: vi.fn(),
@@ -120,7 +122,6 @@ describe("chair RSVPs page", () => {
       notes: "Bringing salad",
       participant: null,
       source: "FORM",
-      attending: true,
     };
     rsvpFindMany.mockImplementation(async (args) => {
       if ("include" in args) {

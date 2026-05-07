@@ -78,7 +78,6 @@ model Registration {
   packageSelection String
   adultGuestCount  Int                   @default(0)
   childGuestCount  Int                   @default(0)
-  dayBeforeRsvp    Boolean               @default(false)
   paymentStatus    PaymentStatus         @default(EXTERNAL_PENDING)
   paymentReference String?
   notes            String?
@@ -124,7 +123,6 @@ model Rsvp {
   firstName          String
   lastName           String
   email              String        @unique
-  attending          Boolean
   adultAttendeeCount Int?
   childAttendeeCount Int?
   attendeeCount      Int           @default(1)
@@ -136,7 +134,6 @@ model Rsvp {
   checkout           RsvpCheckout?
 
   @@unique([participantId, source], name: "participantId_source")
-  @@index([attending])
   @@index([createdAt])
 }
 

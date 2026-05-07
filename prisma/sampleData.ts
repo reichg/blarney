@@ -226,9 +226,6 @@ async function seedRegistrations() {
         packageSelection: registrationData.packageSelection,
         adultGuestCount: registrationData.adultGuestCount,
         childGuestCount: registrationData.childGuestCount,
-        dayBeforeRsvp:
-          registrationData.adultGuestCount + registrationData.childGuestCount >
-          0,
         paymentStatus: registrationData.paymentStatus,
         paymentReference: registrationData.paymentReference,
         notes: registrationData.notes,
@@ -260,7 +257,6 @@ async function seedRegistrations() {
           firstName: registrationData.participant.firstName,
           lastName: registrationData.participant.lastName,
           email: registrationData.participant.email,
-          attending: true,
           adultAttendeeCount: partyCounts.adultAttendeeCount,
           childAttendeeCount: partyCounts.childAttendeeCount,
           attendeeCount:
@@ -287,7 +283,6 @@ async function seedStandaloneRsvps() {
         firstName: rsvpData.firstName,
         lastName: rsvpData.lastName,
         email: rsvpData.email,
-        attending: rsvpData.attending,
         adultAttendeeCount: rsvpData.adultAttendeeCount,
         childAttendeeCount: rsvpData.childAttendeeCount,
         attendeeCount: rsvpData.attendeeCount,

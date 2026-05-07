@@ -292,7 +292,6 @@ async function finalizeRsvpCheckout(
             firstName: payload.firstName,
             lastName: payload.lastName,
             email: payload.email,
-            attending: true,
             adultAttendeeCount: payload.adultAttendeeCount,
             childAttendeeCount: payload.childAttendeeCount,
             attendeeCount,

@@ -243,7 +243,6 @@ describe("RSVP checkout payments", () => {
         firstName: "Pat",
         lastName: "Family",
         email: "pat@example.com",
-        attending: true,
         adultAttendeeCount: 2,
         childAttendeeCount: 1,
         attendeeCount: 3,

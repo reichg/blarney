@@ -38,7 +38,9 @@ const {
   filterableCardGrid: vi.fn(({ children }) =>
     createElement("section", null, children),
   ),
-  paginationNav: vi.fn(() => createElement("nav", null, "pagination")),
+  paginationNav: vi.fn((_: PaginationNavProps) =>
+    createElement("nav", null, "pagination"),
+  ),
   registrationCount: vi.fn(),
   registrationFindMany: vi.fn(),
   requireChairPageAuth: vi.fn(async () => {}),
@@ -112,7 +114,6 @@ describe("chair registrations page", () => {
       checkout: { email: "ada@example.com" },
       childGuestCount: 0,
       createdAt: new Date("2026-05-01T12:00:00.000Z"),
-      dayBeforeRsvp: false,
       id: "registration-1",
       notes: "Pairing note",
       packageSelection: "Golf registration",
