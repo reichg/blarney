@@ -15,6 +15,13 @@ const requiredTextSchema = z
   )
   .transform((value) => value.trim());
 
+const optionalTextSchema = z
+  .preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().optional().nullable(),
+  )
+  .transform((value) => (value && value.length > 0 ? value : null));
+
 export const rsvpCheckoutPayloadSchema = z
   .object({
     firstName: requiredTextSchema,
@@ -26,9 +33,9 @@ export const rsvpCheckoutPayloadSchema = z
       .transform((value) => value.toLowerCase()),
     adultAttendeeCount: z.coerce.number().int().min(0).max(30),
     childAttendeeCount: z.coerce.number().int().min(0).max(30),
-    familyNames: requiredTextSchema,
-    dietaryNotes: requiredTextSchema,
-    notes: requiredTextSchema,
+    familyNames: optionalTextSchema,
+    dietaryNotes: optionalTextSchema,
+    notes: optionalTextSchema,
   })
   .refine((data) => data.adultAttendeeCount + data.childAttendeeCount <= 30, {
     message: "Keep the party size at 30 attendees or fewer.",

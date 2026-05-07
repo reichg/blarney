@@ -5,8 +5,8 @@ export type ChairLink = {
 
 export const chairLinks: ChairLink[] = [
   { href: "/chair", label: "Dashboard" },
-  { href: "/chair/registrations", label: "Registrations" },
-  { href: "/chair/rsvps", label: "RSVPs" },
+  { href: "/chair/registrations", label: "Golf Registrations" },
+  { href: "/chair/rsvps", label: "BBQ RSVPs" },
   { href: "/chair/feedback", label: "Feedback" },
   { href: "/chair/photos", label: "Photos" },
   { href: "/chair/remembrance", label: "Remembrance" },

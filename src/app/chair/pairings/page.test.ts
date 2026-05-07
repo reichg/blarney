@@ -11,20 +11,54 @@ type FilterableCardGridProps = {
     id: string;
     searchText: string;
   }>;
+  pagination?: {
+    currentCount: number;
+    endIndex: number;
+    page: number;
+    pageKey: string;
+    pageSize: number;
+    pageSizeKey: string;
+    startIndex: number;
+    totalCount: number;
+  };
   resultLabel: string;
+  urlBackedFilter?: {
+    value: string;
+    searchParams: Record<string, string | string[] | undefined>;
+    filterParamKey?: string;
+    pageParamKey?: string;
+  };
   children: React.ReactNode;
+};
+
+type PaginationNavProps = {
+  label?: string;
+  pagination: {
+    currentCount: number;
+    endIndex: number;
+    page: number;
+    pageKey: string;
+    pageSize: number;
+    pageSizeKey: string;
+    startIndex: number;
+    totalCount: number;
+  };
+  searchParams?: Record<string, string | string[] | undefined>;
 };
 
 const {
   filterableCardGrid,
+  paginationNav,
   pairingGolferCard,
   pairingGroupCard,
   pairingGroupFindMany,
   participantFindMany,
+  requireChairPageAuth,
 } = vi.hoisted(() => ({
   filterableCardGrid: vi.fn(({ children }) =>
     createElement("section", null, children),
   ),
+  paginationNav: vi.fn(() => createElement("nav", null, "pagination")),
   pairingGolferCard: vi.fn(({ golfer }) =>
     createElement("article", null, `${golfer.firstName} ${golfer.lastName}`),
   ),
@@ -33,6 +67,7 @@ const {
   ),
   pairingGroupFindMany: vi.fn(),
   participantFindMany: vi.fn(),
+  requireChairPageAuth: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/app/actions/pairings", () => ({
@@ -68,9 +103,25 @@ vi.mock("@/app/chair/FilterableCardGrid", () => ({
   },
 }));
 
+vi.mock("@/components/PaginationNav", () => ({
+  PaginationNav: (props: PaginationNavProps) => {
+    paginationNav(props);
+    return createElement("nav", null, props.label ?? "Results");
+  },
+}));
+
+vi.mock("@/lib/chairAuth.server", () => ({
+  requireChairPageAuth,
+}));
+
 vi.mock("@/app/chair/pairings/PairingGolferCard", () => ({
   PairingGolferCard: (props: {
-    golfer: { firstName: string; id: string; lastName: string };
+    golfer: {
+      firstName: string;
+      id: string;
+      lastName: string;
+      pairingNote: string | null;
+    };
   }) => {
     pairingGolferCard(props);
     return createElement(
@@ -136,8 +187,33 @@ beforeEach(() => {
         status: "DRAFT",
         teeTime: null,
       },
+      {
+        id: "group-2",
+        members: [],
+        name: "Group 2",
+        sortOrder: 2,
+        status: "DRAFT",
+        teeTime: new Date("2026-05-01T09:10:00.000Z"),
+      },
     ])
-    .mockResolvedValueOnce([]);
+    .mockResolvedValueOnce([
+      {
+        id: "published-1",
+        members: [],
+        name: "Published Group 1",
+        sortOrder: 3,
+        status: "PUBLISHED",
+        teeTime: new Date("2026-05-01T10:00:00.000Z"),
+      },
+      {
+        id: "published-2",
+        members: [],
+        name: "Published Group 2",
+        sortOrder: 4,
+        status: "PUBLISHED",
+        teeTime: new Date("2026-05-01T10:10:00.000Z"),
+      },
+    ]);
 
   participantFindMany.mockResolvedValue([
     {
@@ -147,6 +223,7 @@ beforeEach(() => {
       gender: "FEMALE",
       id: "golfer-assigned",
       lastName: "Assigned",
+      registrations: [{ notes: null }],
     },
     {
       age: 48,
@@ -155,6 +232,7 @@ beforeEach(() => {
       gender: "NON_BINARY",
       id: "golfer-nora",
       lastName: "Neutral",
+      registrations: [{ notes: null }],
     },
     {
       age: 60,
@@ -163,6 +241,7 @@ beforeEach(() => {
       gender: "FEMALE",
       id: "golfer-beth",
       lastName: "Bird",
+      registrations: [{ notes: null }],
     },
     {
       age: 75,
@@ -171,6 +250,7 @@ beforeEach(() => {
       gender: "PREFER_NOT_TO_SAY",
       id: "golfer-uma",
       lastName: "Unset",
+      registrations: [{ notes: null }],
     },
     {
       age: 54,
@@ -179,6 +259,7 @@ beforeEach(() => {
       gender: "MALE",
       id: "golfer-mark",
       lastName: "Mulligan",
+      registrations: [{ notes: "Keep with morning foursome if possible" }],
     },
     {
       age: 64,
@@ -187,6 +268,7 @@ beforeEach(() => {
       gender: "FEMALE",
       id: "golfer-cara",
       lastName: "Caddie",
+      registrations: [{ notes: null }],
     },
     {
       age: 62,
@@ -195,6 +277,7 @@ beforeEach(() => {
       gender: "MALE",
       id: "golfer-liam",
       lastName: "Links",
+      registrations: [{ notes: null }],
     },
   ]);
 });
@@ -211,6 +294,9 @@ describe("chair pairings page", () => {
       }),
     );
 
+    expect(html).toContain(
+      "Unassigned golfers are ordered by gender, then score, then age.",
+    );
     expect(html).toContain("Liam Links");
     expect(html).toContain("Mark Mulligan");
     expect(html).toContain("Cara Caddie");
@@ -228,8 +314,6 @@ describe("chair pairings page", () => {
     expect(golferGridProps?.filters).toEqual([
       { value: "gender:MALE", label: "Male golfers" },
       { value: "gender:FEMALE", label: "Female golfers" },
-      { value: "gender:NON_BINARY", label: "Non-binary golfers" },
-      { value: "gender:PREFER_NOT_TO_SAY", label: "Prefer not to say" },
     ]);
     expect(golferGridProps?.items.map((item) => item.id)).toEqual([
       "golfer-liam",
@@ -249,5 +333,203 @@ describe("chair pairings page", () => {
       "golfer-nora",
       "golfer-uma",
     ]);
+    expect(
+      pairingGolferCard.mock.calls.find(
+        ([props]) => props.golfer.id === "golfer-mark",
+      )?.[0].golfer.pairingNote,
+    ).toBe("Keep with morning foursome if possible");
+    expect(participantFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: {
+          registrations: {
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            select: { notes: true },
+            take: 1,
+          },
+        },
+      }),
+    );
+  });
+
+  it("keeps pairings pagination and filter state independent across all three lists", async () => {
+    renderToStaticMarkup(
+      await ChairPairingsPage({
+        searchParams: Promise.resolve({
+          draftFilter: "capacity:open",
+          draftPage: "2",
+          draftPageSize: "1",
+          publishedFilter: "tee:yes",
+          publishedPage: "2",
+          publishedPageSize: "1",
+          unassignedFilter: "gender:male",
+          unassignedPage: "2",
+          unassignedPageSize: "1",
+        }),
+      }),
+    );
+
+    const golferGridProps = filterableCardGrid.mock.calls
+      .map(([props]) => props as FilterableCardGridProps)
+      .find((props) => props.resultLabel === "unassigned golfers");
+    const draftGridProps = filterableCardGrid.mock.calls
+      .map(([props]) => props as FilterableCardGridProps)
+      .find((props) => props.resultLabel === "draft groups");
+    const publishedGridProps = filterableCardGrid.mock.calls
+      .map(([props]) => props as FilterableCardGridProps)
+      .find((props) => props.resultLabel === "published groups");
+
+    expect(golferGridProps?.items.map((item) => item.id)).toEqual([
+      "golfer-mark",
+    ]);
+    expect(golferGridProps?.pagination).toEqual(
+      expect.objectContaining({
+        endIndex: 2,
+        page: 2,
+        pageKey: "unassignedPage",
+        pageSize: 1,
+        pageSizeKey: "unassignedPageSize",
+        startIndex: 2,
+        totalCount: 2,
+      }),
+    );
+    expect(golferGridProps?.urlBackedFilter).toEqual({
+      value: "gender:MALE",
+      searchParams: {
+        draftFilter: "capacity:open",
+        draftPage: "2",
+        draftPageSize: "1",
+        publishedFilter: "tee:yes",
+        publishedPage: "2",
+        publishedPageSize: "1",
+        unassignedFilter: "gender:MALE",
+        unassignedPage: "2",
+        unassignedPageSize: "1",
+      },
+      filterParamKey: "unassignedFilter",
+      pageParamKey: "unassignedPage",
+    });
+
+    expect(draftGridProps?.items.map((item) => item.id)).toEqual(["group-2"]);
+    expect(draftGridProps?.pagination).toEqual(
+      expect.objectContaining({
+        endIndex: 2,
+        page: 2,
+        pageKey: "draftPage",
+        pageSize: 1,
+        pageSizeKey: "draftPageSize",
+        startIndex: 2,
+        totalCount: 2,
+      }),
+    );
+    expect(draftGridProps?.urlBackedFilter).toEqual({
+      value: "capacity:open",
+      searchParams: {
+        draftFilter: "capacity:open",
+        draftPage: "2",
+        draftPageSize: "1",
+        publishedFilter: "tee:yes",
+        publishedPage: "2",
+        publishedPageSize: "1",
+        unassignedFilter: "gender:MALE",
+        unassignedPage: "2",
+        unassignedPageSize: "1",
+      },
+      filterParamKey: "draftFilter",
+      pageParamKey: "draftPage",
+    });
+
+    expect(publishedGridProps?.items.map((item) => item.id)).toEqual([
+      "published-2",
+    ]);
+    expect(publishedGridProps?.pagination).toEqual(
+      expect.objectContaining({
+        endIndex: 2,
+        page: 2,
+        pageKey: "publishedPage",
+        pageSize: 1,
+        pageSizeKey: "publishedPageSize",
+        startIndex: 2,
+        totalCount: 2,
+      }),
+    );
+    expect(publishedGridProps?.urlBackedFilter).toEqual({
+      value: "tee:yes",
+      searchParams: {
+        draftFilter: "capacity:open",
+        draftPage: "2",
+        draftPageSize: "1",
+        publishedFilter: "tee:yes",
+        publishedPage: "2",
+        publishedPageSize: "1",
+        unassignedFilter: "gender:MALE",
+        unassignedPage: "2",
+        unassignedPageSize: "1",
+      },
+      filterParamKey: "publishedFilter",
+      pageParamKey: "publishedPage",
+    });
+
+    expect(paginationNav).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Unassigned golfers",
+        pagination: expect.objectContaining({
+          pageKey: "unassignedPage",
+          totalCount: 2,
+        }),
+        searchParams: expect.objectContaining({
+          unassignedPage: "2",
+          draftPage: "2",
+          publishedPage: "2",
+        }),
+      }),
+    );
+    expect(paginationNav).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Draft groups",
+        pagination: expect.objectContaining({
+          pageKey: "draftPage",
+          totalCount: 2,
+        }),
+      }),
+    );
+    expect(paginationNav).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Published groups",
+        pagination: expect.objectContaining({
+          pageKey: "publishedPage",
+          totalCount: 2,
+        }),
+      }),
+    );
+  });
+
+  it("clamps an out-of-range section page to the last available pairings page", async () => {
+    renderToStaticMarkup(
+      await ChairPairingsPage({
+        searchParams: Promise.resolve({
+          unassignedFilter: "gender:male",
+          unassignedPage: "99",
+          unassignedPageSize: "1",
+        }),
+      }),
+    );
+
+    const golferGridProps = filterableCardGrid.mock.calls
+      .map(([props]) => props as FilterableCardGridProps)
+      .find((props) => props.resultLabel === "unassigned golfers");
+
+    expect(golferGridProps?.items.map((item) => item.id)).toEqual([
+      "golfer-mark",
+    ]);
+    expect(golferGridProps?.pagination).toEqual(
+      expect.objectContaining({
+        endIndex: 2,
+        page: 2,
+        pageKey: "unassignedPage",
+        pageSize: 1,
+        startIndex: 2,
+        totalCount: 2,
+      }),
+    );
   });
 });

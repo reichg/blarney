@@ -114,8 +114,6 @@ export function RegistrationForm({
   const golferAdultCount = golferAges.filter(
     (age): age is number => age !== null && age >= 15,
   ).length;
-  const golferUnknownAgeCount =
-    golfers.length - golferKidCount - golferAdultCount;
   const rsvpAttendeeCount = rsvpAdultCount + rsvpKidCount;
   const payableGolfCount = isGolfMode ? golfers.length : 0;
   const payableAdultCount = isGolfMode ? bbqOnlyAdultCount : rsvpAdultCount;
@@ -374,7 +372,7 @@ export function RegistrationForm({
       onSubmit={handleSubmit}
     >
       <fieldset className={styles.fieldset}>
-        <legend>Signup type</legend>
+        <legend className={styles.requiredLabel}>Signup type</legend>
         <label className={styles.choiceRow}>
           <input
             checked={isGolfMode}
@@ -422,22 +420,22 @@ export function RegistrationForm({
 
       <div className={styles.gridTwo}>
         <label className={styles.field}>
-          <span>Payer first name</span>
+          <span className={styles.requiredLabel}>Payer first name</span>
           <input name="firstName" required type="text" />
         </label>
         <label className={styles.field}>
-          <span>Payer last name</span>
+          <span className={styles.requiredLabel}>Payer last name</span>
           <input name="lastName" required type="text" />
         </label>
       </div>
       <div className={styles.gridTwo}>
         <label className={styles.field}>
-          <span>Email</span>
+          <span className={styles.requiredLabel}>Email</span>
           <input name="email" required type="email" />
         </label>
         <label className={styles.field}>
-          <span>Phone (optional)</span>
-          <input name="phone" type="tel" />
+          <span className={styles.requiredLabel}>Phone</span>
+          <input name="phone" required type="tel" />
         </label>
       </div>
 
@@ -483,7 +481,9 @@ export function RegistrationForm({
                     ) : null}
                     <div className={styles.gridTwo}>
                       <label className={styles.field}>
-                        <span>Golfer {golferNumber} first name</span>
+                        <span className={styles.requiredLabel}>
+                          Golfer {golferNumber} first name
+                        </span>
                         <input
                           name="golferFirstName"
                           onChange={(event) => {
@@ -499,7 +499,9 @@ export function RegistrationForm({
                         />
                       </label>
                       <label className={styles.field}>
-                        <span>Golfer {golferNumber} last name</span>
+                        <span className={styles.requiredLabel}>
+                          Golfer {golferNumber} last name
+                        </span>
                         <input
                           name="golferLastName"
                           onChange={(event) => {
@@ -517,7 +519,9 @@ export function RegistrationForm({
                     </div>
                     <div className={styles.gridTwo}>
                       <label className={styles.field}>
-                        <span>Golfer {golferNumber} gender</span>
+                        <span className={styles.requiredLabel}>
+                          Golfer {golferNumber} gender
+                        </span>
                         <select
                           name="golferGender"
                           onChange={(event) => {
@@ -538,7 +542,9 @@ export function RegistrationForm({
                         </select>
                       </label>
                       <label className={styles.field}>
-                        <span>Golfer {golferNumber} age</span>
+                        <span className={styles.requiredLabel}>
+                          Golfer {golferNumber} age
+                        </span>
                         <input
                           min="1"
                           name="golferAge"
@@ -552,7 +558,7 @@ export function RegistrationForm({
                       </label>
                     </div>
                     <label className={styles.field}>
-                      <span>
+                      <span className={styles.requiredLabel}>
                         Golfer {golferNumber} average Manzanita score (Par 32)
                       </span>
                       <input
@@ -584,7 +590,9 @@ export function RegistrationForm({
             <legend>Additional BBQ-only guests</legend>
             <div className={styles.gridTwo}>
               <label className={styles.field}>
-                <span>BBQ-only adults not golfing</span>
+                <span className={styles.requiredLabel}>
+                  BBQ-only adults not golfing
+                </span>
                 <input
                   max="30"
                   min="0"
@@ -598,7 +606,9 @@ export function RegistrationForm({
                 />
               </label>
               <label className={styles.field}>
-                <span>BBQ-only kids not golfing</span>
+                <span className={styles.requiredLabel}>
+                  BBQ-only kids not golfing
+                </span>
                 <input
                   max="30"
                   min="0"
@@ -650,16 +660,15 @@ export function RegistrationForm({
           </section>
 
           <label className={styles.field}>
-            <span>Dietary notes</span>
+            <span>Dietary notes (optional)</span>
             <textarea
               name="dietaryNotes"
               placeholder="Meal notes for golfers or BBQ-only guests."
               rows={3}
-              required
             />
           </label>
           <label className={styles.field}>
-            <span>Registration notes</span>
+            <span>Registration notes (optional)</span>
             <textarea
               name="notes"
               placeholder="Pairing notes, seating notes, or anything the chair should know."
@@ -670,10 +679,10 @@ export function RegistrationForm({
       ) : (
         <>
           <fieldset className={styles.fieldset}>
-            <legend>BBQ-only attendees</legend>
+            <legend>BBQ-only attendees (Including payer)</legend>
             <div className={styles.gridTwo}>
               <label className={styles.field}>
-                <span>BBQ-only adults</span>
+                <span className={styles.requiredLabel}>BBQ-only adults</span>
                 <input
                   max="30"
                   min="0"
@@ -687,7 +696,7 @@ export function RegistrationForm({
                 />
               </label>
               <label className={styles.field}>
-                <span>BBQ-only kids</span>
+                <span className={styles.requiredLabel}>BBQ-only kids</span>
                 <input
                   max="30"
                   min="0"
@@ -706,29 +715,26 @@ export function RegistrationForm({
             </p>
           </fieldset>
           <label className={styles.field}>
-            <span>Family or guest names</span>
+            <span>Family or guest names (optional)</span>
             <textarea
               name="familyNames"
               placeholder="List everyone joining the BBQ."
-              required
               rows={3}
             />
           </label>
           <label className={styles.field}>
-            <span>Dietary notes</span>
+            <span>Dietary notes (optional)</span>
             <textarea
               name="dietaryNotes"
-              placeholder="If none, write None."
-              required
+              placeholder="Meal notes for your party."
               rows={3}
             />
           </label>
           <label className={styles.field}>
-            <span>BBQ notes</span>
+            <span>BBQ notes (optional)</span>
             <textarea
               name="notes"
-              placeholder="If none, write None."
-              required
+              placeholder="Anything the chair should know."
               rows={3}
             />
           </label>

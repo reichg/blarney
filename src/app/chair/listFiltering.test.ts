@@ -1,5 +1,7 @@
 import {
   filterChairListItems,
+  parseChairListFilterParam,
+  pickSearchParams,
   type ChairListSearchItem,
 } from "@/app/chair/listFiltering";
 import { describe, expect, it } from "vitest";
@@ -45,5 +47,41 @@ describe("filterChairListItems", () => {
     expect(
       filterChairListItems(items, "ada", "type:rsvp").map((item) => item.id),
     ).toEqual([]);
+  });
+});
+
+describe("parseChairListFilterParam", () => {
+  it("returns an empty value when the param is missing", () => {
+    expect(parseChairListFilterParam(undefined)).toBe("");
+  });
+
+  it("uses the first value when duplicate params are present", () => {
+    expect(
+      parseChairListFilterParam({
+        filter: [" status:confirmed ", "type:golf"],
+      }),
+    ).toBe("status:confirmed");
+  });
+
+  it("drops oversized filter values", () => {
+    expect(parseChairListFilterParam({ filter: `${"a".repeat(81)}` })).toBe("");
+  });
+});
+
+describe("pickSearchParams", () => {
+  it("keeps only the allowlisted keys", () => {
+    expect(
+      pickSearchParams(
+        {
+          filter: "status:confirmed",
+          page: "2",
+          unrelated: "discard",
+        },
+        ["page", "filter"],
+      ),
+    ).toEqual({
+      filter: "status:confirmed",
+      page: "2",
+    });
   });
 });

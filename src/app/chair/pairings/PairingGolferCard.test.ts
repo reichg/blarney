@@ -47,6 +47,7 @@ describe("PairingGolferCard", () => {
           gender: "MALE",
           id: "golfer-open",
           lastName: "Open",
+          pairingNote: "Prefers a steady group and an early tee time.",
         },
         groupOptions: [
           {
@@ -60,6 +61,8 @@ describe("PairingGolferCard", () => {
 
     expect(html).toContain("Available");
     expect(html).toContain("Assign to draft group");
+    expect(html).toContain("Pairing note");
+    expect(html).toContain("Prefers a steady group and an early tee time.");
     expect(html).not.toContain("N/A");
   });
 });

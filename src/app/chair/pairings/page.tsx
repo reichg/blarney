@@ -7,12 +7,25 @@ import {
 import styles from "@/app/chair/chair.module.css";
 import { joinSearchText } from "@/app/chair/display";
 import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
+import {
+  filterChairListItems,
+  parseChairListFilterParam,
+  pickSearchParams,
+  type ChairListSearchItem,
+} from "@/app/chair/listFiltering";
 import { PairingGolferCard } from "@/app/chair/pairings/PairingGolferCard";
 import { PairingGroupCard } from "@/app/chair/pairings/PairingGroupCard";
+import { PaginationNav } from "@/components/PaginationNav";
+import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import { sortPairingGolfers } from "@/lib/pairings";
-import { type SearchParamsRecord } from "@/lib/pagination";
+import {
+  buildPaginationState,
+  parsePaginationParams,
+  type PaginationParams,
+  type SearchParamsRecord,
+} from "@/lib/pagination";
 import { completeRegistrationPaymentStatuses } from "@/lib/payment";
 import type { Gender, PairingStatus, Participant } from "@prisma/client";
 import { redirect } from "next/navigation";
@@ -51,9 +64,41 @@ type PairingNotice = {
 };
 
 const chairPairingsPath = "/chair/pairings";
+const unassignedFilterParamKey = "unassignedFilter";
+const draftFilterParamKey = "draftFilter";
+const publishedFilterParamKey = "publishedFilter";
+const golferFilters = [
+  { value: "gender:MALE", label: "Male golfers" },
+  { value: "gender:FEMALE", label: "Female golfers" },
+] as const;
+const groupFilters = [
+  { value: "tee:yes", label: "Has tee time" },
+  { value: "tee:no", label: "No tee time" },
+  { value: "capacity:full", label: "Full groups" },
+  { value: "capacity:open", label: "Open groups" },
+] as const;
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function parseAllowlistedPairingsFilter(
+  searchParams: SearchParamsRecord | undefined,
+  filterKey: string,
+  allowedValues: readonly string[],
+) {
+  const filterValue = parseChairListFilterParam(searchParams, filterKey);
+
+  if (!filterValue) {
+    return "";
+  }
+
+  return (
+    allowedValues.find(
+      (allowedValue) =>
+        allowedValue.toLowerCase() === filterValue.toLowerCase(),
+    ) ?? ""
+  );
 }
 
 function getPairingNotice(
@@ -124,6 +169,49 @@ function buildGroupFilters(group: PairingGroupWithMembers) {
   ];
 }
 
+function filterAndPaginatePairingsList<T extends { id: string }>(
+  records: T[],
+  items: ChairListSearchItem[],
+  filterValue: string,
+  paginationParams: PaginationParams,
+) {
+  const filteredItems = filterChairListItems(items, "", filterValue);
+  const filteredIds = new Set(filteredItems.map((item) => item.id));
+  const filteredRecords = records.filter((record) =>
+    filteredIds.has(record.id),
+  );
+  const totalPages =
+    filteredRecords.length === 0
+      ? 1
+      : Math.ceil(filteredRecords.length / paginationParams.pageSize);
+  const effectivePage = Math.min(paginationParams.page, totalPages);
+  const effectiveParams =
+    effectivePage === paginationParams.page
+      ? paginationParams
+      : {
+          ...paginationParams,
+          page: effectivePage,
+          skip: (effectivePage - 1) * paginationParams.pageSize,
+          take: paginationParams.pageSize,
+        };
+  const pagination = buildPaginationState(
+    effectiveParams,
+    filteredRecords.length,
+  );
+  const pagedRecords = filteredRecords.slice(
+    effectiveParams.skip,
+    effectiveParams.skip + effectiveParams.take,
+  );
+  const pagedIds = new Set(pagedRecords.map((record) => record.id));
+  const pagedItems = filteredItems.filter((item) => pagedIds.has(item.id));
+
+  return {
+    items: pagedItems,
+    pagination,
+    records: pagedRecords,
+  };
+}
+
 async function getPairingData() {
   try {
     const [draftGroups, publishedGroups, paidGolfers] = await Promise.all([
@@ -157,6 +245,15 @@ async function getPairingData() {
             },
           },
         },
+        include: {
+          registrations: {
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            select: {
+              notes: true,
+            },
+            take: 1,
+          },
+        },
         orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       }),
     ]);
@@ -174,6 +271,7 @@ async function getPairingData() {
 
     const golfers = paidGolfers.map((participant) => ({
       ...participant,
+      pairingNote: participant.registrations[0]?.notes?.trim() || null,
       draftAssignment: assignmentByParticipantId.get(participant.id) ?? null,
     }));
 
@@ -212,7 +310,60 @@ async function getPairingData() {
 export default async function ChairPairingsPage({
   searchParams,
 }: ChairPairingsPageProps) {
+  await requireChairPageAuth(chairPairingsPath);
+
   const params = (await searchParams) ?? {};
+  const unassignedPaginationParams = parsePaginationParams(params, {
+    pageKey: "unassignedPage",
+    pageSizeKey: "unassignedPageSize",
+  });
+  const draftPaginationParams = parsePaginationParams(params, {
+    pageKey: "draftPage",
+    pageSizeKey: "draftPageSize",
+  });
+  const publishedPaginationParams = parsePaginationParams(params, {
+    pageKey: "publishedPage",
+    pageSizeKey: "publishedPageSize",
+  });
+  const unassignedFilter = parseAllowlistedPairingsFilter(
+    params,
+    unassignedFilterParamKey,
+    golferFilters.map((filter) => filter.value),
+  );
+  const draftFilter = parseAllowlistedPairingsFilter(
+    params,
+    draftFilterParamKey,
+    groupFilters.map((filter) => filter.value),
+  );
+  const publishedFilter = parseAllowlistedPairingsFilter(
+    params,
+    publishedFilterParamKey,
+    groupFilters.map((filter) => filter.value),
+  );
+  const pairingsSearchParams = pickSearchParams(params, [
+    unassignedPaginationParams.pageKey,
+    unassignedPaginationParams.pageSizeKey,
+    draftPaginationParams.pageKey,
+    draftPaginationParams.pageSizeKey,
+    publishedPaginationParams.pageKey,
+    publishedPaginationParams.pageSizeKey,
+    unassignedFilterParamKey,
+    draftFilterParamKey,
+    publishedFilterParamKey,
+  ]);
+
+  if (unassignedFilter) {
+    pairingsSearchParams[unassignedFilterParamKey] = unassignedFilter;
+  }
+
+  if (draftFilter) {
+    pairingsSearchParams[draftFilterParamKey] = draftFilter;
+  }
+
+  if (publishedFilter) {
+    pairingsSearchParams[publishedFilterParamKey] = publishedFilter;
+  }
+
   const pairingNotice = getPairingNotice(params.pairings);
   const {
     draftGroups,
@@ -233,12 +384,6 @@ export default async function ChairPairingsPage({
     ]),
     filters: [`gender:${golfer.gender}`],
   }));
-  const golferFilters = [
-    { value: "gender:MALE", label: "Male golfers" },
-    { value: "gender:FEMALE", label: "Female golfers" },
-    { value: "gender:NON_BINARY", label: "Non-binary golfers" },
-    { value: "gender:PREFER_NOT_TO_SAY", label: "Prefer not to say" },
-  ];
   const draftGroupSearchItems = draftGroups.map((group) => ({
     id: group.id,
     searchText: buildGroupSearchText(group),
@@ -249,12 +394,24 @@ export default async function ChairPairingsPage({
     searchText: buildGroupSearchText(group),
     filters: buildGroupFilters(group),
   }));
-  const groupFilters = [
-    { value: "tee:yes", label: "Has tee time" },
-    { value: "tee:no", label: "No tee time" },
-    { value: "capacity:full", label: "Full groups" },
-    { value: "capacity:open", label: "Open groups" },
-  ];
+  const pagedUnassignedGolfers = filterAndPaginatePairingsList(
+    unassignedGolfers,
+    golferSearchItems,
+    unassignedFilter,
+    unassignedPaginationParams,
+  );
+  const pagedDraftGroups = filterAndPaginatePairingsList(
+    draftGroups,
+    draftGroupSearchItems,
+    draftFilter,
+    draftPaginationParams,
+  );
+  const pagedPublishedGroups = filterAndPaginatePairingsList(
+    publishedGroups,
+    publishedGroupSearchItems,
+    publishedFilter,
+    publishedPaginationParams,
+  );
 
   return (
     <>
@@ -321,6 +478,7 @@ export default async function ChairPairingsPage({
             <h2 className={styles.sectionTitle}>Golfers</h2>
             <p className={styles.sectionIntro}>
               Paid golfers who are still available to assign to a draft group.
+              Unassigned golfers are ordered by gender, then score, then age.
             </p>
           </div>
         </div>
@@ -331,32 +489,46 @@ export default async function ChairPairingsPage({
             </p>
           </section>
         ) : (
-          <FilterableCardGrid
-            className={styles.compactCardGrid}
-            emptyMessage="No unassigned golfers match this search."
-            filterAllLabel="All unassigned golfers"
-            filters={golferFilters}
-            items={golferSearchItems}
-            resultLabel="unassigned golfers"
-            searchLabel="Search unassigned golfers"
-            searchPlaceholder="Search names, scores, genders"
-          >
-            {unassignedGolfers.map((golfer) => {
-              return (
-                <PairingGolferCard
-                  golfer={golfer}
-                  groupOptions={draftGroups.map((group) => ({
-                    disabled:
-                      group.members.length >= 4 &&
-                      golfer.draftAssignment?.groupId !== group.id,
-                    id: group.id,
-                    label: `${group.name} (${group.members.length}/4)`,
-                  }))}
-                  key={golfer.id}
-                />
-              );
-            })}
-          </FilterableCardGrid>
+          <>
+            <FilterableCardGrid
+              className={styles.compactCardGrid}
+              emptyMessage="No unassigned golfers match this search on the current page."
+              filterAllLabel="All unassigned golfers"
+              filters={golferFilters}
+              items={pagedUnassignedGolfers.items}
+              pagination={pagedUnassignedGolfers.pagination}
+              resultLabel="unassigned golfers"
+              searchLabel="Search unassigned golfers"
+              searchPlaceholder="Search names, scores, genders"
+              urlBackedFilter={{
+                value: unassignedFilter,
+                searchParams: pairingsSearchParams,
+                filterParamKey: unassignedFilterParamKey,
+                pageParamKey: unassignedPaginationParams.pageKey,
+              }}
+            >
+              {pagedUnassignedGolfers.records.map((golfer) => {
+                return (
+                  <PairingGolferCard
+                    golfer={golfer}
+                    groupOptions={draftGroups.map((group) => ({
+                      disabled:
+                        group.members.length >= 4 &&
+                        golfer.draftAssignment?.groupId !== group.id,
+                      id: group.id,
+                      label: `${group.name} (${group.members.length}/4)`,
+                    }))}
+                    key={golfer.id}
+                  />
+                );
+              })}
+            </FilterableCardGrid>
+            <PaginationNav
+              label="Unassigned golfers"
+              pagination={pagedUnassignedGolfers.pagination}
+              searchParams={pairingsSearchParams}
+            />
+          </>
         )}
       </section>
 
@@ -407,20 +579,34 @@ export default async function ChairPairingsPage({
             </p>
           </div>
         ) : (
-          <FilterableCardGrid
-            className={styles.compactCardGrid}
-            emptyMessage="No draft groups match this search."
-            filterAllLabel="All draft groups"
-            filters={groupFilters}
-            items={draftGroupSearchItems}
-            resultLabel="draft groups"
-            searchLabel="Search draft groups"
-            searchPlaceholder="Search groups, tee times, golfers"
-          >
-            {draftGroups.map((group) => (
-              <PairingGroupCard key={group.id} group={group} isDraft={true} />
-            ))}
-          </FilterableCardGrid>
+          <>
+            <FilterableCardGrid
+              className={styles.compactCardGrid}
+              emptyMessage="No draft groups match this search on the current page."
+              filterAllLabel="All draft groups"
+              filters={groupFilters}
+              items={pagedDraftGroups.items}
+              pagination={pagedDraftGroups.pagination}
+              resultLabel="draft groups"
+              searchLabel="Search draft groups"
+              searchPlaceholder="Search groups, tee times, golfers"
+              urlBackedFilter={{
+                value: draftFilter,
+                searchParams: pairingsSearchParams,
+                filterParamKey: draftFilterParamKey,
+                pageParamKey: draftPaginationParams.pageKey,
+              }}
+            >
+              {pagedDraftGroups.records.map((group) => (
+                <PairingGroupCard key={group.id} group={group} isDraft={true} />
+              ))}
+            </FilterableCardGrid>
+            <PaginationNav
+              label="Draft groups"
+              pagination={pagedDraftGroups.pagination}
+              searchParams={pairingsSearchParams}
+            />
+          </>
         )}
       </section>
 
@@ -457,18 +643,30 @@ export default async function ChairPairingsPage({
           </div>
           <FilterableCardGrid
             className={styles.compactCardGrid}
-            emptyMessage="No published groups match this search."
+            emptyMessage="No published groups match this search on the current page."
             filterAllLabel="All published groups"
             filters={groupFilters}
-            items={publishedGroupSearchItems}
+            items={pagedPublishedGroups.items}
+            pagination={pagedPublishedGroups.pagination}
             resultLabel="published groups"
             searchLabel="Search published groups"
             searchPlaceholder="Search groups, tee times, golfers"
+            urlBackedFilter={{
+              value: publishedFilter,
+              searchParams: pairingsSearchParams,
+              filterParamKey: publishedFilterParamKey,
+              pageParamKey: publishedPaginationParams.pageKey,
+            }}
           >
-            {publishedGroups.map((group) => (
+            {pagedPublishedGroups.records.map((group) => (
               <PairingGroupCard key={group.id} group={group} isDraft={false} />
             ))}
           </FilterableCardGrid>
+          <PaginationNav
+            label="Published groups"
+            pagination={pagedPublishedGroups.pagination}
+            searchParams={pairingsSearchParams}
+          />
         </section>
       )}
     </>

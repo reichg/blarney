@@ -1,11 +1,17 @@
 import styles from "@/app/chair/chair.module.css";
 import { displayValue, joinSearchText } from "@/app/chair/display";
 import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
+import {
+  parseChairListFilterParam,
+  pickSearchParams,
+} from "@/app/chair/listFiltering";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { PaginationNav } from "@/components/PaginationNav";
+import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import {
   getChairRsvpPartyCounts,
   sumChairRsvpPartyCounts,
+  type ChairRsvpPartyCounts,
 } from "@/lib/chairRsvps";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
@@ -22,6 +28,9 @@ export const dynamic = "force-dynamic";
 type ChairRsvpsPageProps = {
   searchParams: Promise<SearchParamsRecord>;
 };
+
+const chairRsvpFilterParamKey = "filter";
+const chairRsvpSources = ["FORM", "REGISTRATION"] as const;
 
 const chairRsvpPartyCountsSelect = {
   source: true,
@@ -43,45 +52,125 @@ const chairRsvpPartyCountsSelect = {
   },
 } satisfies Prisma.RsvpSelect;
 
-async function getRsvps(pagination: PaginationParams) {
+type ChairRsvpHeaderTotals = {
+  overall: ChairRsvpPartyCounts;
+  filtered: ChairRsvpPartyCounts | null;
+};
+
+function parseRsvpFilter(searchParams: SearchParamsRecord | undefined) {
+  const filterValue = parseChairListFilterParam(
+    searchParams,
+    chairRsvpFilterParamKey,
+  );
+
+  if (
+    filterValue === "attending:yes" ||
+    filterValue === "attending:no" ||
+    filterValue === "notes:yes" ||
+    filterValue === "notes:no"
+  ) {
+    return filterValue;
+  }
+
+  if (filterValue.startsWith("source:")) {
+    const source = filterValue.slice("source:".length).trim().toUpperCase();
+
+    return chairRsvpSources.includes(
+      source as (typeof chairRsvpSources)[number],
+    )
+      ? `source:${source}`
+      : "";
+  }
+
+  return "";
+}
+
+function buildRsvpWhere(filterValue: string): Prisma.RsvpWhereInput {
+  switch (filterValue) {
+    case "attending:yes":
+      return { attending: true };
+    case "attending:no":
+      return { attending: false };
+    case "notes:yes":
+      return {
+        AND: [{ notes: { not: null } }, { NOT: { notes: "" } }],
+      };
+    case "notes:no":
+      return {
+        OR: [{ notes: null }, { notes: "" }],
+      };
+    default:
+      if (filterValue.startsWith("source:")) {
+        return {
+          source: filterValue.slice("source:".length) as RsvpSource,
+        };
+      }
+
+      return {};
+  }
+}
+
+async function getRsvps(pagination: PaginationParams, filterValue: string) {
+  const rsvpWhere = buildRsvpWhere(filterValue);
+  const hasFilter = Boolean(filterValue);
+
   try {
-    const [rsvps, totalCount, rsvpPartyCounts] = await Promise.all([
-      db.rsvp.findMany({
-        include: {
-          participant: {
-            select: {
-              age: true,
-              registrations: {
-                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-                select: {
-                  adultGuestCount: true,
-                  childGuestCount: true,
+    const [rsvps, totalCount, filteredPartyCounts, overallPartyCounts] =
+      await Promise.all([
+        db.rsvp.findMany({
+          where: rsvpWhere,
+          include: {
+            participant: {
+              select: {
+                age: true,
+                registrations: {
+                  orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                  select: {
+                    adultGuestCount: true,
+                    childGuestCount: true,
+                  },
+                  take: 1,
                 },
-                take: 1,
               },
             },
           },
-        },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        skip: pagination.skip,
-        take: pagination.take,
-      }),
-      db.rsvp.count(),
-      db.rsvp.findMany({
-        select: chairRsvpPartyCountsSelect,
-      }),
-    ]);
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          skip: pagination.skip,
+          take: pagination.take,
+        }),
+        db.rsvp.count({ where: rsvpWhere }),
+        db.rsvp.findMany({
+          select: chairRsvpPartyCountsSelect,
+          where: rsvpWhere,
+        }),
+        hasFilter
+          ? db.rsvp.findMany({
+              select: chairRsvpPartyCountsSelect,
+              where: {},
+            })
+          : Promise.resolve(null),
+      ]);
+
+    const filteredTotals = sumChairRsvpPartyCounts(filteredPartyCounts);
 
     return {
       rsvps,
       pagination: buildPaginationState(pagination, totalCount),
-      partyTotals: sumChairRsvpPartyCounts(rsvpPartyCounts),
+      partyTotals: {
+        overall: hasFilter
+          ? sumChairRsvpPartyCounts(overallPartyCounts ?? filteredPartyCounts)
+          : filteredTotals,
+        filtered: hasFilter ? filteredTotals : null,
+      } satisfies ChairRsvpHeaderTotals,
     };
   } catch {
     return {
       rsvps: [],
       pagination: buildPaginationState(pagination, 0),
-      partyTotals: sumChairRsvpPartyCounts([]),
+      partyTotals: {
+        overall: sumChairRsvpPartyCounts([]),
+        filtered: null,
+      } satisfies ChairRsvpHeaderTotals,
     };
   }
 }
@@ -102,8 +191,22 @@ function formatAttendeeTotal(attendeeCount: number) {
   return `${attendeeCount} total BBQ attendee${attendeeCount === 1 ? "" : "s"}`;
 }
 
-function formatRsvpStatus(attending: boolean) {
-  return attending ? "BBQ RSVP" : "Legacy no-BBQ RSVP";
+function formatRsvpStatus() {
+  return "BBQ RSVP";
+}
+
+function formatHeaderMetaCount(
+  overallCount: number,
+  singularLabel: string,
+  filteredCount: number | null,
+) {
+  const overallLabel = `${overallCount} ${singularLabel}${overallCount === 1 ? "" : "s"} overall`;
+
+  if (filteredCount === null || filteredCount === overallCount) {
+    return overallLabel;
+  }
+
+  return `${overallLabel} (${filteredCount} in selected filter)`;
 }
 
 function formatPartySummary(
@@ -141,9 +244,24 @@ function formatPartySummary(
 export default async function ChairRsvpsPage({
   searchParams,
 }: ChairRsvpsPageProps) {
+  await requireChairPageAuth("/chair/rsvps");
+
   const params = await searchParams;
   const paginationParams = parsePaginationParams(params);
-  const { rsvps, pagination, partyTotals } = await getRsvps(paginationParams);
+  const rsvpFilter = parseRsvpFilter(params);
+  const paginationSearchParams = pickSearchParams(params, [
+    paginationParams.pageKey,
+    paginationParams.pageSizeKey,
+  ]);
+
+  if (rsvpFilter) {
+    paginationSearchParams[chairRsvpFilterParamKey] = rsvpFilter;
+  }
+
+  const { rsvps, pagination, partyTotals } = await getRsvps(
+    paginationParams,
+    rsvpFilter,
+  );
   const rsvpSearchItems = rsvps.map((rsvp) => {
     const partySummary = formatPartySummary(rsvp);
 
@@ -153,7 +271,7 @@ export default async function ChairRsvpsPage({
         rsvp.firstName,
         rsvp.lastName,
         rsvp.email,
-        formatRsvpStatus(rsvp.attending),
+        formatRsvpStatus(),
         formatRsvpSource(rsvp.source),
         partySummary.primary,
         partySummary.secondary,
@@ -169,10 +287,8 @@ export default async function ChairRsvpsPage({
     };
   });
   const rsvpFilters = [
-    { value: "attending:yes", label: "BBQ RSVPs" },
-    { value: "attending:no", label: "Legacy no-BBQ" },
     { value: "source:FORM", label: "RSVP form" },
-    { value: "source:REGISTRATION", label: "Registration sourced" },
+    { value: "source:REGISTRATION", label: "Golf Registration" },
     { value: "notes:yes", label: "Has notes" },
     { value: "notes:no", label: "No notes" },
   ];
@@ -189,12 +305,18 @@ export default async function ChairRsvpsPage({
           </p>
           <div className={styles.pageMetaBar}>
             <span className={styles.pageMeta}>
-              {partyTotals.adultAttendeeCount} adult attendee
-              {partyTotals.adultAttendeeCount === 1 ? "" : "s"}
+              {formatHeaderMetaCount(
+                partyTotals.overall.adultAttendeeCount,
+                "adult attendee",
+                partyTotals.filtered?.adultAttendeeCount ?? null,
+              )}
             </span>
             <span className={styles.pageMeta}>
-              {partyTotals.childAttendeeCount} kid attendee
-              {partyTotals.childAttendeeCount === 1 ? "" : "s"}
+              {formatHeaderMetaCount(
+                partyTotals.overall.childAttendeeCount,
+                "kid attendee",
+                partyTotals.filtered?.childAttendeeCount ?? null,
+              )}
             </span>
           </div>
         </div>
@@ -221,14 +343,21 @@ export default async function ChairRsvpsPage({
             filterAllLabel="All RSVPs"
             filters={rsvpFilters}
             items={rsvpSearchItems}
+            pagination={pagination}
             resultLabel="RSVPs"
             searchLabel="Search RSVPs"
             searchPlaceholder="Search names, emails, families, notes"
+            urlBackedFilter={{
+              value: rsvpFilter,
+              searchParams: paginationSearchParams,
+              filterParamKey: chairRsvpFilterParamKey,
+              pageParamKey: paginationParams.pageKey,
+            }}
           >
             {rsvps.map((rsvp) => {
               const partySummary = formatPartySummary(rsvp);
               const fullName = `${rsvp.firstName} ${rsvp.lastName}`;
-              const statusLabel = formatRsvpStatus(rsvp.attending);
+              const statusLabel = formatRsvpStatus();
               const sourceLabel = formatRsvpSource(rsvp.source);
 
               return (
@@ -320,7 +449,7 @@ export default async function ChairRsvpsPage({
       <PaginationNav
         label="RSVPs"
         pagination={pagination}
-        searchParams={params}
+        searchParams={paginationSearchParams}
       />
     </>
   );

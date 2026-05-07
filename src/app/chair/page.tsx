@@ -1,3 +1,4 @@
+import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
 import { completeRegistrationPaymentStatuses } from "@/lib/payment";
 import { REMEMBRANCE_FEEDBACK_CATEGORY } from "@/lib/remembrance";
@@ -59,6 +60,8 @@ async function getDashboardCounts() {
 }
 
 export default async function ChairDashboardPage() {
+  await requireChairPageAuth("/chair");
+
   const counts = await getDashboardCounts();
 
   return (

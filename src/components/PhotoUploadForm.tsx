@@ -100,35 +100,35 @@ export function PhotoUploadForm() {
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <p className={styles.formIntro}>
-        Add your contact info, one caption for the selected set, and the photos
-        you want reviewed.
+        Add your contact info, an optional caption for the selected set, and the
+        photos you want reviewed.
       </p>
       <div className={`${formStyles.gridTwo} ${styles.contactFields}`}>
         <label className={formStyles.field}>
-          <span>Name</span>
+          <span className={formStyles.requiredLabel}>Name</span>
           <input name="submitterName" required type="text" />
         </label>
         <label className={formStyles.field}>
-          <span>Email</span>
+          <span className={formStyles.requiredLabel}>Email</span>
           <input name="submitterEmail" required type="email" />
         </label>
       </div>
       <div className={styles.detailsGrid}>
         <label className={`${formStyles.field} ${styles.captionField}`}>
-          <span>Caption</span>
+          <span>Caption (optional)</span>
           <textarea
             name="caption"
             placeholder="Describe the photo or set of photos."
-            required
             rows={4}
           />
         </label>
         <fieldset className={`${formStyles.fieldset} ${styles.photoFieldset}`}>
-          <legend>Photos</legend>
+          <legend className={formStyles.requiredLabel}>Photos</legend>
           <div className={styles.photoFieldsetBody}>
             <small className={formStyles.fieldHint} id="photo-upload-help">
-              One caption applies to every selected photo.{" "}
-              {acceptedPhotoTypeLabel}; {photoUploadLimitLabel} max per photo.
+              Choose at least one photo. One caption applies to every selected
+              photo. {acceptedPhotoTypeLabel}; {photoUploadLimitLabel} max per
+              photo.
             </small>
             <PhotoBrowsePicker
               description="Select one photo, several photos, or a folder."

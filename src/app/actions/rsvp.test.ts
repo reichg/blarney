@@ -45,6 +45,7 @@ function buildFormData(overrides: Record<string, string | undefined> = {}) {
     firstName: "Pat",
     lastName: "Golfer",
     email: "Pat@example.com",
+    phone: "555-0100",
     adultAttendeeCount: "2",
     childAttendeeCount: "1",
     familyNames: "Pat and family",
@@ -120,6 +121,42 @@ describe("submitRsvp", () => {
       familyNames: "Pat and family",
       dietaryNotes: "None",
       notes: "Looking forward to it",
+    });
+  });
+
+  it("allows blank optional BBQ text fields", async () => {
+    registrationFindFirst.mockResolvedValue(null);
+    rsvpFindUnique.mockResolvedValue(null);
+    createRsvpCheckoutPayment.mockResolvedValue({
+      ok: true,
+      status: "pending",
+      checkoutId: "rsvp-checkout-1",
+      paymentReference: "payment-link-1",
+      paymentUrl: "https://square.link/u/rsvp-checkout-1",
+    });
+
+    await expect(
+      submitRsvp(
+        buildFormData({
+          familyNames: undefined,
+          dietaryNotes: undefined,
+          notes: undefined,
+        }),
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      checkoutId: "rsvp-checkout-1",
+    });
+
+    expect(createRsvpCheckoutPayment).toHaveBeenCalledWith({
+      firstName: "Pat",
+      lastName: "Golfer",
+      email: "pat@example.com",
+      adultAttendeeCount: 2,
+      childAttendeeCount: 1,
+      familyNames: null,
+      dietaryNotes: null,
+      notes: null,
     });
   });
 
@@ -215,6 +252,10 @@ describe("submitRsvp", () => {
 
   it.each([
     {
+      description: "phone is missing",
+      overrides: { phone: undefined },
+    },
+    {
       description: "adult attendee count is missing",
       overrides: { adultAttendeeCount: undefined },
     },
@@ -222,9 +263,6 @@ describe("submitRsvp", () => {
       description: "child attendee count is missing",
       overrides: { childAttendeeCount: undefined },
     },
-    { description: "family names are blank", overrides: { familyNames: "" } },
-    { description: "dietary notes are blank", overrides: { dietaryNotes: "" } },
-    { description: "other notes are blank", overrides: { notes: "" } },
   ])("returns an invalid result when $description", async ({ overrides }) => {
     await expect(submitRsvp(buildFormData(overrides))).resolves.toEqual({
       ok: false,

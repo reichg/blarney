@@ -111,6 +111,28 @@ describe("submitRegistration", () => {
     );
   });
 
+  it("allows blank optional registration notes and dietary notes", async () => {
+    await expect(
+      submitRegistration(
+        buildFormData({
+          notes: undefined,
+          dietaryNotes: undefined,
+        }),
+      ),
+    ).resolves.toMatchObject({
+      ok: true,
+      checkoutId: "checkout-1",
+    });
+
+    expect(registrationPayloadParse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dietaryNotes: null,
+        notes: null,
+        phone: "555-0100",
+      }),
+    );
+  });
+
   it("keeps a compatibility path for the current single-golfer form fields", async () => {
     const formData = buildFormData({
       golfers: undefined,
@@ -166,6 +188,18 @@ describe("submitRegistration", () => {
   it("returns a validation error before starting checkout for invalid golfer data", async () => {
     await expect(
       submitRegistration(buildFormData({ golfers: "not-json" })),
+    ).resolves.toEqual({
+      ok: false,
+      error: "Complete the required registration details and try again.",
+    });
+
+    expect(registrationPayloadParse).not.toHaveBeenCalled();
+    expect(createRegistrationCheckoutPayment).not.toHaveBeenCalled();
+  });
+
+  it("returns a validation error when phone is missing", async () => {
+    await expect(
+      submitRegistration(buildFormData({ phone: undefined })),
     ).resolves.toEqual({
       ok: false,
       error: "Complete the required registration details and try again.",

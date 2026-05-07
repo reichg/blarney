@@ -8,6 +8,21 @@ import { Prisma } from "@prisma/client";
 import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 
+function normalizeRequiredFormValue(value: unknown) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  return value ?? undefined;
+}
+
+const requiredTextSchema = z.preprocess(
+  normalizeRequiredFormValue,
+  z.string().trim().min(1),
+);
+
 const optionalTextSchema = z
   .preprocess(
     (value) => (typeof value === "string" ? value.trim() : value),
@@ -32,7 +47,7 @@ export const registrationCheckoutPayloadSchema = z
       .trim()
       .email()
       .transform((value) => value.toLowerCase()),
-    phone: optionalTextSchema,
+    phone: requiredTextSchema,
     packageSelection: z.string().trim().min(1),
     golfers: z.array(golferSchema).min(1).max(20),
     bbqOnlyAdultCount: z.coerce.number().int().min(0).max(30),

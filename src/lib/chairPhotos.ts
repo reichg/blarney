@@ -116,21 +116,23 @@ export function listChairRemembrancePhotos() {
 
 export function listPendingChairGalleryPhotosPage(
   pagination: PaginationParams,
+  where?: Prisma.PhotoSubmissionWhereInput,
 ) {
   return listChairPhotosPage({
     pagination,
     purpose: "GALLERY",
-    where: { status: "PENDING" },
+    where: { status: "PENDING", ...where },
   });
 }
 
 export function listReviewedChairGalleryPhotosPage(
   pagination: PaginationParams,
+  where?: Prisma.PhotoSubmissionWhereInput,
 ) {
   return listChairPhotosPage({
     pagination,
     purpose: "GALLERY",
-    where: { status: "APPROVED" },
+    where: { status: "APPROVED", ...where },
   });
 }
 

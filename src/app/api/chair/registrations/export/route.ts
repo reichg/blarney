@@ -2,6 +2,7 @@ import {
   buildChairRegistrationCsv,
   type ChairRegistrationExportScope,
 } from "@/lib/chairRegistrationExport";
+import { requireChairApiAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -48,6 +49,12 @@ function getExportFilename(scope: ChairRegistrationExportScope): string {
 }
 
 export async function GET(request: NextRequest) {
+  const unauthorized = await requireChairApiAuth(request);
+
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   try {
     const scope = getExportScope(request);
     const registrations = await getRegistrations();

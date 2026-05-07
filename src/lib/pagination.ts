@@ -32,6 +32,17 @@ export type PaginationState = PaginationParams & {
   isEmpty: boolean;
 };
 
+export function formatPaginationSummary(
+  pagination: Pick<
+    PaginationState,
+    "currentCount" | "startIndex" | "endIndex" | "totalCount"
+  >,
+) {
+  return pagination.currentCount
+    ? `Showing ${pagination.startIndex}-${pagination.endIndex} of ${pagination.totalCount}`
+    : `Showing 0 of ${pagination.totalCount}`;
+}
+
 function normalizeSearchParamValue(value: string | string[] | undefined) {
   const resolvedValue = Array.isArray(value) ? value[0] : value;
 

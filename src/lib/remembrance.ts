@@ -17,12 +17,6 @@ export const remembranceSubmissionSchema = z.object({
     normalizeOptionalString,
     z.string().trim().min(1, "Remembrance text is required."),
   ),
-  name: z.preprocess(
-    normalizeOptionalString,
-    z.string().trim().min(1).optional(),
-  ),
-  email: z.preprocess(
-    normalizeOptionalString,
-    z.string().trim().email().optional(),
-  ),
+  name: z.preprocess(normalizeOptionalString, z.string().trim().min(1)),
+  email: z.preprocess(normalizeOptionalString, z.string().trim().email()),
 });

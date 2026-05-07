@@ -12,7 +12,10 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json(
-      { message: "Remembrance text is required." },
+      {
+        message:
+          "Complete the remembrance message, name, and email before sending.",
+      },
       { status: 400 },
     );
   }

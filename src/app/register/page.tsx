@@ -3,6 +3,7 @@ import { submitRsvp } from "@/app/actions/rsvp";
 import styles from "@/app/forms.module.css";
 import { RegistrationForm } from "@/app/register/RegistrationForm";
 import { getEventSettings } from "@/lib/content";
+import { defaultRegistrationPackageSelection } from "@/lib/formContracts";
 import { getOptionalRegistrationPaymentBreakdown } from "@/lib/payment";
 
 export default async function RegisterPage() {
@@ -32,25 +33,31 @@ export default async function RegisterPage() {
           <aside className={styles.panel}>
             <h2>Registration Details</h2>
             <ul className={styles.detailList}>
-              <li>Golf registration includes BBQ for every golfer.</li>
-              {pricing ? (
-                <li>
-                  Add extra BBQ-only adults or kids who are not golfing, or use
-                  BBQ-only RSVP for a non-golfing party.
-                </li>
-              ) : null}
+              <li>
+                <strong>
+                  Golf registration includes BBQ for every golfer.
+                </strong>
+              </li>
+              <li>
+                Add extra BBQ-only adults or kids who are not golfing, or use
+                BBQ-only RSVP for a non-golfing party.
+              </li>
+              <li>
+                BBQ-only RSVP for a non-golfing party needs to include the payer as a BBQ-only adult to be included in the headcount for catering.
+              </li>
               <li>
                 Golfers under 15 count as kids for BBQ totals. Golfers are not
                 charged again for BBQ.
               </li>
               <li>
-                Average Manzanita score (Par 32) helps create fair groups for golfers.
+                Average Manzanita score (Par 32) helps create fair groups for
+                golfers.
               </li>
             </ul>
           </aside>
           <RegistrationForm
             currency={pricing?.currency ?? "USD"}
-            defaultPackageSelection="Golf registration"
+            defaultPackageSelection={defaultRegistrationPackageSelection}
             golfPriceCents={pricing?.golfPriceCents ?? null}
             golfPriceLabel={pricing?.golfPriceLabel ?? null}
             adultGuestPriceCents={pricing?.adultGuestPriceCents ?? null}

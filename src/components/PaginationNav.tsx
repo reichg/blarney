@@ -1,4 +1,5 @@
 import {
+  formatPaginationSummary,
   type PaginationState,
   type SearchParamsRecord,
 } from "@/lib/pagination";
@@ -53,9 +54,7 @@ export function PaginationNav({
   const previousPage = isPastLastPage ? pagination.totalPages : currentPage - 1;
   const hasPreviousPage = currentPage > 1 || isPastLastPage;
   const hasNextPage = currentPage < pagination.totalPages;
-  const summary = pagination.currentCount
-    ? `Showing ${pagination.startIndex}-${pagination.endIndex} of ${pagination.totalCount}`
-    : `Showing 0 of ${pagination.totalCount}`;
+  const summary = formatPaginationSummary(pagination);
 
   return (
     <div className={styles.pagination}>

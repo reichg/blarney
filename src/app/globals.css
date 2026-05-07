@@ -149,6 +149,12 @@ img {
   color: var(--white);
 }
 
+.event-location {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 @media (max-width: 720px) {
   .site-footer-inner {
     flex-direction: row;

@@ -24,9 +24,12 @@ export default async function RootLayout({
           <main className="main-content">{children}</main>
           <footer className="site-footer">
             <div className="site-footer-inner">
-              <span>
-                <strong>Blarney 42</strong> · {settings.eventLocation}
-              </span>
+              <div className="event-location">
+                <span>
+                  <strong>Blarney 42</strong>
+                </span>
+                <span>{settings.eventLocation}</span>
+              </div>
               <span>{settings.chairContact}</span>
             </div>
           </footer>

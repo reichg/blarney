@@ -107,6 +107,7 @@
 
 .pageMetaBar {
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
   gap: 0.65rem;
 }
@@ -192,6 +193,7 @@
   min-height: 2.55rem;
   padding: 0.65rem;
   width: 100%;
+  cursor: pointer;
 }
 
 .listResultCount {
@@ -462,6 +464,22 @@
   display: flex;
   gap: 0.75rem;
   justify-content: space-between;
+}
+
+.cardNote {
+  background: var(--surface-strong);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem;
+}
+
+.cardNoteLabel {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin: 0;
+  text-transform: uppercase;
 }
 
 .statGrid {
@@ -898,9 +916,11 @@
 .remembranceCardHeaderRow {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.75rem;
   justify-content: space-between;
+  min-height: 3.25rem;
+  min-width: 0;
 }
 
 .remembranceCardMedia {
@@ -959,6 +979,9 @@
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.15rem;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .remembrancePreviewHint {
@@ -972,12 +995,22 @@
 }
 
 .remembranceCardActions {
-  margin-top: auto;
-  padding: 0 1rem 1rem;
+  align-items: center;
+  display: flex;
   justify-content: center;
+  margin-top: auto;
+  min-height: 2.5rem;
+  padding: 0 1rem 1rem;
+  width: 100%;
+}
+
+.remembranceCardActions .secondaryActionButton {
+  justify-content: center;
+  width: 100%;
 }
 
 .remembrancePreviewCard {
+  grid-template-rows: auto minmax(0, 1fr) auto;
   min-height: 22rem;
 }
 

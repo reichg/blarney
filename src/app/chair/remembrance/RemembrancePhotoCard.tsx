@@ -58,7 +58,7 @@ export function RemembrancePhotoCard({
           <div className={styles.remembranceCardMedia}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              alt={photo.caption ?? "Remembrance photo preview"}
+              alt="Remembrance photo preview"
               className={`${styles.photoPreview} ${styles.remembrancePhotoPreview}`}
               src={`/api/chair/photos/${photo.id}/view`}
             />
@@ -89,7 +89,7 @@ export function RemembrancePhotoCard({
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          alt={photo.caption ?? "Remembrance photo preview"}
+          alt="Remembrance photo preview"
           className={styles.detailImage}
           src={`/api/chair/photos/${photo.id}/view`}
         />

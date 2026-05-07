@@ -3,6 +3,10 @@
 import styles from "@/app/chair/chair.module.css";
 import { filterChairListItems } from "@/app/chair/listFiltering";
 import { RemembrancePhotoCard } from "@/app/chair/remembrance/RemembrancePhotoCard";
+import {
+  formatPaginationSummary,
+  type PaginationState,
+} from "@/lib/pagination";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type RemembrancePhoto = {
@@ -18,6 +22,7 @@ type RemembrancePhoto = {
 
 type ChairRemembranceGalleryProps = {
   photos: RemembrancePhoto[];
+  pagination?: PaginationState;
 };
 
 function getAttachmentFileName(contentDisposition: string | null) {
@@ -32,6 +37,7 @@ function getAttachmentFileName(contentDisposition: string | null) {
 
 export function ChairRemembranceGallery({
   photos,
+  pagination,
 }: ChairRemembranceGalleryProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -73,6 +79,9 @@ export function ChairRemembranceGallery({
   const visibleSelectedPhotoIds = selectedIds.filter((id) =>
     shownPhotoIds.includes(id),
   );
+  const summary = pagination
+    ? formatPaginationSummary(pagination)
+    : `Showing ${filteredPhotos.length} of ${photos.length} remembrance photos on this page`;
 
   const allSelected =
     filteredPhotos.length > 0 &&
@@ -216,8 +225,7 @@ export function ChairRemembranceGallery({
             </select>
           </label>
           <p aria-live="polite" className={styles.listResultCount}>
-            Showing {filteredPhotos.length} of {photos.length} remembrance
-            photos on this page
+            {summary}
           </p>
         </div>
         <div className={styles.selectionBar}>

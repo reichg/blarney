@@ -1,6 +1,7 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { REMEMBRANCE_FEEDBACK_CATEGORY } from "../src/lib/remembrance";
 import {
   createSeededRandom,
   generateFeedback,
@@ -26,7 +27,6 @@ const standaloneRsvpCount = 30;
 const feedbackCount = 30;
 const galleryPhotoCount = 30;
 const remembranceCount = 30;
-const remembranceCategory = "In Remembrance";
 const sampleDomain = "@example.com";
 const baseDate = new Date("2026-05-05T18:00:00.000Z");
 
@@ -380,7 +380,7 @@ async function seedRemembrance() {
         name: remembranceData.name,
         email: remembranceData.email,
         rating: null,
-        category: remembranceCategory,
+        category: REMEMBRANCE_FEEDBACK_CATEGORY,
         message: remembranceData.message,
         createdAt: sampleDate(index, 50, 37),
       },

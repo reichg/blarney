@@ -1,6 +1,7 @@
 import { jwtVerify, SignJWT } from "jose";
 
 export const CHAIR_COOKIE = "blarney_chair_session";
+export const CHAIR_SESSION_MAX_AGE_SECONDS = 60 * 60 * 2;
 
 const encoder = new TextEncoder();
 
@@ -27,7 +28,7 @@ export async function createChairToken() {
   return new SignJWT({ role: "chair" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("8h")
+    .setExpirationTime(`${CHAIR_SESSION_MAX_AGE_SECONDS}s`)
     .sign(getSessionSecret());
 }
 

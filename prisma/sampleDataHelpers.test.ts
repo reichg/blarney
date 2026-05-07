@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  defaultRegistrationPackageSelection,
+  feedbackCategoryOptions,
+  feedbackSubmissionSchema,
+} from "../src/lib/formContracts";
+import {
   createSeededRandom,
   generateFeedback,
   generateGalleryPhoto,
@@ -96,12 +101,76 @@ describe("sampleDataHelpers", () => {
     expect(new Set(counts).size).toBeGreaterThan(1);
   });
 
-  it("creates zero-attendee standalone RSVPs when not attending", () => {
+  it("uses the current golf registration package and required dietary notes", () => {
     const samples = Array.from({ length: 20 }, (_, index) =>
-      generateStandaloneRsvp(createSeededRandom(300 + index), index),
+      generateRegistration(createSeededRandom(300 + index), index),
     );
-    const notAttending = samples.find((sample) => !sample.attending);
 
-    expect(notAttending?.attendeeCount).toBe(0);
+    for (const sample of samples) {
+      expect(sample.packageSelection).toBe(defaultRegistrationPackageSelection);
+      expect(sample.dietaryNotes.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("creates standalone RSVPs that satisfy current required form fields", () => {
+    const samples = Array.from({ length: 20 }, (_, index) =>
+      generateStandaloneRsvp(createSeededRandom(400 + index), index),
+    );
+
+    for (const sample of samples) {
+      expect(sample.attending).toBe(true);
+      expect(sample.attendeeCount).toBe(
+        sample.adultAttendeeCount + sample.childAttendeeCount,
+      );
+      expect(sample.attendeeCount).toBeGreaterThan(0);
+      expect(sample.attendeeCount).toBeLessThanOrEqual(30);
+      expect(sample.familyNames.trim().length).toBeGreaterThan(0);
+      expect(sample.dietaryNotes.trim().length).toBeGreaterThan(0);
+      expect(sample.notes.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("creates feedback that matches current form validation and category options", () => {
+    const samples = Array.from({ length: 20 }, (_, index) =>
+      generateFeedback(createSeededRandom(500 + index), index),
+    );
+
+    for (const sample of samples) {
+      expect(feedbackCategoryOptions).toContain(sample.category);
+      expect(() => feedbackSubmissionSchema.parse(sample)).not.toThrow();
+    }
+  });
+
+  it("creates gallery photos with the metadata required by the upload form", () => {
+    const samples = Array.from({ length: 20 }, (_, index) =>
+      generateGalleryPhoto(createSeededRandom(600 + index), index),
+    );
+
+    for (const sample of samples) {
+      expect(sample.submitterName.trim().length).toBeGreaterThan(0);
+      expect(sample.submitterEmail.trim().length).toBeGreaterThan(0);
+      expect(sample.caption.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("includes remembrance contact info whenever sample photos are attached", () => {
+    const samples = Array.from({ length: 20 }, (_, index) =>
+      generateRemembrance(createSeededRandom(700 + index), index),
+    );
+
+    for (const sample of samples) {
+      if (sample.photos.length === 0) {
+        continue;
+      }
+
+      expect(sample.name?.trim().length).toBeGreaterThan(0);
+      expect(sample.email.trim().length).toBeGreaterThan(0);
+
+      for (const photo of sample.photos) {
+        expect(photo.submitterName).toBe(sample.name);
+        expect(photo.submitterEmail).toBe(sample.email);
+        expect(photo.caption.trim().length).toBeGreaterThan(0);
+      }
+    }
   });
 });

@@ -1,6 +1,11 @@
 "use server";
 
-import { CHAIR_COOKIE, createChairToken, isChairPassword } from "@/lib/auth";
+import {
+  CHAIR_COOKIE,
+  CHAIR_SESSION_MAX_AGE_SECONDS,
+  createChairToken,
+  isChairPassword,
+} from "@/lib/auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -25,7 +30,7 @@ export async function loginChair(formData: FormData) {
 
   cookieStore.set(CHAIR_COOKIE, token, {
     httpOnly: true,
-    maxAge: 60 * 60 * 8,
+    maxAge: CHAIR_SESSION_MAX_AGE_SECONDS,
     path: "/",
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

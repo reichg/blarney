@@ -41,10 +41,16 @@ describe("PhotoUploadForm", () => {
     const html = renderToStaticMarkup(createElement(PhotoUploadForm));
 
     expect(html).toContain("Add your contact info");
+    expect(html).toContain('class="requiredLabel">Name</span>');
+    expect(html).toContain('class="requiredLabel">Email</span>');
+    expect(html).toContain('class="requiredLabel">Photos</legend>');
+    expect(html).toContain("Caption (optional)");
     expect(html).toContain('name="submitterName"');
     expect(html).toContain('name="submitterEmail"');
     expect(html).toContain('name="caption"');
+    expect(html).not.toMatch(/<textarea[^>]*name="caption"[^>]*required/);
     expect(html).toContain('data-slot="photo-picker"');
+    expect(html).toContain("Choose at least one photo.");
     expect(html).toContain("Submit for review");
   });
 });

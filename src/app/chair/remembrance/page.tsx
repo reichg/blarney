@@ -1,10 +1,12 @@
 import styles from "@/app/chair/chair.module.css";
 import { ChairRemembranceGallery } from "@/app/chair/remembrance/ChairRemembranceGallery";
 import { PaginationNav } from "@/components/PaginationNav";
+import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import { listChairRemembrancePhotosPage } from "@/lib/chairPhotos";
 import { formatDateTime } from "@/lib/format";
 import {
   parsePaginationParams,
+  type PaginationState,
   type SearchParamsRecord,
 } from "@/lib/pagination";
 
@@ -25,6 +27,8 @@ function summarizeMessage(message: string) {
 export default async function ChairRemembrancePage({
   searchParams,
 }: ChairRemembrancePageProps) {
+  await requireChairPageAuth("/chair/remembrance");
+
   const params = await searchParams;
   const paginationParams = parsePaginationParams(params);
   const { photos, pagination } =
@@ -71,7 +75,10 @@ export default async function ChairRemembrancePage({
           </div>
         </div>
         {remembrancePhotos.length ? (
-          <ChairRemembranceGallery photos={remembrancePhotos} />
+          <ChairRemembranceGallery
+            pagination={pagination as PaginationState}
+            photos={remembrancePhotos}
+          />
         ) : (
           <section className={styles.panel}>
             <p className={styles.emptyState}>

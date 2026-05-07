@@ -39,15 +39,10 @@ export function RemembranceForm() {
     const email = getString(formData.get("email"));
     const photos = getSelectedPhotoFiles(formData);
 
-    if (!message) {
-      setError("Please share a remembrance message before sending.");
-      setStatus("");
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (photos.length > 0 && (!name || !email)) {
-      setError("Name and email are required when including photos.");
+    if (!message || !name || !email) {
+      setError(
+        "Complete the remembrance message, name, and email before sending.",
+      );
       setStatus("");
       setIsSubmitting(false);
       return;
@@ -131,7 +126,7 @@ export function RemembranceForm() {
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <label className={`${formStyles.field} ${styles.messageField}`}>
-        <span>Remembrance message</span>
+        <span className={formStyles.requiredLabel}>Remembrance message</span>
         <textarea
           name="message"
           placeholder="Share a memory, a name you want honored, or a note for the chair to keep with this year's remembrance."
@@ -141,17 +136,17 @@ export function RemembranceForm() {
       </label>
       <div className={styles.contactBlock}>
         <p className={styles.supportNote}>
-          Name and email are optional for a note alone. If you add photos,
-          please include both so the chair can follow up if needed.
+          Name and email are required so the chair can follow up if needed.
+          Photos are optional.
         </p>
         <div className={formStyles.gridTwo}>
           <label className={formStyles.field}>
-            <span>Name</span>
-            <input name="name" type="text" />
+            <span className={formStyles.requiredLabel}>Name</span>
+            <input name="name" required type="text" />
           </label>
           <label className={formStyles.field}>
-            <span>Email</span>
-            <input name="email" type="email" />
+            <span className={formStyles.requiredLabel}>Email</span>
+            <input name="email" required type="email" />
           </label>
         </div>
       </div>

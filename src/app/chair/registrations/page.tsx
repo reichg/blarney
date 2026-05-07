@@ -5,8 +5,13 @@ import {
   uniqueFilterOptions,
 } from "@/app/chair/display";
 import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
+import {
+  parseChairListFilterParam,
+  pickSearchParams,
+} from "@/app/chair/listFiltering";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { PaginationNav } from "@/components/PaginationNav";
+import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import {
@@ -15,6 +20,7 @@ import {
   type PaginationParams,
   type SearchParamsRecord,
 } from "@/lib/pagination";
+import type { PaymentStatus, Prisma } from "@prisma/client";
 import { Download } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +28,133 @@ export const dynamic = "force-dynamic";
 type ChairRegistrationsPageProps = {
   searchParams: Promise<SearchParamsRecord>;
 };
+
+const registrationFilterParamKey = "filter";
+const registrationPaymentStatuses = [
+  "CONFIRMED",
+  "WAIVED",
+  "EXTERNAL_PENDING",
+] as const;
+const registrationGenders = [
+  "MALE",
+  "FEMALE",
+  "NON_BINARY",
+  "PREFER_NOT_TO_SAY",
+] as const;
+
+const registrationAttendeeTotalsSelect = {
+  adultGuestCount: true,
+  childGuestCount: true,
+  participant: {
+    select: {
+      age: true,
+      gender: true,
+    },
+  },
+} satisfies Prisma.RegistrationSelect;
+
+type RegistrationAttendeeTotalsRow = Prisma.RegistrationGetPayload<{
+  select: typeof registrationAttendeeTotalsSelect;
+}>;
+
+type RegistrationGolferBreakdown = {
+  maleAdultCount: number;
+  femaleAdultCount: number;
+  otherAdultCount: number;
+  maleChildCount: number;
+  femaleChildCount: number;
+  otherChildCount: number;
+};
+
+type RegistrationGuestBreakdown = {
+  totalCount: number;
+  adultCount: number;
+  childCount: number;
+};
+
+type RegistrationHeaderTotals = {
+  totalCount: number;
+  golfers: RegistrationGolferBreakdown;
+  guests: RegistrationGuestBreakdown;
+};
+
+type RegistrationHeaderSummary = {
+  overall: RegistrationHeaderTotals;
+  filtered: RegistrationHeaderTotals | null;
+};
+
+function parseRegistrationFilter(searchParams: SearchParamsRecord | undefined) {
+  const filterValue = parseChairListFilterParam(
+    searchParams,
+    registrationFilterParamKey,
+  );
+
+  if (!filterValue) {
+    return "";
+  }
+
+  if (filterValue.startsWith("payment:")) {
+    const paymentStatus = filterValue
+      .slice("payment:".length)
+      .trim()
+      .toUpperCase();
+
+    return registrationPaymentStatuses.includes(
+      paymentStatus as (typeof registrationPaymentStatuses)[number],
+    )
+      ? `payment:${paymentStatus}`
+      : "";
+  }
+
+  if (filterValue.startsWith("package:")) {
+    const packageSelection = filterValue.slice("package:".length).trim();
+
+    return packageSelection ? `package:${packageSelection}` : "";
+  }
+
+  if (filterValue.startsWith("gender:")) {
+    const gender = filterValue.slice("gender:".length).trim().toUpperCase();
+
+    return registrationGenders.includes(
+      gender as (typeof registrationGenders)[number],
+    )
+      ? `gender:${gender}`
+      : "";
+  }
+
+  return "";
+}
+
+function buildRegistrationWhere(
+  filterValue: string,
+): Prisma.RegistrationWhereInput {
+  if (!filterValue) {
+    return {};
+  }
+
+  if (filterValue.startsWith("payment:")) {
+    return {
+      paymentStatus: filterValue.slice("payment:".length) as PaymentStatus,
+    };
+  }
+
+  if (filterValue.startsWith("package:")) {
+    return {
+      packageSelection: {
+        equals: filterValue.slice("package:".length),
+        mode: "insensitive",
+      },
+    };
+  }
+
+  return {
+    participant: {
+      gender: filterValue.slice(
+        "gender:".length,
+      ) as (typeof registrationGenders)[number],
+    },
+  };
+}
 
 function formatGuestSummary(adultGuestCount: number, childGuestCount: number) {
   if (adultGuestCount === 0 && childGuestCount === 0) {
@@ -63,10 +196,147 @@ function formatBoolean(value: boolean) {
   return value ? "Yes" : "No";
 }
 
-async function getRegistrations(pagination: PaginationParams) {
+function sumRegistrationAttendeeTotals(
+  registrations: ReadonlyArray<RegistrationAttendeeTotalsRow>,
+) {
+  return registrations.reduce<Omit<RegistrationHeaderTotals, "totalCount">>(
+    (totals, registration) => {
+      const registrantIsAdult = registration.participant.age >= 15;
+
+      totals.guests.adultCount += registration.adultGuestCount;
+      totals.guests.childCount += registration.childGuestCount;
+      totals.guests.totalCount +=
+        registration.adultGuestCount + registration.childGuestCount;
+
+      if (registration.participant.gender === "MALE") {
+        if (registrantIsAdult) {
+          totals.golfers.maleAdultCount += 1;
+        } else {
+          totals.golfers.maleChildCount += 1;
+        }
+
+        return totals;
+      }
+
+      if (registration.participant.gender === "FEMALE") {
+        if (registrantIsAdult) {
+          totals.golfers.femaleAdultCount += 1;
+        } else {
+          totals.golfers.femaleChildCount += 1;
+        }
+
+        return totals;
+      }
+
+      if (registrantIsAdult) {
+        totals.golfers.otherAdultCount += 1;
+      } else {
+        totals.golfers.otherChildCount += 1;
+      }
+
+      return totals;
+    },
+    {
+      golfers: {
+        maleAdultCount: 0,
+        femaleAdultCount: 0,
+        otherAdultCount: 0,
+        maleChildCount: 0,
+        femaleChildCount: 0,
+        otherChildCount: 0,
+      },
+      guests: {
+        totalCount: 0,
+        adultCount: 0,
+        childCount: 0,
+      },
+    },
+  );
+}
+
+function buildRegistrationHeaderTotals(
+  totalCount: number,
+  registrations: ReadonlyArray<RegistrationAttendeeTotalsRow>,
+): RegistrationHeaderTotals {
+  return {
+    totalCount,
+    ...sumRegistrationAttendeeTotals(registrations),
+  };
+}
+
+function formatHeaderMetaCount(
+  overallCount: number,
+  singularLabel: string,
+  filteredCount: number | null,
+) {
+  const overallLabel = `${overallCount} ${singularLabel}${overallCount === 1 ? "" : "s"} overall`;
+
+  if (filteredCount === null || filteredCount === overallCount) {
+    return overallLabel;
+  }
+
+  return `${overallLabel} (${filteredCount} in selected filter)`;
+}
+
+function formatHeaderMetaSummary(
+  label: string,
+  overallSummary: string,
+  filteredSummary: string | null,
+) {
+  if (filteredSummary === null || filteredSummary === overallSummary) {
+    return `${label} overall: ${overallSummary}`;
+  }
+
+  return `${label} overall: ${overallSummary} (selected filter: ${filteredSummary})`;
+}
+
+function formatAdultGolferBreakdown(golfers: RegistrationGolferBreakdown) {
+  const parts = [
+    `${golfers.maleAdultCount} male`,
+    `${golfers.femaleAdultCount} female`,
+  ];
+
+  if (golfers.otherAdultCount > 0) {
+    parts.push(`${golfers.otherAdultCount} other/unspecified`);
+  }
+
+  return parts.join(", ");
+}
+
+function formatKidGolferBreakdown(golfers: RegistrationGolferBreakdown) {
+  const parts = [
+    `${golfers.maleChildCount} male`,
+    `${golfers.femaleChildCount} female`,
+  ];
+
+  if (golfers.otherChildCount > 0) {
+    parts.push(`${golfers.otherChildCount} other/unspecified`);
+  }
+
+  return parts.join(", ");
+}
+
+function formatGuestBreakdown(guests: RegistrationGuestBreakdown) {
+  return `${guests.totalCount} total, ${guests.adultCount} adult${guests.adultCount === 1 ? "" : "s"}, ${guests.childCount} kid${guests.childCount === 1 ? "" : "s"}`;
+}
+
+async function getRegistrations(
+  pagination: PaginationParams,
+  filterValue: string,
+) {
+  const registrationWhere = buildRegistrationWhere(filterValue);
+  const hasFilter = Boolean(filterValue);
+
   try {
-    const [registrations, totalCount] = await Promise.all([
+    const [
+      registrations,
+      filteredTotalCount,
+      filteredAttendeeRows,
+      overallTotalCount,
+      overallAttendeeRows,
+    ] = await Promise.all([
       db.registration.findMany({
+        where: registrationWhere,
         include: {
           checkout: {
             select: {
@@ -79,17 +349,48 @@ async function getRegistrations(pagination: PaginationParams) {
         skip: pagination.skip,
         take: pagination.take,
       }),
-      db.registration.count(),
+      db.registration.count({ where: registrationWhere }),
+      db.registration.findMany({
+        select: registrationAttendeeTotalsSelect,
+        where: registrationWhere,
+      }),
+      hasFilter ? db.registration.count({ where: {} }) : Promise.resolve(null),
+      hasFilter
+        ? db.registration.findMany({
+            select: registrationAttendeeTotalsSelect,
+            where: {},
+          })
+        : Promise.resolve(null),
     ]);
+
+    const filteredHeaderTotals = buildRegistrationHeaderTotals(
+      filteredTotalCount,
+      filteredAttendeeRows,
+    );
 
     return {
       registrations,
-      pagination: buildPaginationState(pagination, totalCount),
+      pagination: buildPaginationState(pagination, filteredTotalCount),
+      headerTotals: {
+        overall: hasFilter
+          ? buildRegistrationHeaderTotals(
+              overallTotalCount ?? filteredTotalCount,
+              overallAttendeeRows ?? filteredAttendeeRows,
+            )
+          : filteredHeaderTotals,
+        filtered: hasFilter ? filteredHeaderTotals : null,
+      } satisfies RegistrationHeaderSummary,
     };
   } catch {
+    const emptyHeaderTotals = buildRegistrationHeaderTotals(0, []);
+
     return {
       registrations: [],
       pagination: buildPaginationState(pagination, 0),
+      headerTotals: {
+        overall: emptyHeaderTotals,
+        filtered: null,
+      } satisfies RegistrationHeaderSummary,
     };
   }
 }
@@ -97,10 +398,24 @@ async function getRegistrations(pagination: PaginationParams) {
 export default async function ChairRegistrationsPage({
   searchParams,
 }: ChairRegistrationsPageProps) {
+  await requireChairPageAuth("/chair/registrations");
+
   const params = await searchParams;
   const paginationParams = parsePaginationParams(params);
-  const { registrations, pagination } =
-    await getRegistrations(paginationParams);
+  const registrationFilter = parseRegistrationFilter(params);
+  const paginationSearchParams = pickSearchParams(params, [
+    paginationParams.pageKey,
+    paginationParams.pageSizeKey,
+  ]);
+
+  if (registrationFilter) {
+    paginationSearchParams[registrationFilterParamKey] = registrationFilter;
+  }
+
+  const { registrations, pagination, headerTotals } = await getRegistrations(
+    paginationParams,
+    registrationFilter,
+  );
   const registrationSearchItems = registrations.map((registration) => {
     const participant = registration.participant;
     const paymentLabel = formatPaymentStatus(registration.paymentStatus);
@@ -132,16 +447,8 @@ export default async function ChairRegistrationsPage({
     { value: "payment:CONFIRMED", label: "Complete" },
     { value: "payment:WAIVED", label: "Complete (waived)" },
     { value: "payment:EXTERNAL_PENDING", label: "Pending payment" },
-    ...uniqueFilterOptions(
-      registrations.map((registration) => ({
-        value: `package:${registration.packageSelection}`,
-        label: registration.packageSelection,
-      })),
-    ),
     { value: "gender:MALE", label: "Male golfers" },
     { value: "gender:FEMALE", label: "Female golfers" },
-    { value: "gender:NON_BINARY", label: "Non-binary golfers" },
-    { value: "gender:PREFER_NOT_TO_SAY", label: "Prefer not to say" },
   ];
 
   return (
@@ -156,8 +463,38 @@ export default async function ChairRegistrationsPage({
           </p>
           <div className={styles.pageMetaBar}>
             <span className={styles.pageMeta}>
-              {pagination.totalCount} total registration
-              {pagination.totalCount === 1 ? "" : "s"}
+              {formatHeaderMetaCount(
+                headerTotals.overall.totalCount,
+                "registration",
+                headerTotals.filtered?.totalCount ?? null,
+              )}
+            </span>
+            <span className={styles.pageMeta}>
+              {formatHeaderMetaSummary(
+                "Adult golfers",
+                formatAdultGolferBreakdown(headerTotals.overall.golfers),
+                headerTotals.filtered
+                  ? formatAdultGolferBreakdown(headerTotals.filtered.golfers)
+                  : null,
+              )}
+            </span>
+            <span className={styles.pageMeta}>
+              {formatHeaderMetaSummary(
+                "Kid golfers",
+                formatKidGolferBreakdown(headerTotals.overall.golfers),
+                headerTotals.filtered
+                  ? formatKidGolferBreakdown(headerTotals.filtered.golfers)
+                  : null,
+              )}
+            </span>
+            <span className={styles.pageMeta}>
+              {formatHeaderMetaSummary(
+                "Guests",
+                formatGuestBreakdown(headerTotals.overall.guests),
+                headerTotals.filtered
+                  ? formatGuestBreakdown(headerTotals.filtered.guests)
+                  : null,
+              )}
             </span>
           </div>
         </div>
@@ -205,9 +542,16 @@ export default async function ChairRegistrationsPage({
             filterAllLabel="All registrations"
             filters={registrationFilters}
             items={registrationSearchItems}
+            pagination={pagination}
             resultLabel="registrations"
             searchLabel="Search registrations"
             searchPlaceholder="Search names, emails, packages, notes"
+            urlBackedFilter={{
+              value: registrationFilter,
+              searchParams: paginationSearchParams,
+              filterParamKey: registrationFilterParamKey,
+              pageParamKey: paginationParams.pageKey,
+            }}
           >
             {registrations.map((registration) => {
               const participant = registration.participant;
@@ -288,10 +632,6 @@ export default async function ChairRegistrationsPage({
                       <p>{registration.childGuestCount}</p>
                     </div>
                     <div className={styles.detailItem}>
-                      <span>Day-before RSVP</span>
-                      <p>{formatBoolean(registration.dayBeforeRsvp)}</p>
-                    </div>
-                    <div className={styles.detailItem}>
                       <span>Payment status</span>
                       <p>{paymentLabel}</p>
                     </div>
@@ -321,7 +661,7 @@ export default async function ChairRegistrationsPage({
       <PaginationNav
         label="Registrations"
         pagination={pagination}
-        searchParams={params}
+        searchParams={paginationSearchParams}
       />
     </>
   );

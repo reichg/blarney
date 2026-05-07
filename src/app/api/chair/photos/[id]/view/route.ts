@@ -1,12 +1,22 @@
+import { requireChairApiAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
 import { getPhotoReadUrl } from "@/lib/s3";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 type ChairPhotoViewContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: Request, context: ChairPhotoViewContext) {
+export async function GET(
+  request: NextRequest,
+  context: ChairPhotoViewContext,
+) {
+  const unauthorized = await requireChairApiAuth(request);
+
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const { id } = await context.params;
   const photo = await db.photoSubmission.findUnique({ where: { id } });
 

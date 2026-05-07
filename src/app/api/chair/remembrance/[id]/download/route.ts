@@ -3,8 +3,9 @@ import {
   findChairRemembrancePhotoForDownload,
   getChairRemembrancePhotoObjectKey,
 } from "@/lib/chairPhotos";
+import { requireChairApiAuth } from "@/lib/chairAuth.server";
 import { getPhotoObjectBytes } from "@/lib/s3";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -13,9 +14,15 @@ type ChairRemembranceDownloadContext = {
 };
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   context: ChairRemembranceDownloadContext,
 ) {
+  const unauthorized = await requireChairApiAuth(request);
+
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const { id } = await context.params;
   const photo = await findChairRemembrancePhotoForDownload(id);
 

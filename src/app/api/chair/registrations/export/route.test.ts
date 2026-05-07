@@ -1,6 +1,56 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const { buildChairRegistrationCsv, registrationFindMany, verifyChairToken } =
+  vi.hoisted(() => ({
+    buildChairRegistrationCsv: vi.fn(),
+    registrationFindMany: vi.fn(),
+    verifyChairToken: vi.fn(),
+  }));
+
+vi.mock("@/lib/auth", () => ({
+  CHAIR_COOKIE: "blarney_chair_session",
+  verifyChairToken,
+}));
+
+vi.mock("@/lib/chairRegistrationExport", () => ({
+  buildChairRegistrationCsv,
+}));
+
+vi.mock("@/lib/db", () => ({
+  db: {
+    registration: {
+      findMany: registrationFindMany,
+    },
+  },
+}));
+
+import { GET } from "@/app/api/chair/registrations/export/route";
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("chair registrations export route", () => {
+  it("returns unauthorized before loading registrations when chair auth is missing", async () => {
+    verifyChairToken.mockResolvedValue(false);
+
+    const response = await GET(
+      new NextRequest("http://localhost:3000/api/chair/registrations/export"),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      message: "Unauthorized.",
+    });
+    expect(response.status).toBe(401);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(registrationFindMany).not.toHaveBeenCalled();
+    expect(buildChairRegistrationCsv).not.toHaveBeenCalled();
+  });
+});
+import { NextRequest } from "next/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 const { registrationFindMany, buildChairRegistrationCsv } = vi.hoisted(() => ({
   registrationFindMany: vi.fn(),
   buildChairRegistrationCsv: vi.fn(),

@@ -1,5 +1,9 @@
 import { submitFeedback } from "@/app/actions/feedback";
 import styles from "@/app/forms.module.css";
+import {
+  feedbackCategoryOptions,
+  feedbackRatingOptions,
+} from "@/lib/formContracts";
 import { MessageSquare } from "lucide-react";
 
 export default function FeedbackPage() {
@@ -29,44 +33,44 @@ export default function FeedbackPage() {
           >
             <div className={styles.gridTwo}>
               <label className={styles.field}>
-                <span>Name</span>
+                <span className={styles.requiredLabel}>Name</span>
                 <input name="name" required type="text" />
               </label>
               <label className={styles.field}>
-                <span>Email</span>
+                <span className={styles.requiredLabel}>Email</span>
                 <input name="email" required type="email" />
               </label>
             </div>
             <div className={styles.gridTwo}>
               <label className={styles.field}>
-                <span>Category</span>
+                <span className={styles.requiredLabel}>Category</span>
                 <select defaultValue="" name="category" required>
                   <option disabled value="">
                     Select one
                   </option>
-                  <option value="Registration">Registration</option>
-                  <option value="Logistics">Logistics</option>
-                  <option value="Pairings">Pairings</option>
-                  <option value="Photos">Photos</option>
-                  <option value="Other">Other</option>
+                  {feedbackCategoryOptions.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className={styles.field}>
-                <span>Rating</span>
+                <span className={styles.requiredLabel}>Rating</span>
                 <select defaultValue="" name="rating" required>
                   <option disabled value="">
                     Select one
                   </option>
-                  <option value="5">5</option>
-                  <option value="4">4</option>
-                  <option value="3">3</option>
-                  <option value="2">2</option>
-                  <option value="1">1</option>
+                  {feedbackRatingOptions.map((rating) => (
+                    <option key={rating} value={String(rating)}>
+                      {rating}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
             <label className={styles.field}>
-              <span>Message</span>
+              <span className={styles.requiredLabel}>Message</span>
               <textarea name="message" required rows={6} />
             </label>
             <button className={styles.submitButton} type="submit">

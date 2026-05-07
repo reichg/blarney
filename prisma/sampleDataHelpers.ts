@@ -1,4 +1,10 @@
 import type { Gender, PaymentStatus, PhotoStatus } from "@prisma/client";
+import {
+  defaultRegistrationPackageSelection,
+  feedbackCategoryOptions,
+  type FeedbackCategory,
+  type RegistrationPackageSelection,
+} from "../src/lib/formContracts";
 
 export type RandomSource = () => number;
 
@@ -100,20 +106,6 @@ const longLastNames = [
   "Harrington-Sutherland",
 ] as const;
 
-const packageSelections = [
-  "Golf + BBQ",
-  "Golf only",
-  "Golf + BBQ with family",
-] as const;
-
-const feedbackCategories = [
-  "Event",
-  "Website",
-  "Logistics",
-  "Payment",
-  "General",
-] as const;
-
 const feedbackMessages = [
   "Wonderful event. The weekend felt organized, warm, and easy to navigate from the first tee time through the final meal.",
   "The logistics notes were helpful and the chair communication stayed clear the whole time.",
@@ -137,7 +129,6 @@ const remembranceMessages = [
 ] as const;
 
 function chooseGender(index: number, rng: RandomSource): Gender {
-
   return rng() > 0.5 ? "MALE" : "FEMALE";
 }
 
@@ -177,7 +168,7 @@ export interface PersonData {
 
 export interface RegistrationData {
   participant: PersonData;
-  packageSelection: string;
+  packageSelection: RegistrationPackageSelection;
   adultGuestCount: number;
   childGuestCount: number;
   paymentStatus: PaymentStatus;
@@ -201,23 +192,23 @@ export interface RsvpData {
   adultAttendeeCount: number;
   childAttendeeCount: number;
   attendeeCount: number;
-  familyNames: string | null;
-  dietaryNotes: string | null;
-  notes: string | null;
+  familyNames: string;
+  dietaryNotes: string;
+  notes: string;
 }
 
 export interface FeedbackData {
-  name: string | null;
+  name: string;
   email: string;
-  rating: number | null;
-  category: string;
+  rating: number;
+  category: FeedbackCategory;
   message: string;
 }
 
 export interface PhotoData {
   submitterName: string;
   submitterEmail: string;
-  caption: string | null;
+  caption: string;
   status: PhotoStatus;
   s3Key: string;
   approvedS3Key: string | null;
@@ -302,11 +293,11 @@ export function generateRegistration(
       ? buildLongDietaryNote(index)
       : index % 4 === 0
         ? pick(rng, ["Vegetarian", "Gluten-free", "Dairy-free"] as const)
-        : null;
+        : "None";
 
   return {
     participant,
-    packageSelection: pick(rng, packageSelections),
+    packageSelection: defaultRegistrationPackageSelection,
     adultGuestCount,
     childGuestCount,
     paymentStatus,
@@ -343,37 +334,41 @@ export function generateStandaloneRsvp(
   const lastName =
     index % 7 === 0 ? pick(rng, longLastNames) : pick(rng, lastNames);
   const slug = `${slugify(firstName)}-${slugify(lastName)}-${String(index + 1).padStart(3, "0")}`;
-  const attending = index % 6 !== 0;
-  const adultAttendeeCount = attending ? randomInt(rng, 0, 4) : 0;
-  const childAttendeeCount =
-    attending && index % 4 === 0 ? randomInt(rng, 0, 2) : 0;
+  let adultAttendeeCount = randomInt(rng, 0, 4);
+  const childAttendeeCount = index % 4 === 0 ? randomInt(rng, 0, 2) : 0;
+
+  if (adultAttendeeCount + childAttendeeCount === 0) {
+    adultAttendeeCount = 1;
+  }
+
+  const attendeeCount = adultAttendeeCount + childAttendeeCount;
 
   return {
     firstName,
     lastName,
     email: `rsvp-${slug}@example.com`,
-    attending,
+    attending: true,
     adultAttendeeCount,
     childAttendeeCount,
-    attendeeCount: attending ? adultAttendeeCount + childAttendeeCount : 0,
+    attendeeCount,
     familyNames:
       index % 5 === 0
         ? buildLongFamilyNames(index)
-        : adultAttendeeCount + childAttendeeCount > 1
+        : attendeeCount > 1
           ? `${firstName} ${lastName} household`
-          : null,
+          : `${firstName} ${lastName}`,
     dietaryNotes:
       index % 8 === 0
         ? buildLongDietaryNote(index)
         : index % 3 === 0
           ? pick(rng, ["Vegetarian", "Nut allergy", "Gluten-free"] as const)
-          : null,
+          : "None",
     notes:
       index % 10 === 0
         ? buildLongRegistrationNote(index)
         : index % 4 === 0
           ? `Sample RSVP note ${index + 1}.`
-          : null,
+          : "None",
   };
 }
 
@@ -389,10 +384,10 @@ export function generateFeedback(
   const slug = `${slugify(firstName)}-${slugify(lastName)}-${String(index + 1).padStart(3, "0")}`;
 
   return {
-    name: index % 6 === 0 ? null : `${firstName} ${lastName}`,
+    name: `${firstName} ${lastName}`,
     email: `feedback-${slug}@example.com`,
-    rating: index % 5 === 0 ? null : randomInt(rng, 2, 5),
-    category: feedbackCategories[index % feedbackCategories.length],
+    rating: randomInt(rng, 1, 5),
+    category: pick(rng, feedbackCategoryOptions),
     message:
       index % 6 === 0
         ? buildLongFeedbackMessage(index)
@@ -421,7 +416,7 @@ export function generateGalleryPhoto(
         ? buildLongPhotoCaption(index)
         : index % 3 === 0
           ? pick(rng, photoCaptions)
-          : null,
+          : `Sample gallery caption ${sampleId}.`,
     status,
     s3Key: `pending/sample-gallery-${sampleId}.png`,
     approvedS3Key:
@@ -447,17 +442,20 @@ export function generateRemembrance(
     index % 8 === 0 ? pick(rng, longLastNames) : pick(rng, lastNames);
   const sampleId = String(index + 1).padStart(3, "0");
   const photoCount = index % 5 === 0 ? 0 : index % 6 === 0 ? 2 : 1;
+  const remembranceName =
+    photoCount > 0 || index % 4 !== 0 ? `${firstName} ${lastName}` : null;
+  const remembranceEmail = `remembrance-${slugify(firstName)}-${slugify(lastName)}-${sampleId}@example.com`;
 
   return {
-    name: index % 4 === 0 ? null : `${firstName} ${lastName}`,
-    email: `remembrance-${slugify(firstName)}-${slugify(lastName)}-${sampleId}@example.com`,
+    name: remembranceName,
+    email: remembranceEmail,
     message:
       index % 4 === 0
         ? buildLongRemembranceMessage(index)
         : pick(rng, remembranceMessages),
     photos: Array.from({ length: photoCount }, (_, photoIndex) => ({
-      submitterName: `${firstName} ${lastName}`,
-      submitterEmail: `remembrance-photo-${slugify(firstName)}-${slugify(lastName)}-${sampleId}-${photoIndex + 1}@example.com`,
+      submitterName: remembranceName ?? `${firstName} ${lastName}`,
+      submitterEmail: remembranceEmail,
       caption:
         photoIndex === 0 && index % 7 === 0
           ? `Sample remembrance caption ${sampleId} with enough detail to test preview wrapping.`

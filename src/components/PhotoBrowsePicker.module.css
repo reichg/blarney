@@ -56,6 +56,12 @@
   padding: 0.65rem 1rem;
   white-space: nowrap;
   width: fit-content;
+  cursor: pointer;
+}
+
+.browseButton:hover {
+  background: var(--cream);
+  transition: background-color 0.3s;
 }
 
 .browseButton:disabled {
@@ -95,6 +101,7 @@
   min-height: 2.4rem;
   padding: 0.55rem 0.65rem;
   text-align: left;
+  cursor: pointer;
 }
 
 .browseMenuButton:hover,

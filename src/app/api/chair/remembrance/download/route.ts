@@ -3,7 +3,8 @@ import {
   listChairRemembrancePhotosForDownload,
   REMEMBRANCE_ZIP_FILE_NAME,
 } from "@/lib/chairPhotos";
-import { NextResponse } from "next/server";
+import { requireChairApiAuth } from "@/lib/chairAuth.server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -35,7 +36,13 @@ const remembranceBulkDownloadSchema = z
     ids: value.ids ? Array.from(new Set(value.ids)) : undefined,
   }));
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const unauthorized = await requireChairApiAuth(request);
+
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   const parsed = remembranceBulkDownloadSchema.safeParse(
     await request.json().catch(() => null),
   );

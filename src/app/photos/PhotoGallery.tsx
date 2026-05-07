@@ -17,7 +17,8 @@ export function PhotoGallery({ photos }: PhotoGalleryProps) {
   const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lastFocusedElementRef = useRef<HTMLElement | null>(null);
-  const captionId = useId();
+  const lightboxTitleId = useId();
+  const lightboxCaptionId = useId();
 
   const activePhoto =
     activePhotoIndex === null ? null : (photos[activePhotoIndex] ?? null);
@@ -62,30 +63,52 @@ export function PhotoGallery({ photos }: PhotoGalleryProps) {
   return (
     <>
       <div className={photoStyles.gallery}>
-        {photos.map((photo, index) => (
-          <ModularCard as="figure" className={photoStyles.photo} key={photo.id}>
-            <button
-              aria-haspopup="dialog"
-              aria-label={`Open photo ${index + 1} full size`}
-              className={photoStyles.photoTrigger}
-              onClick={(event) => openPhoto(index, event)}
-              type="button"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                alt={photo.caption ?? "Blarney tournament photo"}
-                src={`/api/photos/${photo.id}/view`}
-              />
-            </button>
-            {photo.caption ? <figcaption>{photo.caption}</figcaption> : null}
-          </ModularCard>
-        ))}
+        {photos.map((photo, index) => {
+          const previewCaption = photo.caption ?? "Approved gallery photo";
+
+          return (
+            <ModularCard className={photoStyles.photo} key={photo.id}>
+              <button
+                aria-haspopup="dialog"
+                aria-label={
+                  photo.caption
+                    ? `Open full-size photo: ${photo.caption}`
+                    : `Open photo ${index + 1} full size`
+                }
+                className={photoStyles.photoTrigger}
+                onClick={(event) => openPhoto(index, event)}
+                type="button"
+              >
+                <span className={photoStyles.photoMedia}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    alt="Blarney tournament photo"
+                    loading="lazy"
+                    src={`/api/photos/${photo.id}/view`}
+                  />
+                </span>
+                <span className={photoStyles.photoBody}>
+                  <span className={photoStyles.photoKicker}>
+                    Approved photo
+                  </span>
+                  <span
+                    className={photoStyles.photoCaption}
+                    title={previewCaption}
+                  >
+                    {previewCaption}
+                  </span>
+                  <span className={photoStyles.photoHint}>View full photo</span>
+                </span>
+              </button>
+            </ModularCard>
+          );
+        })}
       </div>
 
       {activePhoto ? (
         <div
-          aria-describedby={activePhoto.caption ? captionId : undefined}
-          aria-label="Approved photo"
+          aria-describedby={lightboxCaptionId}
+          aria-labelledby={lightboxTitleId}
           aria-modal="true"
           className={photoStyles.lightbox}
           onClick={closePhoto}
@@ -95,31 +118,43 @@ export function PhotoGallery({ photos }: PhotoGalleryProps) {
             className={photoStyles.lightboxPanel}
             onClick={(event) => event.stopPropagation()}
           >
-            <button
-              aria-label="Close full-size photo"
-              className={photoStyles.lightboxClose}
-              onClick={closePhoto}
-              ref={closeButtonRef}
-              type="button"
-            >
-              Close
-            </button>
-            <figure className={photoStyles.lightboxFigure}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                alt={activePhoto.caption ?? "Blarney tournament photo"}
-                className={photoStyles.lightboxImage}
-                src={`/api/photos/${activePhoto.id}/view`}
-              />
-              {activePhoto.caption ? (
-                <figcaption
+            <div className={photoStyles.lightboxTopline}>
+              <p className={photoStyles.lightboxEyebrow}>Approved photo</p>
+              <button
+                aria-label="Close full-size photo"
+                className={photoStyles.lightboxClose}
+                onClick={closePhoto}
+                ref={closeButtonRef}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+            <div className={photoStyles.lightboxBody}>
+              <figure className={photoStyles.lightboxFigure}>
+                <div className={photoStyles.lightboxMedia}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    alt="Blarney tournament photo"
+                    className={photoStyles.lightboxImage}
+                    src={`/api/photos/${activePhoto.id}/view`}
+                  />
+                </div>
+              </figure>
+              <section className={photoStyles.lightboxDetails}>
+                <h2 className={photoStyles.lightboxTitle} id={lightboxTitleId}>
+                  Blarney tournament photo
+                </h2>
+                <p className={photoStyles.lightboxDetailsLabel}>Caption</p>
+                <p
                   className={photoStyles.lightboxCaption}
-                  id={captionId}
+                  id={lightboxCaptionId}
                 >
-                  {activePhoto.caption}
-                </figcaption>
-              ) : null}
-            </figure>
+                  {activePhoto.caption ??
+                    "No caption was provided for this gallery photo."}
+                </p>
+              </section>
+            </div>
           </div>
         </div>
       ) : null}

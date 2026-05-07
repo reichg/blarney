@@ -16,6 +16,7 @@ type PairingGolferCardProps = {
     age: number;
     gender: string;
     averageScore: number;
+    pairingNote: string | null;
     draftAssignment: {
       groupId: string;
       groupName: string;
@@ -66,6 +67,12 @@ export function PairingGolferCard({
               <strong>{assignmentLabel}</strong>
             </span>
           </div>
+          {golfer.pairingNote ? (
+            <div className={styles.cardNote}>
+              <p className={styles.cardNoteLabel}>Pairing note</p>
+              <p className={styles.cardText}>{golfer.pairingNote}</p>
+            </div>
+          ) : null}
         </>
       }
       title={fullName}
@@ -88,6 +95,12 @@ export function PairingGolferCard({
             <span>Draft group</span>
             <p>{assignmentLabel}</p>
           </div>
+          {golfer.pairingNote ? (
+            <div className={styles.detailItem}>
+              <span>Pairing note</span>
+              <p>{golfer.pairingNote}</p>
+            </div>
+          ) : null}
         </div>
         {groupOptions.length > 0 ? (
           <form action={assignPairingMember} className={styles.compactForm}>

@@ -5,8 +5,13 @@ import {
   uniqueFilterOptions,
 } from "@/app/chair/display";
 import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
+import {
+  parseChairListFilterParam,
+  pickSearchParams,
+} from "@/app/chair/listFiltering";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { PaginationNav } from "@/components/PaginationNav";
+import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import {
@@ -16,6 +21,7 @@ import {
   type SearchParamsRecord,
 } from "@/lib/pagination";
 import { REMEMBRANCE_FEEDBACK_CATEGORY } from "@/lib/remembrance";
+import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -23,22 +29,75 @@ type ChairFeedbackPageProps = {
   searchParams: Promise<SearchParamsRecord>;
 };
 
+const feedbackFilterParamKey = "filter";
+
 const chairFeedbackWhere = {
   category: {
     not: REMEMBRANCE_FEEDBACK_CATEGORY,
   },
-};
+} satisfies Prisma.FeedbackWhereInput;
 
-async function getFeedback(pagination: PaginationParams) {
+function parseFeedbackFilter(searchParams: SearchParamsRecord | undefined) {
+  const filterValue = parseChairListFilterParam(
+    searchParams,
+    feedbackFilterParamKey,
+  );
+
+  if (filterValue === "rating:provided" || filterValue === "rating:none") {
+    return filterValue;
+  }
+
+  if (filterValue.startsWith("category:")) {
+    const category = filterValue.slice("category:".length).trim();
+
+    return category ? `category:${category}` : "";
+  }
+
+  return "";
+}
+
+function buildFeedbackWhere(filterValue: string): Prisma.FeedbackWhereInput {
+  if (!filterValue) {
+    return chairFeedbackWhere;
+  }
+
+  if (filterValue === "rating:provided") {
+    return {
+      ...chairFeedbackWhere,
+      rating: {
+        not: null,
+      },
+    };
+  }
+
+  if (filterValue === "rating:none") {
+    return {
+      ...chairFeedbackWhere,
+      rating: null,
+    };
+  }
+
+  return {
+    ...chairFeedbackWhere,
+    category: {
+      equals: filterValue.slice("category:".length),
+      mode: "insensitive",
+    },
+  };
+}
+
+async function getFeedback(pagination: PaginationParams, filterValue: string) {
+  const feedbackWhere = buildFeedbackWhere(filterValue);
+
   try {
     const [feedback, totalCount] = await Promise.all([
       db.feedback.findMany({
-        where: chairFeedbackWhere,
+        where: feedbackWhere,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: pagination.skip,
         take: pagination.take,
       }),
-      db.feedback.count({ where: chairFeedbackWhere }),
+      db.feedback.count({ where: feedbackWhere }),
     ]);
 
     return {
@@ -56,9 +115,24 @@ async function getFeedback(pagination: PaginationParams) {
 export default async function ChairFeedbackPage({
   searchParams,
 }: ChairFeedbackPageProps) {
+  await requireChairPageAuth("/chair/feedback");
+
   const params = await searchParams;
   const paginationParams = parsePaginationParams(params);
-  const { feedback, pagination } = await getFeedback(paginationParams);
+  const feedbackFilter = parseFeedbackFilter(params);
+  const paginationSearchParams = pickSearchParams(params, [
+    paginationParams.pageKey,
+    paginationParams.pageSizeKey,
+  ]);
+
+  if (feedbackFilter) {
+    paginationSearchParams[feedbackFilterParamKey] = feedbackFilter;
+  }
+
+  const { feedback, pagination } = await getFeedback(
+    paginationParams,
+    feedbackFilter,
+  );
   const feedbackSearchItems = feedback.map((item) => ({
     id: item.id,
     searchText: joinSearchText([
@@ -75,11 +149,10 @@ export default async function ChairFeedbackPage({
   }));
   const feedbackFilters = uniqueFilterOptions([
     { value: "rating:provided", label: "Has rating" },
-    { value: "rating:none", label: "No rating" },
-    ...feedback.map((item) => ({
-      value: `category:${item.category}`,
-      label: item.category,
-    })),
+    { value: "category:Logistics", label: "Logistics" },
+    { value: "category:Photos", label: "Photos" },
+    { value: "category:Pairings", label: "Pairings" },
+    { value: "category:Other", label: "Other" },
   ]);
 
   return (
@@ -124,9 +197,16 @@ export default async function ChairFeedbackPage({
             filterAllLabel="All feedback"
             filters={feedbackFilters}
             items={feedbackSearchItems}
+            pagination={pagination}
             resultLabel="messages"
             searchLabel="Search feedback"
             searchPlaceholder="Search names, emails, categories, messages"
+            urlBackedFilter={{
+              value: feedbackFilter,
+              searchParams: paginationSearchParams,
+              filterParamKey: feedbackFilterParamKey,
+              pageParamKey: paginationParams.pageKey,
+            }}
           >
             {feedback.map((item) => {
               const sender = item.name ?? "Anonymous";
@@ -197,7 +277,7 @@ export default async function ChairFeedbackPage({
       <PaginationNav
         label="Feedback"
         pagination={pagination}
-        searchParams={params}
+        searchParams={paginationSearchParams}
       />
     </>
   );

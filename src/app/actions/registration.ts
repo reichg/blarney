@@ -51,7 +51,7 @@ const registrationSubmitSchema = z
       .trim()
       .email()
       .transform((value) => value.toLowerCase()),
-    phone: optionalTextSchema,
+    phone: requiredTextSchema,
     packageSelection: requiredTextSchema,
     golfers: z.array(golferSubmitSchema).min(1).max(20),
     bbqOnlyAdultCount: requiredIntSchema(0, 30),

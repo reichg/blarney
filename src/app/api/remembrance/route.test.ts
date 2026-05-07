@@ -52,19 +52,33 @@ describe("remembrance submission route", () => {
     expect(response.status).toBe(200);
   });
 
-  it("rejects requests without remembrance text", async () => {
+  it.each([
+    {
+      description: "the message is missing",
+      body: { email: "pat@example.com", name: "Pat" },
+    },
+    {
+      description: "the name is missing",
+      body: { email: "pat@example.com", message: "Remembering Mike." },
+    },
+    {
+      description: "the email is missing",
+      body: { message: "Remembering Mike.", name: "Pat" },
+    },
+  ])("rejects requests when $description", async ({ body }) => {
     const response = await POST(
       new Request("http://localhost:3000/api/remembrance", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: "Pat" }),
+        body: JSON.stringify(body),
       }),
     );
 
     await expect(response.json()).resolves.toEqual({
-      message: "Remembrance text is required.",
+      message:
+        "Complete the remembrance message, name, and email before sending.",
     });
     expect(response.status).toBe(400);
     expect(feedbackCreate).not.toHaveBeenCalled();

@@ -6,8 +6,13 @@ import {
 import styles from "@/app/chair/chair.module.css";
 import { displayValue, joinSearchText } from "@/app/chair/display";
 import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
+import {
+  parseChairListFilterParam,
+  pickSearchParams,
+} from "@/app/chair/listFiltering";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { PaginationNav } from "@/components/PaginationNav";
+import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import {
   listPendingChairGalleryPhotosPage,
   listReviewedChairGalleryPhotosPage,
@@ -17,12 +22,16 @@ import {
   parsePaginationParams,
   type SearchParamsRecord,
 } from "@/lib/pagination";
+import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 type ChairPhotosPageProps = {
   searchParams: Promise<SearchParamsRecord>;
 };
+
+const pendingFilterParamKey = "pendingFilter";
+const reviewedFilterParamKey = "reviewedFilter";
 
 function summarizeMessage(message: string) {
   if (message.length <= 140) {
@@ -32,9 +41,93 @@ function summarizeMessage(message: string) {
   return `${message.slice(0, 137)}...`;
 }
 
+function parsePendingPhotoFilter(searchParams: SearchParamsRecord | undefined) {
+  const filterValue = parseChairListFilterParam(
+    searchParams,
+    pendingFilterParamKey,
+  );
+
+  return ["caption:yes", "caption:no", "feedback:yes", "feedback:no"].includes(
+    filterValue,
+  )
+    ? filterValue
+    : "";
+}
+
+function parseReviewedPhotoFilter(
+  searchParams: SearchParamsRecord | undefined,
+) {
+  const filterValue = parseChairListFilterParam(
+    searchParams,
+    reviewedFilterParamKey,
+  );
+
+  return ["notes:yes", "notes:no", "caption:yes", "caption:no"].includes(
+    filterValue,
+  )
+    ? filterValue
+    : "";
+}
+
+function buildPendingPhotoWhere(
+  filterValue: string,
+): Prisma.PhotoSubmissionWhereInput | undefined {
+  switch (filterValue) {
+    case "caption:yes":
+      return {
+        AND: [{ caption: { not: null } }, { NOT: { caption: "" } }],
+      };
+    case "caption:no":
+      return {
+        OR: [{ caption: null }, { caption: "" }],
+      };
+    case "feedback:yes":
+      return {
+        feedback: {
+          isNot: null,
+        },
+      };
+    case "feedback:no":
+      return {
+        feedback: {
+          is: null,
+        },
+      };
+    default:
+      return undefined;
+  }
+}
+
+function buildReviewedPhotoWhere(
+  filterValue: string,
+): Prisma.PhotoSubmissionWhereInput | undefined {
+  switch (filterValue) {
+    case "notes:yes":
+      return {
+        AND: [{ reviewNotes: { not: null } }, { NOT: { reviewNotes: "" } }],
+      };
+    case "notes:no":
+      return {
+        OR: [{ reviewNotes: null }, { reviewNotes: "" }],
+      };
+    case "caption:yes":
+      return {
+        AND: [{ caption: { not: null } }, { NOT: { caption: "" } }],
+      };
+    case "caption:no":
+      return {
+        OR: [{ caption: null }, { caption: "" }],
+      };
+    default:
+      return undefined;
+  }
+}
+
 export default async function ChairPhotosPage({
   searchParams,
 }: ChairPhotosPageProps) {
+  await requireChairPageAuth("/chair/photos");
+
   const params = await searchParams;
   const pendingPaginationParams = parsePaginationParams(params, {
     pageKey: "pendingPage",
@@ -44,9 +137,32 @@ export default async function ChairPhotosPage({
     pageKey: "reviewedPage",
     pageSizeKey: "reviewedPageSize",
   });
+  const pendingFilter = parsePendingPhotoFilter(params);
+  const reviewedFilter = parseReviewedPhotoFilter(params);
+  const photoSearchParams = pickSearchParams(params, [
+    pendingPaginationParams.pageKey,
+    pendingPaginationParams.pageSizeKey,
+    reviewedPaginationParams.pageKey,
+    reviewedPaginationParams.pageSizeKey,
+  ]);
+
+  if (pendingFilter) {
+    photoSearchParams[pendingFilterParamKey] = pendingFilter;
+  }
+
+  if (reviewedFilter) {
+    photoSearchParams[reviewedFilterParamKey] = reviewedFilter;
+  }
+
   const [pendingResult, reviewedResult] = await Promise.all([
-    listPendingChairGalleryPhotosPage(pendingPaginationParams),
-    listReviewedChairGalleryPhotosPage(reviewedPaginationParams),
+    listPendingChairGalleryPhotosPage(
+      pendingPaginationParams,
+      buildPendingPhotoWhere(pendingFilter),
+    ),
+    listReviewedChairGalleryPhotosPage(
+      reviewedPaginationParams,
+      buildReviewedPhotoWhere(reviewedFilter),
+    ),
   ]);
   const pendingPhotos = pendingResult.photos;
   const reviewedPhotos = reviewedResult.photos;
@@ -79,7 +195,6 @@ export default async function ChairPhotosPage({
   }));
   const pendingFilters = [
     { value: "caption:yes", label: "Has caption" },
-    { value: "caption:no", label: "No caption" },
     { value: "feedback:yes", label: "Has feedback" },
     { value: "feedback:no", label: "No feedback" },
   ];
@@ -87,7 +202,6 @@ export default async function ChairPhotosPage({
     { value: "notes:yes", label: "Has review notes" },
     { value: "notes:no", label: "No review notes" },
     { value: "caption:yes", label: "Has caption" },
-    { value: "caption:no", label: "No caption" },
   ];
 
   return (
@@ -129,9 +243,16 @@ export default async function ChairPhotosPage({
             filterAllLabel="All pending uploads"
             filters={pendingFilters}
             items={pendingSearchItems}
+            pagination={pendingResult.pagination}
             resultLabel="pending uploads"
             searchLabel="Search pending uploads"
             searchPlaceholder="Search captions, submitters, feedback"
+            urlBackedFilter={{
+              value: pendingFilter,
+              searchParams: photoSearchParams,
+              filterParamKey: pendingFilterParamKey,
+              pageParamKey: pendingPaginationParams.pageKey,
+            }}
           >
             {pendingPhotos.map((photo) => {
               const caption = displayValue(photo.caption);
@@ -233,7 +354,7 @@ export default async function ChairPhotosPage({
         <PaginationNav
           label="Pending uploads"
           pagination={pendingResult.pagination}
-          searchParams={params}
+          searchParams={photoSearchParams}
         />
       </section>
       <section className={styles.sectionBlock}>
@@ -253,9 +374,16 @@ export default async function ChairPhotosPage({
             filterAllLabel="All approved photos"
             filters={reviewedFilters}
             items={reviewedSearchItems}
+            pagination={reviewedResult.pagination}
             resultLabel="approved photos"
             searchLabel="Search approved photos"
             searchPlaceholder="Search captions, submitters, notes"
+            urlBackedFilter={{
+              value: reviewedFilter,
+              searchParams: photoSearchParams,
+              filterParamKey: reviewedFilterParamKey,
+              pageParamKey: reviewedPaginationParams.pageKey,
+            }}
           >
             {reviewedPhotos.map((photo) => {
               const caption = displayValue(photo.caption);
@@ -368,7 +496,7 @@ export default async function ChairPhotosPage({
         <PaginationNav
           label="Approved photos"
           pagination={reviewedResult.pagination}
-          searchParams={params}
+          searchParams={photoSearchParams}
         />
       </section>
     </>

@@ -1,9 +1,9 @@
 ---
-name: api-specialist
+name: backend-api-specialist
 description: Use when Orchestrator delegates API route, Zod validation, HTTP status, or response-contract work.
 ---
 
-# API Specialist Skill
+# Backend API Specialist Skill
 
 ## Use this skill when
 

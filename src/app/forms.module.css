@@ -121,6 +121,7 @@
   min-height: 2.55rem;
   padding: 0.65rem 0.85rem;
   width: fit-content;
+  cursor: pointer;
 }
 
 .addButton {
@@ -162,6 +163,11 @@
   font-weight: 800;
 }
 
+.requiredLabel::after {
+  color: #8c2d2d;
+  content: " *";
+}
+
 .field input,
 .field select,
 .field textarea {
@@ -197,6 +203,7 @@
   align-items: center;
   display: flex;
   gap: 0.55rem;
+  cursor: pointer;
 }
 
 .choiceRow input {
@@ -221,11 +228,17 @@
   padding: 0.8rem 1rem;
   text-align: center;
   width: fit-content;
+  cursor: pointer;
 }
 
 .submitButton:disabled {
   cursor: wait;
   opacity: 0.72;
+}
+
+.submitButton:hover {
+  background: var(--pine-dark);
+  transition: background-color 0.3s;
 }
 
 .summaryCard {

@@ -23,6 +23,13 @@ const requiredTextSchema = z.preprocess(
   z.string().trim().min(1),
 );
 
+const optionalTextSchema = z
+  .preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().optional().nullable(),
+  )
+  .transform((value) => (value && value.length > 0 ? value : null));
+
 const requiredIntSchema = (minimum: number, maximum: number) =>
   z.preprocess(
     normalizeRequiredFormValue,
@@ -38,11 +45,12 @@ const rsvpSchema = z
       .trim()
       .email()
       .transform((value) => value.toLowerCase()),
+    phone: requiredTextSchema,
     adultAttendeeCount: requiredIntSchema(0, 30),
     childAttendeeCount: requiredIntSchema(0, 30),
-    familyNames: requiredTextSchema,
-    dietaryNotes: requiredTextSchema,
-    notes: requiredTextSchema,
+    familyNames: optionalTextSchema,
+    dietaryNotes: optionalTextSchema,
+    notes: optionalTextSchema,
   })
   .refine((data) => data.adultAttendeeCount + data.childAttendeeCount <= 30, {
     message: "Keep the party size at 30 attendees or fewer.",
@@ -95,6 +103,7 @@ export async function submitRsvp(
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
     email: formData.get("email"),
+    phone: formData.get("phone"),
     adultAttendeeCount: formData.get("adultAttendeeCount"),
     childAttendeeCount: formData.get("childAttendeeCount"),
     familyNames: formData.get("familyNames"),
