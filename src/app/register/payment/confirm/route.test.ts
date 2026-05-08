@@ -134,7 +134,7 @@ describe("registration payment confirmation route", () => {
     );
   });
 
-  it("shows processing instead of unavailable when redirect reconciliation cannot reach Square", async () => {
+  it("preserves unavailable when redirect reconciliation cannot reach Square", async () => {
     vi.stubEnv("ADMIN_SESSION_SECRET", "payment-confirmation-secret");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", publicSiteUrl);
     confirmRegistrationCheckoutPayment.mockResolvedValue({
@@ -152,7 +152,7 @@ describe("registration payment confirmation route", () => {
     );
 
     expect(response.headers.get("location")).toBe(
-      `${publicSiteUrl}/register/thanks?checkout=checkout-123&payment=processing`,
+      `${publicSiteUrl}/register/thanks?checkout=checkout-123&payment=unavailable`,
     );
   });
 

@@ -74,9 +74,10 @@ The Orchestrator must not start implementation on non-trivial tasks until it com
 Required routing rules:
 
 - Architecture impact requires Architecture Agent.
+- Authentication, authorization, validation, secrets, sensitive data, or safe-error impact requires Auth and Auth Agent.
 - API impact requires API Agent.
-- Backend service or Prisma impact requires Backend Services Agent.
-- Backend auth, authorization, validation, secrets, sensitive data, or safe-error impact requires Backend Security Agent.
+- Backend service or Prisma impact requires Backend Services Agent and Quality Agent.
+- Backend auth, authorization, validation, secrets, sensitive data, or safe-error impact requires Backend Security Agent and Auth and Auth Agent.
 - React markup, component, accessibility, or CSS Module impact requires Frontend UI Agent.
 - Frontend API client, hook, form, or data transformation impact requires Frontend API and Logic Agent.
 - XSS, token, browser storage, redirect, unsafe rendering, external link, or public env-var impact requires Frontend Security Agent.

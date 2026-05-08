@@ -171,7 +171,9 @@ function formatRsvpSource(source: RsvpSource): string {
 }
 
 function formatGuestSummary(adultGuestCount: number, childGuestCount: number) {
-  return `BBQ adults: ${adultGuestCount}, BBQ kids: ${childGuestCount}`;
+  return (
+    `BBQ adults: ${adultGuestCount}` + `\n` + `BBQ kids: ${childGuestCount}`
+  );
 }
 
 function formatAttendeeTotal(attendeeCount: number) {

@@ -52,6 +52,8 @@ const reviewSignals = new Set([
   "REVIEW",
 ]);
 
+const retrySignals = new Set(["RETRY"]);
+
 const processingSignals = new Set(["PENDING", "PROCESSING"]);
 
 function firstValue(value: string | string[] | undefined) {
@@ -143,13 +145,25 @@ function getStatusCard({
       return {
         eyebrow: "Checkout status",
         title: "Confirming payment.",
-        body: "Payment is being confirmed. This page will update when Square sends the successful payment confirmation.",
+        body: "We are still checking whether this payment finished successfully. This page will keep updating automatically while confirmation catches up.",
         nextSteps: [
           "Keep this page open while confirmation finishes.",
-          "Use the button below only if you have not completed payment yet.",
-          "If you already have a Square receipt, do not pay again; contact the chair if this page does not update.",
+          "If you already have a Square receipt, do not pay again.",
+          "If this page still does not update after a short wait, contact the chair with your Square receipt.",
         ],
-        actionLabel: "Resume existing checkout",
+      };
+    }
+
+    if (hasCheckoutLink && retrySignals.has(paymentSignal ?? "")) {
+      return {
+        eyebrow: "Checkout status",
+        title: "Payment not finished yet.",
+        body: "We could not confirm a completed payment for this checkout, so registration is not final yet.",
+        nextSteps: [
+          "Use the button below only if you do not already have a Square receipt.",
+          "If you already have a Square receipt, do not pay again; contact the chair with the receipt instead.",
+        ],
+        actionLabel: "Return to existing checkout",
       };
     }
 
@@ -168,11 +182,12 @@ function getStatusCard({
     if (unavailableSignals.has(paymentSignal ?? "")) {
       return {
         eyebrow: "Checkout status",
-        title: "Payment unavailable right now.",
-        body: "Payment checkout could not be opened, so registration was not finalized.",
+        title: "We can't verify this payment yet.",
+        body: "We could not reach Square to reopen or confirm this checkout, so registration is not final yet.",
         nextSteps: [
-          "Please try the existing checkout link again later if you have not paid yet.",
-          "If you already have a Square receipt, do not pay again; contact the chair with the receipt.",
+          "Keep this page open while we keep retrying the confirmation check.",
+          "Do not pay again if you already have a Square receipt.",
+          "If this page still does not update after a longer wait, contact the chair with your receipt. Return to the form only if you were not charged.",
         ],
       };
     }
@@ -184,11 +199,10 @@ function getStatusCard({
         body: "We could not confirm a completed payment from this link, so registration was not finalized.",
         nextSteps: [
           hasCheckoutLink
-            ? "Use the button below only if you have not completed payment yet."
+            ? "Contact the chair if you need help locating the current checkout."
             : "Return to the registration form to start checkout again.",
           "If you completed payment and still see this page, do not pay again; contact the chair with your receipt.",
         ],
-        actionLabel: hasCheckoutLink ? "Resume existing checkout" : undefined,
       };
     }
 
@@ -198,11 +212,10 @@ function getStatusCard({
       body: "This link does not include a completed registration record, so we cannot show a confirmed registration here.",
       nextSteps: [
         hasCheckoutLink
-          ? "Use the button below only if you have not completed payment yet."
+          ? "Contact the chair if you need help locating the current checkout."
           : "Return to the registration form if you still need to sign up.",
         "If you completed payment and still see this page, do not pay again; contact the chair with your receipt.",
       ],
-      actionLabel: hasCheckoutLink ? "Resume existing checkout" : undefined,
     };
   }
 
@@ -248,11 +261,11 @@ function getStatusCard({
   if (!hasCheckoutLink && unavailableSignals.has(paymentSignal ?? "")) {
     return {
       eyebrow: "Payment required",
-      title: "Payment unavailable right now.",
-      body: "This registration is not complete because payment has not been confirmed, and checkout could not be opened.",
+      title: "We can't verify this payment yet.",
+      body: "This registration is not complete because payment has not been confirmed, and Square could not be reached to reopen checkout.",
       nextSteps: [
-        "Please contact the chair before submitting the form again.",
-        "The chair can help verify whether payment can be completed another way.",
+        "Do not pay again if you already have a Square receipt.",
+        "If you were not charged, return to the registration form later or contact the chair for help.",
       ],
       note: "Only completed registrations appear as confirmed.",
     };
@@ -261,17 +274,22 @@ function getStatusCard({
   return {
     eyebrow: "Payment required",
     title: "Payment still required.",
-    body: incompleteSignals.has(paymentSignal ?? "")
-      ? "Payment did not finish for this registration. Complete payment to finalize it."
-      : "This registration is not complete until payment succeeds.",
+    body: retrySignals.has(paymentSignal ?? "")
+      ? "Payment did not finish for this registration. Return to the existing checkout to complete it."
+      : incompleteSignals.has(paymentSignal ?? "")
+        ? "Payment did not finish for this registration. Contact the chair if you need help locating the current checkout."
+        : "This registration is not complete until payment succeeds.",
     nextSteps: [
-      hasCheckoutLink
-        ? "Use the button below only if you have not completed payment yet."
+      retrySignals.has(paymentSignal ?? "") && hasCheckoutLink
+        ? "Use the button below only if you do not already have a Square receipt."
         : "Contact the chair if you already paid or need help completing payment.",
       "If you already have a Square receipt, do not pay again; contact the chair with your receipt.",
     ],
     note: "Only completed registrations appear as confirmed.",
-    actionLabel: hasCheckoutLink ? "Resume existing checkout" : undefined,
+    actionLabel:
+      retrySignals.has(paymentSignal ?? "") && hasCheckoutLink
+        ? "Return to existing checkout"
+        : undefined,
   };
 }
 
@@ -376,7 +394,10 @@ export default async function RegisterThanksPage({
       ? checkoutPaymentPath
       : undefined;
   const showConfirmationPoller = Boolean(
-    checkoutId && !registration && processingSignals.has(paymentSignal ?? ""),
+    checkoutId &&
+    !registration &&
+    (processingSignals.has(paymentSignal ?? "") ||
+      unavailableSignals.has(paymentSignal ?? "")),
   );
 
   return (

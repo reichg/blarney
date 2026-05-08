@@ -11,6 +11,11 @@ type CheckoutStatusResponse =
     }
   | {
       ok: true;
+      status: "retry";
+      paymentPath: string;
+    }
+  | {
+      ok: true;
       status: "processing";
       paymentPath: string;
     }
@@ -27,22 +32,29 @@ type RegistrationConfirmationPollerProps = {
   checkoutId: string;
   confirmedMessage?: string;
   missingMessage?: string;
+  processingMessage?: string;
   reviewMessage?: string;
+  retryLabel?: string;
+  retryMessage?: string;
   statusPath?: string;
   timeoutMessage?: string;
+  unavailableMessage?: string;
 };
 
 export function RegistrationConfirmationPoller({
   checkoutId,
   confirmedMessage = "Payment confirmed. Loading your registration summary...",
   missingMessage = "We could not find this checkout. Contact the chair if your payment receipt shows a completed charge.",
+  processingMessage = "Waiting for Square to confirm your payment. Do not pay again if you already have a Square receipt.",
   reviewMessage = "Square may have completed this payment, but the registration needs chair review. Do not pay again if you have a Square receipt.",
+  retryLabel = "Return to existing checkout",
+  retryMessage = "Payment has not been completed yet. Return to the same checkout only if you do not already have a Square receipt.",
   statusPath = `/api/register/checkout/${encodeURIComponent(checkoutId)}`,
   timeoutMessage = "Square has not sent confirmation yet. Do not pay again if you have a receipt; contact the chair with your payment receipt.",
+  unavailableMessage = "We cannot reach Square to confirm this checkout right now. Keep this page open while we retry. Do not pay again if you already have a Square receipt.",
 }: RegistrationConfirmationPollerProps) {
-  const [message, setMessage] = useState(
-    "Waiting for Square to confirm your payment...",
-  );
+  const [message, setMessage] = useState(processingMessage);
+  const [retryPath, setRetryPath] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -61,27 +73,46 @@ export function RegistrationConfirmationPoller({
         }
 
         if (status.ok && status.status === "confirmed") {
+          setRetryPath(null);
           setMessage(confirmedMessage);
           window.location.replace(status.thanksPath);
           return;
         }
 
         if (!status.ok) {
+          setRetryPath(null);
           setMessage(missingMessage);
           return;
         }
 
         if (status.status === "review") {
+          setRetryPath(null);
           setMessage(reviewMessage);
           return;
         }
+
+        if (status.status === "retry") {
+          setRetryPath(status.paymentPath);
+          setMessage(retryMessage);
+          return;
+        }
+
+        setRetryPath(null);
+        setMessage(
+          status.status === "unavailable"
+            ? unavailableMessage
+            : processingMessage,
+        );
 
         if (attempts >= 45) {
           setMessage(timeoutMessage);
           return;
         }
 
-        timeoutId = setTimeout(checkStatus, 2000);
+        timeoutId = setTimeout(
+          checkStatus,
+          status.status === "unavailable" ? 3000 : 2000,
+        );
       } catch {
         if (!isActive) {
           return;
@@ -110,15 +141,26 @@ export function RegistrationConfirmationPoller({
   }, [
     confirmedMessage,
     missingMessage,
+    processingMessage,
     reviewMessage,
+    retryMessage,
     statusPath,
     timeoutMessage,
+    unavailableMessage,
   ]);
 
   return (
     <div aria-live="polite" className={styles.summaryCard}>
       <h3>Confirmation</h3>
       <p className={styles.supportText}>{message}</p>
+      {retryPath ? (
+        <a
+          className={`primary-button ${styles.paymentAction}`}
+          href={retryPath}
+        >
+          {retryLabel}
+        </a>
+      ) : null}
     </div>
   );
 }

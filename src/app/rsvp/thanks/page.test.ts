@@ -134,9 +134,68 @@ describe("RsvpThanksPage", () => {
     );
 
     expect(html).toContain("Confirming payment.");
-    expect(html).toContain(
-      "poller:/api/rsvp/checkout/rsvp-checkout-123",
+    expect(html).toContain("poller:/api/rsvp/checkout/rsvp-checkout-123");
+    expect(html).not.toContain("Return to existing checkout");
+  });
+
+  it("renders a retry checkout action only when the payment state is explicitly retryable", async () => {
+    rsvpCheckoutFindUnique.mockResolvedValue({
+      payload: {
+        adultAttendeeCount: 1,
+        childAttendeeCount: 0,
+        dietaryNotes: "None",
+        email: "pat@example.com",
+        familyNames: "Pat and family",
+        firstName: "Pat",
+        lastName: "Golfer",
+        notes: "Looking forward to it",
+      },
+      rsvpId: null,
+      status: "PENDING",
+    });
+    rsvpFindUnique.mockResolvedValue(null);
+
+    const html = renderToStaticMarkup(
+      await RsvpThanksPage({
+        searchParams: Promise.resolve({
+          payment: "retry",
+          rsvpCheckout: "rsvp-checkout-123",
+        }),
+      }),
     );
-    expect(html).toContain("Resume existing checkout");
+
+    expect(html).toContain("Payment not finished yet.");
+    expect(html).toContain("Return to existing checkout");
+  });
+
+  it("keeps polling when BBQ RSVP payment verification is temporarily unavailable", async () => {
+    rsvpCheckoutFindUnique.mockResolvedValue({
+      payload: {
+        adultAttendeeCount: 1,
+        childAttendeeCount: 0,
+        dietaryNotes: "None",
+        email: "pat@example.com",
+        familyNames: "Pat and family",
+        firstName: "Pat",
+        lastName: "Golfer",
+        notes: "Looking forward to it",
+      },
+      rsvpId: null,
+      status: "PENDING",
+    });
+    rsvpFindUnique.mockResolvedValue(null);
+
+    const html = renderToStaticMarkup(
+      await RsvpThanksPage({
+        searchParams: Promise.resolve({
+          payment: "unavailable",
+          rsvpCheckout: "rsvp-checkout-123",
+        }),
+      }),
+    );
+
+    expect(html).toContain("We can&#x27;t verify this payment yet.");
+    expect(html).toContain("poller:/api/rsvp/checkout/rsvp-checkout-123");
+    expect(html).not.toContain("Return to existing checkout");
   });
 });

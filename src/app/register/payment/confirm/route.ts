@@ -127,8 +127,7 @@ export async function GET(request: Request) {
       buildRsvpThanksUrl(request, {
         rsvpCheckoutId: parsed.data.rsvpCheckout,
         payment:
-          checkoutConfirmation.reason === "pending" ||
-          checkoutConfirmation.reason === "unavailable"
+          checkoutConfirmation.reason === "pending"
             ? "processing"
             : checkoutConfirmation.reason,
       }),
@@ -165,8 +164,7 @@ export async function GET(request: Request) {
     buildThanksUrl(request, {
       checkoutId: parsed.data.checkout,
       payment:
-        checkoutConfirmation.reason === "pending" ||
-        checkoutConfirmation.reason === "unavailable"
+        checkoutConfirmation.reason === "pending"
           ? "processing"
           : checkoutConfirmation.reason,
     }),

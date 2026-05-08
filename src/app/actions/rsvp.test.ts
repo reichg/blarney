@@ -236,6 +236,22 @@ describe("submitRsvp", () => {
     });
   });
 
+  it("returns an unavailable result when Square is temporarily unavailable before BBQ checkout opens", async () => {
+    registrationFindFirst.mockResolvedValue(null);
+    rsvpFindUnique.mockResolvedValue(null);
+    createRsvpCheckoutPayment.mockResolvedValue({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    await expect(submitRsvp(buildFormData())).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+      error:
+        "We could not reach Square to verify or reopen this checkout right now. Wait a moment and try again. If you already have a Square receipt, do not pay again; contact the chair.",
+    });
+  });
+
   it("returns an invalid result without writing when required input is invalid", async () => {
     await expect(
       submitRsvp(buildFormData({ email: "not-an-email" })),

@@ -81,7 +81,7 @@ export type SubmitRsvpResult =
     }
   | {
       ok: false;
-      reason: "invalid" | "duplicate";
+      reason: "invalid" | "duplicate" | "unavailable";
       error: string;
     };
 
@@ -202,7 +202,8 @@ export async function submitRsvp(
     if (!checkoutPayment.ok) {
       return {
         ok: false,
-        reason: "duplicate",
+        reason:
+          checkoutPayment.reason === "duplicate" ? "duplicate" : "unavailable",
         error:
           checkoutPayment.reason === "configuration"
             ? "Payment is not configured right now. Please try again later."
@@ -210,7 +211,9 @@ export async function submitRsvp(
               ? "This RSVP payment needs chair review before another checkout can be started. Contact the chair with your Square receipt if you already paid."
               : checkoutPayment.reason === "duplicate"
                 ? duplicateRsvpMessage
-                : "Payment could not be started right now. Please try again.",
+                : checkoutPayment.reason === "unavailable"
+                  ? "We could not reach Square to verify or reopen this checkout right now. Wait a moment and try again. If you already have a Square receipt, do not pay again; contact the chair."
+                  : "Payment could not be started right now. Please try again.",
       };
     }
 

@@ -114,22 +114,41 @@ export function PreviewDetailCard({
             onClick={(event) => event.stopPropagation()}
             ref={dialogPanelRef}
           >
-            <div className={styles.detailDialogTopline}>
-              <p className={styles.detailDialogEyebrow}>{eyebrow}</p>
-              <button
-                className={`${styles.secondaryActionButton} ${styles.detailDialogClose}`}
-                onClick={() => setIsOpen(false)}
-                ref={closeButtonRef}
-                type="button"
-              >
-                Close
-              </button>
-            </div>
-            <div className={styles.detailDialogBody}>
+            <div className={styles.detailDialogHeader}>
+              <div className={styles.detailDialogTopline}>
+                <p className={styles.detailDialogEyebrow}>{eyebrow}</p>
+                <button
+                  className={`${styles.secondaryActionButton} ${styles.detailDialogClose}`}
+                  onClick={() => setIsOpen(false)}
+                  ref={closeButtonRef}
+                  type="button"
+                >
+                  Close
+                </button>
+              </div>
               <h2 className={styles.detailDialogTitle} id={titleId}>
                 {title}
               </h2>
-              {children}
+            </div>
+            <div className={styles.detailDialogBody}>
+              <div className={styles.detailDialogLayout}>
+                <aside className={styles.detailDialogSummary}>
+                  <p className={styles.detailDialogSectionEyebrow}>
+                    At a glance
+                  </p>
+                  <div className={styles.detailDialogSummaryCard}>
+                    {preview}
+                  </div>
+                </aside>
+                <div className={styles.detailDialogContent}>
+                  <p className={styles.detailDialogSectionEyebrow}>
+                    Full details
+                  </p>
+                  <div className={styles.detailDialogContentPanel}>
+                    {children}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

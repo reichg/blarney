@@ -215,7 +215,9 @@ export async function submitRegistration(
               ? "Payment is not configured right now. Please try again later."
               : checkoutPayment.reason === "review"
                 ? "This payment needs chair review before another checkout can be started. Contact the chair with your Square receipt if you already paid."
-                : "Payment could not be started right now. Please try again.",
+                : checkoutPayment.reason === "unavailable"
+                  ? "We could not reach Square to verify or reopen this checkout right now. Wait a moment and try again. If you already have a Square receipt, do not pay again; contact the chair."
+                  : "Payment could not be started right now. Please try again.",
       };
     }
 

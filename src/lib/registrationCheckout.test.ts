@@ -15,6 +15,7 @@ const {
   checkoutFindFirst,
   checkoutFindUnique,
   checkoutUpdate,
+  checkoutUpdateMany,
   checkoutCreate,
   registrationFindFirst,
   rsvpCheckoutFindFirst,
@@ -34,6 +35,7 @@ const {
   checkoutFindFirst: vi.fn(),
   checkoutFindUnique: vi.fn(),
   checkoutUpdate: vi.fn(),
+  checkoutUpdateMany: vi.fn(),
   checkoutCreate: vi.fn(),
   registrationFindFirst: vi.fn(),
   rsvpCheckoutFindFirst: vi.fn(),
@@ -54,6 +56,7 @@ vi.mock("@/lib/db", () => ({
       findFirst: checkoutFindFirst,
       findUnique: checkoutFindUnique,
       update: checkoutUpdate,
+      updateMany: checkoutUpdateMany,
       create: checkoutCreate,
     },
     registration: {
@@ -67,6 +70,16 @@ vi.mock("@/lib/db", () => ({
     },
   },
 }));
+
+const consoleInfo = vi
+  .spyOn(console, "info")
+  .mockImplementation(() => undefined);
+const consoleWarn = vi
+  .spyOn(console, "warn")
+  .mockImplementation(() => undefined);
+const consoleError = vi
+  .spyOn(console, "error")
+  .mockImplementation(() => undefined);
 
 vi.mock("@/lib/payment", () => ({
   createRegistrationPaymentLink,
@@ -117,6 +130,7 @@ function buildCheckout(overrides = {}) {
     paymentCompletedAt: null,
     paymentReviewReason: null,
     lastReconciledAt: null,
+    updatedAt: new Date("2026-05-08T12:00:00.000Z"),
     ...overrides,
   };
 }
@@ -151,6 +165,7 @@ beforeEach(() => {
   txCheckoutFindFirst.mockResolvedValue(null);
   txRegistrationFindFirst.mockResolvedValue(null);
   txCheckoutUpdate.mockResolvedValue({});
+  checkoutUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 afterEach(() => {
@@ -247,6 +262,159 @@ describe("registration checkout payments", () => {
     expect(createRegistrationPaymentLink).not.toHaveBeenCalled();
   });
 
+  it("recreates a fresh payment link when Square no longer returns the stored link", async () => {
+    const checkout = buildCheckout();
+
+    checkoutFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(checkout);
+    hasSquarePaymentConfiguration.mockReturnValue(true);
+    getRegistrationPaymentLinkState.mockResolvedValue(null);
+    createRegistrationPaymentLink.mockResolvedValue({
+      reference: "payment-link-2",
+      orderId: "order-456",
+      url: "https://square.link/u/recreated",
+    });
+
+    await expect(createRegistrationCheckoutPayment(payload)).resolves.toEqual({
+      ok: true,
+      status: "pending",
+      checkoutId: "checkout-123",
+      paymentReference: "payment-link-2",
+      paymentUrl: "https://square.link/u/recreated",
+    });
+
+    expect(createRegistrationPaymentLink).toHaveBeenCalledWith({
+      checkoutId: "checkout-123",
+      email: "morgan@example.com",
+      golferCount: 2,
+      bbqOnlyAdultCount: 2,
+      bbqOnlyKidCount: 1,
+    });
+    expect(checkoutUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "checkout-123",
+        updatedAt: checkout.updatedAt,
+        status: "PENDING",
+        paymentReference: "payment-link-1",
+      },
+      data: {
+        paymentReference: "payment-link-2",
+        paymentUrl: "https://square.link/u/recreated",
+        paymentOrderId: "order-456",
+        lastReconciledAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("adopts the concurrently persisted recovered link when stale-link recovery loses the write race", async () => {
+    const checkout = buildCheckout();
+
+    checkoutFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(checkout);
+    hasSquarePaymentConfiguration.mockReturnValue(true);
+    getRegistrationPaymentLinkState.mockResolvedValue(null);
+    createRegistrationPaymentLink.mockResolvedValue({
+      reference: "payment-link-2",
+      orderId: "order-456",
+      url: "https://square.link/u/recreated",
+    });
+    checkoutUpdateMany.mockResolvedValue({ count: 0 });
+    checkoutFindUnique.mockResolvedValue(
+      buildCheckout({
+        paymentReference: "payment-link-3",
+        paymentOrderId: "order-789",
+        paymentUrl: "https://square.link/u/concurrent",
+        updatedAt: new Date("2026-05-08T12:05:00.000Z"),
+      }),
+    );
+
+    await expect(createRegistrationCheckoutPayment(payload)).resolves.toEqual({
+      ok: true,
+      status: "pending",
+      checkoutId: "checkout-123",
+      paymentReference: "payment-link-3",
+      paymentUrl: "https://square.link/u/concurrent",
+    });
+
+    expect(checkoutFindUnique).toHaveBeenCalledWith({
+      where: { id: "checkout-123" },
+    });
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[registration-checkout] payment-link-recovery-lost-race",
+      expect.objectContaining({
+        checkoutId: "checkout-123",
+      }),
+    );
+    expect(consoleInfo).toHaveBeenCalledWith(
+      "[registration-checkout] payment-link-recovery-adopted-persisted-link",
+      expect.objectContaining({
+        checkoutId: "checkout-123",
+      }),
+    );
+
+    const loggedOutput = JSON.stringify([
+      ...consoleWarn.mock.calls,
+      ...consoleInfo.mock.calls,
+    ]);
+    expect(loggedOutput).not.toContain("morgan@example.com");
+    expect(loggedOutput).not.toContain("https://square.link");
+  });
+
+  it("does not reuse a cached payment URL when Square resume lookup is unavailable", async () => {
+    checkoutFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(buildCheckout());
+    hasSquarePaymentConfiguration.mockReturnValue(true);
+    getRegistrationPaymentLinkState.mockRejectedValue(
+      new Error("Square unavailable"),
+    );
+
+    await expect(createRegistrationCheckoutPayment(payload)).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    expect(createRegistrationPaymentLink).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[registration-checkout] payment-resume-lookup-failed",
+      expect.objectContaining({
+        checkoutId: "checkout-123",
+        errorType: "Error",
+      }),
+    );
+  });
+
+  it("returns unavailable and logs when stale-link recovery cannot create a replacement link", async () => {
+    checkoutFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(buildCheckout());
+    hasSquarePaymentConfiguration.mockReturnValue(true);
+    getRegistrationPaymentLinkState.mockResolvedValue(null);
+    createRegistrationPaymentLink.mockRejectedValue(
+      new Error("Square unavailable"),
+    );
+
+    await expect(createRegistrationCheckoutPayment(payload)).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    expect(checkoutUpdateMany).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[registration-checkout] payment-link-recovery-create-failed",
+      expect.objectContaining({
+        checkoutId: "checkout-123",
+        errorType: "Error",
+      }),
+    );
+
+    const loggedOutput = JSON.stringify(consoleError.mock.calls);
+    expect(loggedOutput).not.toContain("morgan@example.com");
+    expect(loggedOutput).not.toContain("https://square.link");
+  });
+
   it("finalizes multiple golfers, registrations, and one payer BBQ RSVP after Square success", async () => {
     checkoutFindUnique.mockResolvedValue(buildCheckout());
     getRegistrationPaymentLinkState.mockResolvedValue({
@@ -275,7 +443,7 @@ describe("registration checkout payments", () => {
     expect(participantCreate).toHaveBeenNthCalledWith(1, {
       data: expect.objectContaining({
         firstName: "Pat",
-        email: null,
+        email: "morgan@example.com",
         phone: "555-0100",
         age: 42,
       }),
@@ -348,6 +516,30 @@ describe("registration checkout payments", () => {
     });
 
     expect(getRegistrationPaymentLinkState).not.toHaveBeenCalled();
+    expect(dbTransaction).not.toHaveBeenCalled();
+    expect(registrationCreate).not.toHaveBeenCalled();
+    expect(rsvpCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns a retry state while Square still reports the checkout as open", async () => {
+    checkoutFindUnique.mockResolvedValue(buildCheckout());
+    hasSquarePaymentConfiguration.mockReturnValue(true);
+    getRegistrationPaymentLinkState.mockResolvedValue({
+      reference: "payment-link-1",
+      orderId: "order-123",
+      url: "https://square.link/u/existing",
+      orderState: "OPEN",
+      isComplete: false,
+    });
+
+    await expect(
+      confirmRegistrationCheckoutPayment("checkout-123"),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "retry",
+      paymentUrl: "https://square.link/u/existing",
+    });
+
     expect(dbTransaction).not.toHaveBeenCalled();
     expect(registrationCreate).not.toHaveBeenCalled();
     expect(rsvpCreate).not.toHaveBeenCalled();

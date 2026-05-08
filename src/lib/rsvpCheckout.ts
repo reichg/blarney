@@ -4,7 +4,7 @@ import {
   getRegistrationPaymentLinkState,
   hasSquarePaymentConfiguration,
 } from "@/lib/payment";
-import { Prisma } from "@prisma/client";
+import { Prisma, RsvpCheckoutStatus } from "@prisma/client";
 import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 
@@ -56,12 +56,13 @@ type RsvpCheckoutRecord = {
   paymentReference: string | null;
   paymentOrderId: string | null;
   paymentUrl: string | null;
-  status: string;
+  status: RsvpCheckoutStatus;
   rsvpId: string | null;
   confirmedAt: Date | null;
   paymentCompletedAt: Date | null;
   paymentReviewReason: string | null;
   lastReconciledAt: Date | null;
+  updatedAt: Date;
 };
 
 export type RsvpCheckoutPaymentResult =
@@ -96,7 +97,13 @@ export type RsvpCheckoutConfirmationResult =
     }
   | {
       ok: false;
-      reason: "duplicate" | "invalid" | "pending" | "review" | "unavailable";
+      reason:
+        | "duplicate"
+        | "invalid"
+        | "pending"
+        | "review"
+        | "retry"
+        | "unavailable";
       paymentUrl?: string | null;
     };
 
@@ -105,6 +112,61 @@ function isUniqueConstraintError(error: unknown) {
     error instanceof Prisma.PrismaClientKnownRequestError &&
     error.code === "P2002"
   );
+}
+
+type CheckoutLogLevel = "info" | "warn" | "error";
+
+function getPaymentReferenceFingerprint(reference: string | null | undefined) {
+  if (!reference) {
+    return null;
+  }
+
+  if (reference.length <= 8) {
+    return `${reference.slice(0, 2)}...${reference.slice(-2)}`;
+  }
+
+  return `${reference.slice(0, 4)}...${reference.slice(-4)}`;
+}
+
+function getErrorLogData(error: unknown) {
+  let errorType = typeof error;
+  let errorCode: string | null = null;
+  let errorStatus: number | null = null;
+
+  if (error && typeof error === "object") {
+    if ("name" in error && typeof error.name === "string") {
+      errorType = error.name;
+    }
+
+    if ("code" in error && typeof error.code === "string") {
+      errorCode = error.code;
+    }
+
+    if ("status" in error && typeof error.status === "number") {
+      errorStatus = error.status;
+    }
+  }
+
+  return {
+    errorType,
+    errorCode,
+    errorStatus,
+  };
+}
+
+function logRsvpCheckoutEvent(
+  level: CheckoutLogLevel,
+  event: string,
+  details: Record<string, string | number | boolean | null | undefined>,
+) {
+  const logger =
+    level === "error"
+      ? console.error
+      : level === "warn"
+        ? console.warn
+        : console.info;
+
+  logger(`[rsvp-checkout] ${event}`, details);
 }
 
 function stableStringify(value: unknown): string {
@@ -182,6 +244,153 @@ async function hasRsvpIdentityConflict(email: string) {
   });
 
   return Boolean(activeRegistrationCheckout);
+}
+
+async function persistRecoveredRsvpPaymentLink({
+  checkout,
+  paymentLink,
+}: {
+  checkout: RsvpCheckoutRecord;
+  paymentLink: {
+    reference: string;
+    orderId: string | null;
+    url: string;
+  };
+}): Promise<RsvpCheckoutPaymentResult> {
+  const lastReconciledAt = new Date();
+  const updateResult = await db.rsvpCheckout.updateMany({
+    where: {
+      id: checkout.id,
+      updatedAt: checkout.updatedAt,
+      status: checkout.status,
+      paymentReference: checkout.paymentReference,
+    },
+    data: {
+      paymentReference: paymentLink.reference,
+      paymentUrl: paymentLink.url,
+      paymentOrderId: paymentLink.orderId,
+      lastReconciledAt,
+    },
+  });
+
+  if (updateResult.count === 1) {
+    logRsvpCheckoutEvent("info", "payment-link-recovery-persisted", {
+      checkoutId: checkout.id,
+      previousPaymentReferenceFingerprint: getPaymentReferenceFingerprint(
+        checkout.paymentReference,
+      ),
+      paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+        paymentLink.reference,
+      ),
+      hasPaymentOrderId: Boolean(paymentLink.orderId),
+    });
+
+    return {
+      ok: true,
+      status: "pending",
+      checkoutId: checkout.id,
+      paymentReference: paymentLink.reference,
+      paymentUrl: paymentLink.url,
+    };
+  }
+
+  logRsvpCheckoutEvent("warn", "payment-link-recovery-lost-race", {
+    checkoutId: checkout.id,
+    previousPaymentReferenceFingerprint: getPaymentReferenceFingerprint(
+      checkout.paymentReference,
+    ),
+    paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+      paymentLink.reference,
+    ),
+  });
+
+  const latestCheckout = await db.rsvpCheckout.findUnique({
+    where: { id: checkout.id },
+  });
+
+  if (!latestCheckout) {
+    logRsvpCheckoutEvent(
+      "error",
+      "payment-link-recovery-adoption-missing-checkout",
+      {
+        checkoutId: checkout.id,
+      },
+    );
+
+    return { ok: false, reason: "unavailable" };
+  }
+
+  if (latestCheckout.status === "CONFIRMED" && latestCheckout.rsvpId) {
+    logRsvpCheckoutEvent(
+      "info",
+      "payment-link-recovery-adopted-confirmed-checkout",
+      {
+        checkoutId: checkout.id,
+        rsvpId: latestCheckout.rsvpId,
+      },
+    );
+
+    return {
+      ok: true,
+      status: "confirmed",
+      checkoutId: latestCheckout.id,
+      rsvpId: latestCheckout.rsvpId,
+      paymentUrl: null,
+    };
+  }
+
+  if (latestCheckout.status === "PAYMENT_REVIEW") {
+    logRsvpCheckoutEvent(
+      "info",
+      "payment-link-recovery-adopted-review-checkout",
+      {
+        checkoutId: checkout.id,
+      },
+    );
+
+    return { ok: false, reason: "review" };
+  }
+
+  if (
+    latestCheckout.paymentReference &&
+    latestCheckout.paymentUrl &&
+    latestCheckout.paymentReference !== checkout.paymentReference
+  ) {
+    logRsvpCheckoutEvent(
+      "info",
+      "payment-link-recovery-adopted-persisted-link",
+      {
+        checkoutId: checkout.id,
+        previousPaymentReferenceFingerprint: getPaymentReferenceFingerprint(
+          checkout.paymentReference,
+        ),
+        storedPaymentReferenceFingerprint: getPaymentReferenceFingerprint(
+          latestCheckout.paymentReference,
+        ),
+      },
+    );
+
+    return {
+      ok: true,
+      status: "pending",
+      checkoutId: latestCheckout.id,
+      paymentReference: latestCheckout.paymentReference,
+      paymentUrl: latestCheckout.paymentUrl,
+    };
+  }
+
+  logRsvpCheckoutEvent("error", "payment-link-recovery-adoption-unavailable", {
+    checkoutId: checkout.id,
+    previousPaymentReferenceFingerprint: getPaymentReferenceFingerprint(
+      checkout.paymentReference,
+    ),
+    storedPaymentReferenceFingerprint: getPaymentReferenceFingerprint(
+      latestCheckout.paymentReference,
+    ),
+    currentStatus: latestCheckout.status,
+  });
+
+  return { ok: false, reason: "unavailable" };
 }
 
 async function createOrReuseRsvpCheckout(payload: RsvpCheckoutPayload) {
@@ -418,18 +627,90 @@ async function ensureRsvpCheckoutPaymentLink(
         checkout.paymentReference,
       );
     } catch (error) {
-      console.error("RSVP checkout payment resume lookup failed", {
+      logRsvpCheckoutEvent("error", "payment-resume-lookup-failed", {
         checkoutId: checkout.id,
-        error,
+        paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+          checkout.paymentReference,
+        ),
+        ...getErrorLogData(error),
       });
 
       return { ok: false, reason: "unavailable" };
     }
 
-    const reusablePaymentUrl = paymentLink?.url ?? checkout.paymentUrl;
+    if (!paymentLink) {
+      logRsvpCheckoutEvent("warn", "payment-link-missing-recovery-started", {
+        checkoutId: checkout.id,
+        paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+          checkout.paymentReference,
+        ),
+      });
+    }
 
-    if (reusablePaymentUrl) {
+    if (paymentLink?.isComplete) {
+      logRsvpCheckoutEvent("info", "payment-link-reconcile-paid", {
+        checkoutId: checkout.id,
+        paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+          paymentLink.reference,
+        ),
+        orderState: paymentLink.orderState,
+      });
+
+      const finalized = await finalizePaidCheckout(
+        checkout.id,
+        "Square shows this RSVP checkout as paid, but local RSVP finalization did not complete.",
+      );
+
+      logRsvpCheckoutEvent(
+        finalized.ok ? "info" : "warn",
+        "payment-link-reconcile-paid-finished",
+        {
+          checkoutId: checkout.id,
+          outcome: finalized.ok ? "confirmed" : finalized.reason,
+        },
+      );
+
+      if (finalized.ok) {
+        return {
+          ok: true,
+          status: "confirmed",
+          checkoutId: checkout.id,
+          rsvpId: finalized.rsvpId,
+          paymentUrl: null,
+        };
+      }
+
+      const reason =
+        finalized.reason === "duplicate" ||
+        finalized.reason === "review" ||
+        finalized.reason === "unavailable"
+          ? finalized.reason
+          : "unavailable";
+
+      return {
+        ok: false,
+        reason,
+      };
+    }
+
+    if (paymentLink?.url) {
+      logRsvpCheckoutEvent("info", "payment-link-reused", {
+        checkoutId: checkout.id,
+        paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+          paymentLink.reference,
+        ),
+        orderState: paymentLink.orderState,
+        paymentUrlChanged: paymentLink.url !== checkout.paymentUrl,
+        paymentOrderIdChanged:
+          Boolean(paymentLink.orderId) &&
+          paymentLink.orderId !== checkout.paymentOrderId,
+      });
+
       const data: Prisma.RsvpCheckoutUpdateInput = {};
+
+      if (paymentLink.reference !== checkout.paymentReference) {
+        data.paymentReference = paymentLink.reference;
+      }
 
       if (paymentLink?.url && paymentLink.url !== checkout.paymentUrl) {
         data.paymentUrl = paymentLink.url;
@@ -443,35 +724,6 @@ async function ensureRsvpCheckoutPaymentLink(
         data.lastReconciledAt = new Date();
       }
 
-      if (paymentLink?.isComplete) {
-        const finalized = await finalizePaidCheckout(
-          checkout.id,
-          "Square shows this RSVP checkout as paid, but local RSVP finalization did not complete.",
-        );
-
-        if (finalized.ok) {
-          return {
-            ok: true,
-            status: "confirmed",
-            checkoutId: checkout.id,
-            rsvpId: finalized.rsvpId,
-            paymentUrl: null,
-          };
-        }
-
-        const reason =
-          finalized.reason === "duplicate" ||
-          finalized.reason === "review" ||
-          finalized.reason === "unavailable"
-            ? finalized.reason
-            : "unavailable";
-
-        return {
-          ok: false,
-          reason,
-        };
-      }
-
       if (Object.keys(data).length > 0) {
         await db.rsvpCheckout.update({
           where: { id: checkout.id },
@@ -483,44 +735,67 @@ async function ensureRsvpCheckoutPaymentLink(
         ok: true,
         status: "pending",
         checkoutId: checkout.id,
-        paymentReference: checkout.paymentReference,
-        paymentUrl: reusablePaymentUrl,
+        paymentReference: paymentLink.reference,
+        paymentUrl: paymentLink.url,
       };
     }
   }
 
-  const paymentLink = await createRsvpPaymentLink({
-    checkoutId: checkout.id,
-    email: payload.email,
-    adultAttendeeCount: payload.adultAttendeeCount,
-    childAttendeeCount: payload.childAttendeeCount,
-  });
+  let paymentLink;
 
-  if (!paymentLink.reference) {
+  try {
+    paymentLink = await createRsvpPaymentLink({
+      checkoutId: checkout.id,
+      email: payload.email,
+      adultAttendeeCount: payload.adultAttendeeCount,
+      childAttendeeCount: payload.childAttendeeCount,
+    });
+  } catch (error) {
+    logRsvpCheckoutEvent("error", "payment-link-recovery-create-failed", {
+      checkoutId: checkout.id,
+      previousPaymentReferenceFingerprint: getPaymentReferenceFingerprint(
+        checkout.paymentReference,
+      ),
+      ...getErrorLogData(error),
+    });
+
     return { ok: false, reason: "unavailable" };
   }
 
-  const data: Prisma.RsvpCheckoutUpdateInput = {
-    paymentReference: paymentLink.reference,
-    paymentUrl: paymentLink.url,
-  };
-
-  if (paymentLink.orderId) {
-    data.paymentOrderId = paymentLink.orderId;
-  }
-
-  await db.rsvpCheckout.update({
-    where: { id: checkout.id },
-    data,
+  logRsvpCheckoutEvent("info", "payment-link-recovery-created", {
+    checkoutId: checkout.id,
+    previousPaymentReferenceFingerprint: getPaymentReferenceFingerprint(
+      checkout.paymentReference,
+    ),
+    paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+      paymentLink.reference,
+    ),
+    hasPaymentOrderId: Boolean(paymentLink.orderId),
   });
 
-  return {
-    ok: true,
-    status: "pending",
-    checkoutId: checkout.id,
-    paymentReference: paymentLink.reference,
-    paymentUrl: paymentLink.url,
-  };
+  if (!paymentLink.reference) {
+    logRsvpCheckoutEvent(
+      "error",
+      "payment-link-recovery-created-without-reference",
+      {
+        checkoutId: checkout.id,
+        previousPaymentReferenceFingerprint: getPaymentReferenceFingerprint(
+          checkout.paymentReference,
+        ),
+      },
+    );
+
+    return { ok: false, reason: "unavailable" };
+  }
+
+  return persistRecoveredRsvpPaymentLink({
+    checkout,
+    paymentLink: {
+      reference: paymentLink.reference,
+      orderId: paymentLink.orderId,
+      url: paymentLink.url,
+    },
+  });
 }
 
 export async function createRsvpCheckoutPayment(payload: RsvpCheckoutPayload) {
@@ -585,9 +860,12 @@ export async function confirmRsvpCheckoutPayment(
       checkout.paymentReference,
     );
   } catch (error) {
-    console.error("RSVP checkout payment lookup failed", {
+    logRsvpCheckoutEvent("error", "payment-confirmation-lookup-failed", {
       checkoutId: checkout.id,
-      error,
+      paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+        checkout.paymentReference,
+      ),
+      ...getErrorLogData(error),
     });
 
     return {
@@ -598,6 +876,13 @@ export async function confirmRsvpCheckoutPayment(
   }
 
   if (!paymentLink) {
+    logRsvpCheckoutEvent("warn", "payment-confirmation-link-missing", {
+      checkoutId: checkout.id,
+      paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+        checkout.paymentReference,
+      ),
+    });
+
     return { ok: false, reason: "invalid" };
   }
 
@@ -612,17 +897,44 @@ export async function confirmRsvpCheckoutPayment(
   }
 
   if (!paymentLink.isComplete) {
+    logRsvpCheckoutEvent("info", "payment-confirmation-still-open", {
+      checkoutId: checkout.id,
+      paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+        paymentLink.reference,
+      ),
+      orderState: paymentLink.orderState,
+    });
+
     return {
       ok: false,
-      reason: "pending",
+      reason: "retry",
       paymentUrl: paymentLink.url ?? checkout.paymentUrl,
     };
   }
 
-  return finalizePaidCheckout(
+  logRsvpCheckoutEvent("info", "payment-confirmation-paid", {
+    checkoutId: checkout.id,
+    paymentReferenceFingerprint: getPaymentReferenceFingerprint(
+      paymentLink.reference,
+    ),
+    orderState: paymentLink.orderState,
+  });
+
+  const finalized = await finalizePaidCheckout(
     checkout.id,
     "Square return reconciliation showed this RSVP checkout as paid, but local RSVP finalization did not complete.",
   );
+
+  logRsvpCheckoutEvent(
+    finalized.ok ? "info" : "warn",
+    "payment-confirmation-finalized",
+    {
+      checkoutId: checkout.id,
+      outcome: finalized.ok ? "confirmed" : finalized.reason,
+    },
+  );
+
+  return finalized;
 }
 
 export async function confirmRsvpCheckoutPaymentByOrderId(

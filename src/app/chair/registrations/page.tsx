@@ -1,9 +1,5 @@
 import styles from "@/app/chair/chair.module.css";
-import {
-  displayValue,
-  joinSearchText,
-  uniqueFilterOptions,
-} from "@/app/chair/display";
+import { displayValue, joinSearchText } from "@/app/chair/display";
 import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
 import {
   parseChairListFilterParam,
@@ -190,10 +186,6 @@ function formatPaymentStatus(paymentStatus: string) {
   }
 
   return paymentStatus.replaceAll("_", " ");
-}
-
-function formatBoolean(value: boolean) {
-  return value ? "Yes" : "No";
 }
 
 function sumRegistrationAttendeeTotals(
@@ -594,63 +586,144 @@ export default async function ChairRegistrationsPage({
                   }
                   title={fullName}
                 >
-                  <div className={styles.detailGrid}>
-                    <div className={styles.detailItem}>
-                      <span>Contact email</span>
-                      <p>{displayValue(contactEmail)}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Participant email</span>
-                      <p>{displayValue(participant.email)}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Phone</span>
-                      <p>{displayValue(participant.phone)}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Gender</span>
-                      <p>{participant.gender.replaceAll("_", " ")}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Age</span>
-                      <p>{participant.age}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Average score</span>
-                      <p>{participant.averageScore}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Package</span>
-                      <p>{registration.packageSelection}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>BBQ adult guests</span>
-                      <p>{registration.adultGuestCount}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>BBQ kid guests</span>
-                      <p>{registration.childGuestCount}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Payment status</span>
-                      <p>{paymentLabel}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Payment reference</span>
-                      <p>{displayValue(registration.paymentReference)}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Created</span>
-                      <p>{formatDateTime(registration.createdAt)}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Updated</span>
-                      <p>{formatDateTime(registration.updatedAt)}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Notes</span>
-                      <p>{displayValue(registration.notes)}</p>
-                    </div>
+                  <div className={styles.detailSectionGrid}>
+                    <section className={styles.detailSection}>
+                      <div className={styles.detailSectionHeader}>
+                        <h3 className={styles.detailSectionTitle}>Attendee</h3>
+                        <p className={styles.detailSectionIntro}>
+                          Contact information and golfer profile.
+                        </p>
+                      </div>
+                      <dl className={styles.detailRows}>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>
+                            Contact email
+                          </dt>
+                          <dd className={styles.detailRowValue}>
+                            {displayValue(contactEmail)}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>Phone</dt>
+                          <dd className={styles.detailRowValue}>
+                            {displayValue(participant.phone)}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>Gender</dt>
+                          <dd className={styles.detailRowValue}>
+                            {participant.gender.replaceAll("_", " ")}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>Age</dt>
+                          <dd className={styles.detailRowValue}>
+                            {participant.age}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>
+                            Average score
+                          </dt>
+                          <dd className={styles.detailRowValue}>
+                            {participant.averageScore}
+                          </dd>
+                        </div>
+                      </dl>
+                    </section>
+                    <section className={styles.detailSection}>
+                      <div className={styles.detailSectionHeader}>
+                        <h3 className={styles.detailSectionTitle}>
+                          Registration
+                        </h3>
+                        <p className={styles.detailSectionIntro}>
+                          Package selection and guest counts tied to this entry.
+                        </p>
+                      </div>
+                      <dl className={styles.detailRows}>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>Package</dt>
+                          <dd className={styles.detailRowValue}>
+                            {registration.packageSelection}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>
+                            Guest summary
+                          </dt>
+                          <dd className={styles.detailRowValue}>
+                            {guestSummary}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>
+                            BBQ adult guests
+                          </dt>
+                          <dd className={styles.detailRowValue}>
+                            {registration.adultGuestCount}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>
+                            BBQ kid guests
+                          </dt>
+                          <dd className={styles.detailRowValue}>
+                            {registration.childGuestCount}
+                          </dd>
+                        </div>
+                      </dl>
+                    </section>
+                    <section className={styles.detailSection}>
+                      <div className={styles.detailSectionHeader}>
+                        <h3 className={styles.detailSectionTitle}>Payment</h3>
+                        <p className={styles.detailSectionIntro}>
+                          Checkout status and saved reference for chair review.
+                        </p>
+                      </div>
+                      <dl className={styles.detailRows}>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>
+                            Payment status
+                          </dt>
+                          <dd className={styles.detailRowValue}>
+                            {paymentLabel}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>
+                            Payment reference
+                          </dt>
+                          <dd className={styles.detailRowValue}>
+                            {displayValue(registration.paymentReference)}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>Created</dt>
+                          <dd className={styles.detailRowValue}>
+                            {formatDateTime(registration.createdAt)}
+                          </dd>
+                        </div>
+                        <div className={styles.detailRow}>
+                          <dt className={styles.detailRowLabel}>Updated</dt>
+                          <dd className={styles.detailRowValue}>
+                            {formatDateTime(registration.updatedAt)}
+                          </dd>
+                        </div>
+                      </dl>
+                    </section>
+                    <section
+                      className={`${styles.detailSection} ${styles.detailSectionWide}`}
+                    >
+                      <div className={styles.detailSectionHeader}>
+                        <h3 className={styles.detailSectionTitle}>Notes</h3>
+                        <p className={styles.detailSectionIntro}>
+                          Freeform context captured with this registration.
+                        </p>
+                      </div>
+                      <div className={styles.detailNotePanel}>
+                        <p>{displayValue(registration.notes)}</p>
+                      </div>
+                    </section>
                   </div>
                 </PreviewDetailCard>
               );

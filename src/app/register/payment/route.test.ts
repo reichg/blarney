@@ -118,6 +118,24 @@ describe("registration payment route", () => {
     );
   });
 
+  it("redirects missing registration checkouts to an invalid status", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", publicSiteUrl);
+    getRegistrationCheckoutPayment.mockResolvedValue({
+      ok: false,
+      reason: "not_found",
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/register/payment?checkout=checkout-123",
+      ),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `${publicSiteUrl}/register/thanks?checkout=checkout-123&payment=invalid`,
+    );
+  });
+
   it("redirects an RSVP checkout to its Square payment URL", async () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", publicSiteUrl);
     getRsvpCheckoutPayment.mockResolvedValue({
@@ -158,6 +176,24 @@ describe("registration payment route", () => {
 
     expect(response.headers.get("location")).toBe(
       `${publicSiteUrl}/rsvp/thanks?rsvp=rsvp-123&payment=confirmed`,
+    );
+  });
+
+  it("redirects missing RSVP checkouts to an invalid status", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", publicSiteUrl);
+    getRsvpCheckoutPayment.mockResolvedValue({
+      ok: false,
+      reason: "not_found",
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost:3000/register/payment?rsvpCheckout=rsvp-checkout-123",
+      ),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      `${publicSiteUrl}/rsvp/thanks?rsvpCheckout=rsvp-checkout-123&payment=invalid`,
     );
   });
 });

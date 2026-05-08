@@ -96,7 +96,9 @@ export async function GET(request: Request) {
                 ? "configuration"
                 : checkoutPayment.reason === "review"
                   ? "review"
-                  : "unavailable",
+                  : checkoutPayment.reason === "not_found"
+                    ? "invalid"
+                    : "unavailable",
           }),
         );
       }
@@ -148,7 +150,9 @@ export async function GET(request: Request) {
               ? "configuration"
               : checkoutPayment.reason === "review"
                 ? "review"
-                : "unavailable",
+                : checkoutPayment.reason === "not_found"
+                  ? "invalid"
+                  : "unavailable",
         }),
       );
     }

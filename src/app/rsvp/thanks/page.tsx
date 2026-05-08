@@ -49,6 +49,8 @@ const reviewSignals = new Set([
   "REVIEW",
 ]);
 
+const retrySignals = new Set(["RETRY"]);
+
 const processingSignals = new Set(["PENDING", "PROCESSING"]);
 
 function firstValue(value: string | string[] | undefined) {
@@ -161,13 +163,25 @@ function getStatusCard({
     return {
       eyebrow: "Checkout status",
       title: "Confirming payment.",
-      body: "Payment is being confirmed. This page will update when Square sends the successful payment confirmation.",
+      body: "We are still checking whether this payment finished successfully. This page will keep updating automatically while confirmation catches up.",
       nextSteps: [
         "Keep this page open while confirmation finishes.",
-        "Use the button below only if you have not completed payment yet.",
-        "If you already have a Square receipt, do not pay again; contact the chair if this page does not update.",
+        "If you already have a Square receipt, do not pay again.",
+        "If this page still does not update after a short wait, contact the chair with your Square receipt.",
       ],
-      actionLabel: "Resume existing checkout",
+    };
+  }
+
+  if (hasCheckoutLink && retrySignals.has(paymentSignal ?? "")) {
+    return {
+      eyebrow: "Checkout status",
+      title: "Payment not finished yet.",
+      body: "We could not confirm a completed payment for this BBQ RSVP, so it is not final yet.",
+      nextSteps: [
+        "Use the button below only if you do not already have a Square receipt.",
+        "If you already have a Square receipt, do not pay again; contact the chair with the receipt instead.",
+      ],
+      actionLabel: "Return to existing checkout",
     };
   }
 
@@ -186,11 +200,12 @@ function getStatusCard({
   if (unavailableSignals.has(paymentSignal ?? "")) {
     return {
       eyebrow: "Checkout status",
-      title: "Payment unavailable right now.",
-      body: "Payment checkout could not be opened, so the BBQ RSVP was not finalized.",
+      title: "We can't verify this payment yet.",
+      body: "We could not reach Square to reopen or confirm this checkout, so the BBQ RSVP is not final yet.",
       nextSteps: [
-        "Please try the existing checkout link again later if you have not paid yet.",
-        "If you already have a Square receipt, do not pay again; contact the chair with the receipt.",
+        "Keep this page open while we keep retrying the confirmation check.",
+        "Do not pay again if you already have a Square receipt.",
+        "If this page still does not update after a longer wait, contact the chair with your receipt. Return to the form only if you were not charged.",
       ],
     };
   }
@@ -202,11 +217,10 @@ function getStatusCard({
       body: "We could not confirm a completed payment from this link, so the BBQ RSVP was not finalized.",
       nextSteps: [
         hasCheckoutLink
-          ? "Use the button below only if you have not completed payment yet."
+          ? "Contact the chair if you need help locating the current checkout."
           : "Return to the RSVP form to start checkout again.",
         "If you completed payment and still see this page, do not pay again; contact the chair with your receipt.",
       ],
-      actionLabel: hasCheckoutLink ? "Resume existing checkout" : undefined,
     };
   }
 
@@ -216,11 +230,10 @@ function getStatusCard({
     body: "This link does not include a completed BBQ RSVP record, so we cannot show a confirmed RSVP here.",
     nextSteps: [
       hasCheckoutLink
-        ? "Use the button below only if you have not completed payment yet."
+        ? "Contact the chair if you need help locating the current checkout."
         : "Return to the RSVP form if you still need to sign up.",
       "If you completed payment and still see this page, do not pay again; contact the chair with your receipt.",
     ],
-    actionLabel: hasCheckoutLink ? "Resume existing checkout" : undefined,
   };
 }
 
@@ -287,7 +300,10 @@ export default async function RsvpThanksPage({
       ? checkoutPaymentPath
       : undefined;
   const showConfirmationPoller = Boolean(
-    checkoutId && !rsvp && processingSignals.has(paymentSignal ?? ""),
+    checkoutId &&
+    !rsvp &&
+    (processingSignals.has(paymentSignal ?? "") ||
+      unavailableSignals.has(paymentSignal ?? "")),
   );
   const totalLabel = rsvp ? "Amount paid" : "Amount due";
   const attendeeSummary = rsvp
@@ -342,8 +358,11 @@ export default async function RsvpThanksPage({
             <RegistrationConfirmationPoller
               checkoutId={checkoutId}
               confirmedMessage="Payment confirmed. Loading your BBQ RSVP summary..."
+              processingMessage="Waiting for Square to confirm your BBQ RSVP payment. Do not pay again if you already have a Square receipt."
               reviewMessage="Square may have completed this payment, but the BBQ RSVP needs chair review. Do not pay again if you have a Square receipt."
+              retryMessage="Payment has not been completed yet. Return to the same checkout only if you do not already have a Square receipt."
               statusPath={`/api/rsvp/checkout/${encodeURIComponent(checkoutId)}`}
+              unavailableMessage="We cannot reach Square to confirm this BBQ RSVP right now. Keep this page open while we retry. Do not pay again if you already have a Square receipt."
             />
           ) : null}
           {paymentActionUrl ? (

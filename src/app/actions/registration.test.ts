@@ -185,6 +185,19 @@ describe("submitRegistration", () => {
     });
   });
 
+  it("returns a recovery message when Square is temporarily unavailable before checkout opens", async () => {
+    createRegistrationCheckoutPayment.mockResolvedValue({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    await expect(submitRegistration(buildFormData())).resolves.toEqual({
+      ok: false,
+      error:
+        "We could not reach Square to verify or reopen this checkout right now. Wait a moment and try again. If you already have a Square receipt, do not pay again; contact the chair.",
+    });
+  });
+
   it("returns a validation error before starting checkout for invalid golfer data", async () => {
     await expect(
       submitRegistration(buildFormData({ golfers: "not-json" })),

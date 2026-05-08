@@ -15,6 +15,7 @@ const {
   checkoutFindFirst,
   checkoutFindUnique,
   checkoutUpdate,
+  checkoutUpdateMany,
   checkoutCreate,
   registrationFindFirst,
   registrationCheckoutFindFirst,
@@ -31,6 +32,7 @@ const {
   checkoutFindFirst: vi.fn(),
   checkoutFindUnique: vi.fn(),
   checkoutUpdate: vi.fn(),
+  checkoutUpdateMany: vi.fn(),
   checkoutCreate: vi.fn(),
   registrationFindFirst: vi.fn(),
   registrationCheckoutFindFirst: vi.fn(),
@@ -48,6 +50,7 @@ vi.mock("@/lib/db", () => ({
       findFirst: checkoutFindFirst,
       findUnique: checkoutFindUnique,
       update: checkoutUpdate,
+      updateMany: checkoutUpdateMany,
       create: checkoutCreate,
     },
     registration: {
@@ -61,6 +64,16 @@ vi.mock("@/lib/db", () => ({
     },
   },
 }));
+
+const consoleInfo = vi
+  .spyOn(console, "info")
+  .mockImplementation(() => undefined);
+const consoleWarn = vi
+  .spyOn(console, "warn")
+  .mockImplementation(() => undefined);
+const consoleError = vi
+  .spyOn(console, "error")
+  .mockImplementation(() => undefined);
 
 vi.mock("@/lib/payment", () => ({
   createRsvpPaymentLink,
@@ -94,6 +107,7 @@ function buildCheckout(overrides = {}) {
     paymentCompletedAt: null,
     paymentReviewReason: null,
     lastReconciledAt: null,
+    updatedAt: new Date("2026-05-08T12:00:00.000Z"),
     ...overrides,
   };
 }
@@ -125,6 +139,7 @@ beforeEach(() => {
   rsvpFindUnique.mockResolvedValue(null);
   checkoutFindFirst.mockResolvedValue(null);
   checkoutUpdate.mockResolvedValue({ rsvpId: null });
+  checkoutUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 afterEach(() => {
@@ -207,6 +222,148 @@ describe("RSVP checkout payments", () => {
     expect(createRsvpPaymentLink).not.toHaveBeenCalled();
   });
 
+  it("recreates a fresh payment link when Square no longer returns the stored RSVP link", async () => {
+    const checkout = buildCheckout();
+
+    checkoutFindFirst.mockResolvedValue(checkout);
+    hasSquarePaymentConfiguration.mockReturnValue(true);
+    getRegistrationPaymentLinkState.mockResolvedValue(null);
+    createRsvpPaymentLink.mockResolvedValue({
+      reference: "payment-link-2",
+      orderId: "order-456",
+      url: "https://square.link/u/recreated",
+    });
+
+    await expect(createRsvpCheckoutPayment(payload)).resolves.toEqual({
+      ok: true,
+      status: "pending",
+      checkoutId: "rsvp-checkout-123",
+      paymentReference: "payment-link-2",
+      paymentUrl: "https://square.link/u/recreated",
+    });
+
+    expect(createRsvpPaymentLink).toHaveBeenCalledWith({
+      checkoutId: "rsvp-checkout-123",
+      email: "pat@example.com",
+      adultAttendeeCount: 2,
+      childAttendeeCount: 1,
+    });
+    expect(checkoutUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "rsvp-checkout-123",
+        updatedAt: checkout.updatedAt,
+        status: "PENDING",
+        paymentReference: "payment-link-1",
+      },
+      data: {
+        paymentReference: "payment-link-2",
+        paymentUrl: "https://square.link/u/recreated",
+        paymentOrderId: "order-456",
+        lastReconciledAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("adopts the concurrently persisted recovered RSVP link when stale-link recovery loses the write race", async () => {
+    const checkout = buildCheckout();
+
+    checkoutFindFirst.mockResolvedValue(checkout);
+    hasSquarePaymentConfiguration.mockReturnValue(true);
+    getRegistrationPaymentLinkState.mockResolvedValue(null);
+    createRsvpPaymentLink.mockResolvedValue({
+      reference: "payment-link-2",
+      orderId: "order-456",
+      url: "https://square.link/u/recreated",
+    });
+    checkoutUpdateMany.mockResolvedValue({ count: 0 });
+    checkoutFindUnique.mockResolvedValue(
+      buildCheckout({
+        paymentReference: "payment-link-3",
+        paymentOrderId: "order-789",
+        paymentUrl: "https://square.link/u/concurrent",
+        updatedAt: new Date("2026-05-08T12:05:00.000Z"),
+      }),
+    );
+
+    await expect(createRsvpCheckoutPayment(payload)).resolves.toEqual({
+      ok: true,
+      status: "pending",
+      checkoutId: "rsvp-checkout-123",
+      paymentReference: "payment-link-3",
+      paymentUrl: "https://square.link/u/concurrent",
+    });
+
+    expect(checkoutFindUnique).toHaveBeenCalledWith({
+      where: { id: "rsvp-checkout-123" },
+    });
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[rsvp-checkout] payment-link-recovery-lost-race",
+      expect.objectContaining({
+        checkoutId: "rsvp-checkout-123",
+      }),
+    );
+    expect(consoleInfo).toHaveBeenCalledWith(
+      "[rsvp-checkout] payment-link-recovery-adopted-persisted-link",
+      expect.objectContaining({
+        checkoutId: "rsvp-checkout-123",
+      }),
+    );
+
+    const loggedOutput = JSON.stringify([
+      ...consoleWarn.mock.calls,
+      ...consoleInfo.mock.calls,
+    ]);
+    expect(loggedOutput).not.toContain("pat@example.com");
+    expect(loggedOutput).not.toContain("https://square.link");
+  });
+
+  it("does not reuse a cached RSVP payment URL when Square resume lookup is unavailable", async () => {
+    checkoutFindFirst.mockResolvedValue(buildCheckout());
+    hasSquarePaymentConfiguration.mockReturnValue(true);
+    getRegistrationPaymentLinkState.mockRejectedValue(
+      new Error("Square unavailable"),
+    );
+
+    await expect(createRsvpCheckoutPayment(payload)).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    expect(createRsvpPaymentLink).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[rsvp-checkout] payment-resume-lookup-failed",
+      expect.objectContaining({
+        checkoutId: "rsvp-checkout-123",
+        errorType: "Error",
+      }),
+    );
+  });
+
+  it("returns unavailable and logs when stale-link recovery cannot create a replacement RSVP link", async () => {
+    checkoutFindFirst.mockResolvedValue(buildCheckout());
+    hasSquarePaymentConfiguration.mockReturnValue(true);
+    getRegistrationPaymentLinkState.mockResolvedValue(null);
+    createRsvpPaymentLink.mockRejectedValue(new Error("Square unavailable"));
+
+    await expect(createRsvpCheckoutPayment(payload)).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    expect(checkoutUpdateMany).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[rsvp-checkout] payment-link-recovery-create-failed",
+      expect.objectContaining({
+        checkoutId: "rsvp-checkout-123",
+        errorType: "Error",
+      }),
+    );
+
+    const loggedOutput = JSON.stringify(consoleError.mock.calls);
+    expect(loggedOutput).not.toContain("pat@example.com");
+    expect(loggedOutput).not.toContain("https://square.link");
+  });
+
   it("finalizes a FORM RSVP after Square success", async () => {
     checkoutFindUnique.mockResolvedValue(buildCheckout());
     getRegistrationPaymentLinkState.mockResolvedValue({
@@ -263,7 +420,7 @@ describe("RSVP checkout payments", () => {
     });
   });
 
-  it("does not finalize while Square still reports the checkout as pending", async () => {
+  it("returns a retry state while Square still reports the checkout as open", async () => {
     checkoutFindUnique.mockResolvedValue(buildCheckout());
     hasSquarePaymentConfiguration.mockReturnValue(true);
     getRegistrationPaymentLinkState.mockResolvedValue({
@@ -277,7 +434,7 @@ describe("RSVP checkout payments", () => {
       confirmRsvpCheckoutPayment("rsvp-checkout-123"),
     ).resolves.toEqual({
       ok: false,
-      reason: "pending",
+      reason: "retry",
       paymentUrl: "https://square.link/u/existing",
     });
 

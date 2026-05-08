@@ -83,6 +83,18 @@ export async function GET(
     return jsonNoStore({ ok: true, status: "review" });
   }
 
+  if (checkoutConfirmation.reason === "retry") {
+    return jsonNoStore({
+      ok: true,
+      status: "retry",
+      paymentPath: getRegistrationCheckoutPaymentPath(checkout.id),
+    });
+  }
+
+  if (checkoutConfirmation.reason === "unavailable") {
+    return jsonNoStore({ ok: true, status: "unavailable" });
+  }
+
   return jsonNoStore({
     ok: true,
     status: "processing",

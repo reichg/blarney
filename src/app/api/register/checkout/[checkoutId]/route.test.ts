@@ -118,6 +118,30 @@ describe("registration checkout status route", () => {
     );
   });
 
+  it("returns a retry path when checkout reconciliation shows payment is still open", async () => {
+    checkoutFindUnique.mockResolvedValue({
+      id: "checkout-123",
+      status: "PENDING",
+      registrationId: null,
+    });
+    confirmRegistrationCheckoutPayment.mockResolvedValue({
+      ok: false,
+      reason: "retry",
+      paymentUrl: "https://square.link/u/existing",
+    });
+
+    const response = await GET(
+      new Request("http://localhost:3000/api/register/checkout/checkout-123"),
+      buildContext("checkout-123"),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      status: "retry",
+      paymentPath: "/register/payment?checkout=checkout-123",
+    });
+  });
+
   it("returns not found for unknown checkout ids", async () => {
     checkoutFindUnique.mockResolvedValue(null);
 
@@ -177,6 +201,28 @@ describe("registration checkout status route", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       status: "review",
+    });
+  });
+
+  it("returns unavailable when checkout reconciliation cannot reach Square", async () => {
+    checkoutFindUnique.mockResolvedValue({
+      id: "checkout-123",
+      status: "PENDING",
+      registrationId: null,
+    });
+    confirmRegistrationCheckoutPayment.mockResolvedValue({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    const response = await GET(
+      new Request("http://localhost:3000/api/register/checkout/checkout-123"),
+      buildContext("checkout-123"),
+    );
+
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      status: "unavailable",
     });
   });
 });
