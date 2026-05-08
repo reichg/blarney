@@ -1,6 +1,7 @@
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
+  PAGE_SIZE_OPTIONS,
   buildPaginationState,
   parsePaginationParams,
 } from "@/lib/pagination";
@@ -39,7 +40,7 @@ describe("parsePaginationParams", () => {
       parsePaginationParams(
         {
           pendingPage: "0",
-          pendingPageSize: "-2",
+          pendingPageSize: "15",
         },
         {
           pageKey: "pendingPage",
@@ -55,19 +56,27 @@ describe("parsePaginationParams", () => {
       pageSizeKey: "pendingPageSize",
     });
   });
+
+  it("accepts the allowlisted page-size options", () => {
+    expect(
+      PAGE_SIZE_OPTIONS.map(
+        (pageSize) => parsePaginationParams({ pageSize: `${pageSize}` }).pageSize,
+      ),
+    ).toEqual([...PAGE_SIZE_OPTIONS]);
+  });
 });
 
 describe("buildPaginationState", () => {
   it("builds page metadata for a populated result set", () => {
-    const params = parsePaginationParams({ page: "2", pageSize: "25" });
+    const params = parsePaginationParams({ page: "2", pageSize: "20" });
 
     expect(buildPaginationState(params, 60)).toEqual({
       ...params,
       totalCount: 60,
       totalPages: 3,
-      currentCount: 25,
-      startIndex: 26,
-      endIndex: 50,
+      currentCount: 20,
+      startIndex: 21,
+      endIndex: 40,
       hasPreviousPage: true,
       hasNextPage: true,
       isEmpty: false,
@@ -75,7 +84,7 @@ describe("buildPaginationState", () => {
   });
 
   it("handles empty and out-of-range pages without negative ranges", () => {
-    const params = parsePaginationParams({ page: "4", pageSize: "25" });
+    const params = parsePaginationParams({ page: "4", pageSize: "20" });
 
     expect(buildPaginationState(params, 60)).toEqual({
       ...params,

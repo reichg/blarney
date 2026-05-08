@@ -212,8 +212,8 @@ describe("chair registrations page", () => {
     expect(requireChairPageAuth).toHaveBeenCalledWith("/chair/registrations");
     expect(registrationFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        skip: 50,
-        take: 50,
+        skip: 10,
+        take: 10,
         where: {
           participant: {
             gender: "MALE",
@@ -236,9 +236,9 @@ describe("chair registrations page", () => {
     expect(gridProps?.resultLabel).toBe("registrations");
     expect(gridProps?.pagination).toEqual(
       expect.objectContaining({
-        currentCount: 1,
-        endIndex: 51,
-        startIndex: 51,
+        currentCount: 10,
+        endIndex: 20,
+        startIndex: 11,
         totalCount: 51,
       }),
     );
@@ -255,9 +255,9 @@ describe("chair registrations page", () => {
     expect(paginationNav).toHaveBeenCalledWith(
       expect.objectContaining({
         pagination: expect.objectContaining({
-          currentCount: 1,
-          endIndex: 51,
-          startIndex: 51,
+          currentCount: 10,
+          endIndex: 20,
+          startIndex: 11,
           totalCount: 51,
         }),
         label: "Registrations",

@@ -1,5 +1,6 @@
 import {
   formatPaginationSummary,
+  PAGE_SIZE_OPTIONS,
   type PaginationState,
   type SearchParamsRecord,
 } from "@/lib/pagination";
@@ -12,11 +13,7 @@ type PaginationNavProps = {
   label?: string;
 };
 
-function buildHref(
-  searchParams: SearchParamsRecord | undefined,
-  pageKey: string,
-  page: number,
-) {
+function buildSearchParams(searchParams: SearchParamsRecord | undefined) {
   const params = new URLSearchParams();
 
   if (searchParams) {
@@ -35,9 +32,40 @@ function buildHref(
     }
   }
 
+  return params;
+}
+
+function buildHref(
+  searchParams: SearchParamsRecord | undefined,
+  pageKey: string,
+  page: number,
+) {
+  const params = buildSearchParams(searchParams);
+
   params.set(pageKey, `${page}`);
 
   return `?${params.toString()}`;
+}
+
+function buildPageSizeFormEntries(
+  searchParams: SearchParamsRecord | undefined,
+  pageKey: string,
+  pageSizeKey: string,
+) {
+  const params = buildSearchParams(searchParams);
+
+  params.set(pageKey, "1");
+  params.delete(pageSizeKey);
+
+  return Array.from(params.entries());
+}
+
+function getSelectedPageSize(pageSize: number) {
+  return PAGE_SIZE_OPTIONS.includes(
+    pageSize as (typeof PAGE_SIZE_OPTIONS)[number],
+  )
+    ? pageSize
+    : PAGE_SIZE_OPTIONS[0];
 }
 
 export function PaginationNav({
@@ -55,12 +83,47 @@ export function PaginationNav({
   const hasPreviousPage = currentPage > 1 || isPastLastPage;
   const hasNextPage = currentPage < pagination.totalPages;
   const summary = formatPaginationSummary(pagination);
+  const pageSizeFormEntries = buildPageSizeFormEntries(
+    searchParams,
+    pagination.pageKey,
+    pagination.pageSizeKey,
+  );
+  const selectedPageSize = getSelectedPageSize(pagination.pageSize);
 
   return (
     <div className={styles.pagination}>
       <div className={styles.summary}>
-        <p>{summary}</p>
-        <p className={styles.summaryLine}>{label}</p>
+        <div className={styles.summaryCopy}>
+          <p>{summary}</p>
+          <p className={styles.summaryLine}>{label}</p>
+        </div>
+        <form className={styles.pageSizeForm} method="get">
+          {pageSizeFormEntries.map(([key, value], index) => (
+            <input
+              key={`${key}-${value}-${index}`}
+              name={key}
+              type="hidden"
+              value={value}
+            />
+          ))}
+          <label className={styles.pageSizeField}>
+            <span className={styles.pageSizeLabel}>Per page</span>
+            <select
+              className={styles.pageSizeSelect}
+              defaultValue={`${selectedPageSize}`}
+              name={pagination.pageSizeKey}
+            >
+              {PAGE_SIZE_OPTIONS.map((pageSizeOption) => (
+                <option key={pageSizeOption} value={pageSizeOption}>
+                  {pageSizeOption}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className={styles.linkButton} type="submit">
+            Apply
+          </button>
+        </form>
       </div>
       <nav aria-label={`${label} pages`} className={styles.controls}>
         {hasPreviousPage ? (

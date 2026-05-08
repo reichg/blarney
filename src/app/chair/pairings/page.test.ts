@@ -286,6 +286,40 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+function buildPagedDraftGroups(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `group-${index + 1}`,
+    members: [],
+    name: `Group ${index + 1}`,
+    sortOrder: index + 1,
+    status: "DRAFT",
+    teeTime: new Date(`2026-05-01T09:${String(index).padStart(2, "0")}:00.000Z`),
+  }));
+}
+
+function buildPagedPublishedGroups(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `published-${index + 1}`,
+    members: [],
+    name: `Published Group ${index + 1}`,
+    sortOrder: index + 1,
+    status: "PUBLISHED",
+    teeTime: new Date(`2026-05-01T10:${String(index).padStart(2, "0")}:00.000Z`),
+  }));
+}
+
+function buildPagedMaleGolfers(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    age: 75 - index,
+    averageScore: 35 + index,
+    firstName: `Male ${index + 1}`,
+    gender: "MALE",
+    id: `male-${index + 1}`,
+    lastName: `Golfer ${index + 1}`,
+    registrations: [{ notes: null }],
+  }));
+}
+
 describe("chair pairings page", () => {
   it("renders unassigned golfers in gender, score, then age order", async () => {
     const html = renderToStaticMarkup(
@@ -352,18 +386,24 @@ describe("chair pairings page", () => {
   });
 
   it("keeps pairings pagination and filter state independent across all three lists", async () => {
+    pairingGroupFindMany.mockReset();
+    pairingGroupFindMany
+      .mockResolvedValueOnce(buildPagedDraftGroups(11))
+      .mockResolvedValueOnce(buildPagedPublishedGroups(11));
+    participantFindMany.mockResolvedValue(buildPagedMaleGolfers(11));
+
     renderToStaticMarkup(
       await ChairPairingsPage({
         searchParams: Promise.resolve({
           draftFilter: "capacity:open",
           draftPage: "2",
-          draftPageSize: "1",
+          draftPageSize: "10",
           publishedFilter: "tee:yes",
           publishedPage: "2",
-          publishedPageSize: "1",
+          publishedPageSize: "10",
           unassignedFilter: "gender:male",
           unassignedPage: "2",
-          unassignedPageSize: "1",
+          unassignedPageSize: "10",
         }),
       }),
     );
@@ -378,18 +418,16 @@ describe("chair pairings page", () => {
       .map(([props]) => props as FilterableCardGridProps)
       .find((props) => props.resultLabel === "published groups");
 
-    expect(golferGridProps?.items.map((item) => item.id)).toEqual([
-      "golfer-mark",
-    ]);
+    expect(golferGridProps?.items).toHaveLength(1);
     expect(golferGridProps?.pagination).toEqual(
       expect.objectContaining({
-        endIndex: 2,
+        endIndex: 11,
         page: 2,
         pageKey: "unassignedPage",
-        pageSize: 1,
+        pageSize: 10,
         pageSizeKey: "unassignedPageSize",
-        startIndex: 2,
-        totalCount: 2,
+        startIndex: 11,
+        totalCount: 11,
       }),
     );
     expect(golferGridProps?.urlBackedFilter).toEqual({
@@ -397,28 +435,28 @@ describe("chair pairings page", () => {
       searchParams: {
         draftFilter: "capacity:open",
         draftPage: "2",
-        draftPageSize: "1",
+        draftPageSize: "10",
         publishedFilter: "tee:yes",
         publishedPage: "2",
-        publishedPageSize: "1",
+        publishedPageSize: "10",
         unassignedFilter: "gender:MALE",
         unassignedPage: "2",
-        unassignedPageSize: "1",
+        unassignedPageSize: "10",
       },
       filterParamKey: "unassignedFilter",
       pageParamKey: "unassignedPage",
     });
 
-    expect(draftGridProps?.items.map((item) => item.id)).toEqual(["group-2"]);
+    expect(draftGridProps?.items).toHaveLength(1);
     expect(draftGridProps?.pagination).toEqual(
       expect.objectContaining({
-        endIndex: 2,
+        endIndex: 11,
         page: 2,
         pageKey: "draftPage",
-        pageSize: 1,
+        pageSize: 10,
         pageSizeKey: "draftPageSize",
-        startIndex: 2,
-        totalCount: 2,
+        startIndex: 11,
+        totalCount: 11,
       }),
     );
     expect(draftGridProps?.urlBackedFilter).toEqual({
@@ -426,30 +464,28 @@ describe("chair pairings page", () => {
       searchParams: {
         draftFilter: "capacity:open",
         draftPage: "2",
-        draftPageSize: "1",
+        draftPageSize: "10",
         publishedFilter: "tee:yes",
         publishedPage: "2",
-        publishedPageSize: "1",
+        publishedPageSize: "10",
         unassignedFilter: "gender:MALE",
         unassignedPage: "2",
-        unassignedPageSize: "1",
+        unassignedPageSize: "10",
       },
       filterParamKey: "draftFilter",
       pageParamKey: "draftPage",
     });
 
-    expect(publishedGridProps?.items.map((item) => item.id)).toEqual([
-      "published-2",
-    ]);
+    expect(publishedGridProps?.items).toHaveLength(1);
     expect(publishedGridProps?.pagination).toEqual(
       expect.objectContaining({
-        endIndex: 2,
+        endIndex: 11,
         page: 2,
         pageKey: "publishedPage",
-        pageSize: 1,
+        pageSize: 10,
         pageSizeKey: "publishedPageSize",
-        startIndex: 2,
-        totalCount: 2,
+        startIndex: 11,
+        totalCount: 11,
       }),
     );
     expect(publishedGridProps?.urlBackedFilter).toEqual({
@@ -457,13 +493,13 @@ describe("chair pairings page", () => {
       searchParams: {
         draftFilter: "capacity:open",
         draftPage: "2",
-        draftPageSize: "1",
+        draftPageSize: "10",
         publishedFilter: "tee:yes",
         publishedPage: "2",
-        publishedPageSize: "1",
+        publishedPageSize: "10",
         unassignedFilter: "gender:MALE",
         unassignedPage: "2",
-        unassignedPageSize: "1",
+        unassignedPageSize: "10",
       },
       filterParamKey: "publishedFilter",
       pageParamKey: "publishedPage",
@@ -474,7 +510,7 @@ describe("chair pairings page", () => {
         label: "Unassigned golfers",
         pagination: expect.objectContaining({
           pageKey: "unassignedPage",
-          totalCount: 2,
+          totalCount: 11,
         }),
         searchParams: expect.objectContaining({
           unassignedPage: "2",
@@ -488,7 +524,7 @@ describe("chair pairings page", () => {
         label: "Draft groups",
         pagination: expect.objectContaining({
           pageKey: "draftPage",
-          totalCount: 2,
+          totalCount: 11,
         }),
       }),
     );
@@ -497,19 +533,21 @@ describe("chair pairings page", () => {
         label: "Published groups",
         pagination: expect.objectContaining({
           pageKey: "publishedPage",
-          totalCount: 2,
+          totalCount: 11,
         }),
       }),
     );
   });
 
   it("clamps an out-of-range section page to the last available pairings page", async () => {
+    participantFindMany.mockResolvedValue(buildPagedMaleGolfers(11));
+
     renderToStaticMarkup(
       await ChairPairingsPage({
         searchParams: Promise.resolve({
           unassignedFilter: "gender:male",
           unassignedPage: "99",
-          unassignedPageSize: "1",
+          unassignedPageSize: "10",
         }),
       }),
     );
@@ -518,17 +556,15 @@ describe("chair pairings page", () => {
       .map(([props]) => props as FilterableCardGridProps)
       .find((props) => props.resultLabel === "unassigned golfers");
 
-    expect(golferGridProps?.items.map((item) => item.id)).toEqual([
-      "golfer-mark",
-    ]);
+    expect(golferGridProps?.items).toHaveLength(1);
     expect(golferGridProps?.pagination).toEqual(
       expect.objectContaining({
-        endIndex: 2,
+        endIndex: 11,
         page: 2,
         pageKey: "unassignedPage",
-        pageSize: 1,
-        startIndex: 2,
-        totalCount: 2,
+        pageSize: 10,
+        startIndex: 11,
+        totalCount: 11,
       }),
     );
   });

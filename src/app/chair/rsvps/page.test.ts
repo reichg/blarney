@@ -177,8 +177,8 @@ describe("chair RSVPs page", () => {
     expect(requireChairPageAuth).toHaveBeenCalledWith("/chair/rsvps");
     expect(rsvpFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        skip: 50,
-        take: 50,
+        skip: 10,
+        take: 10,
         where: {
           source: "FORM",
         },
@@ -202,9 +202,9 @@ describe("chair RSVPs page", () => {
     expect(gridProps?.resultLabel).toBe("RSVPs");
     expect(gridProps?.pagination).toEqual(
       expect.objectContaining({
-        currentCount: 1,
-        endIndex: 51,
-        startIndex: 51,
+        currentCount: 10,
+        endIndex: 20,
+        startIndex: 11,
         totalCount: 51,
       }),
     );
@@ -221,9 +221,9 @@ describe("chair RSVPs page", () => {
     expect(paginationNav).toHaveBeenCalledWith(
       expect.objectContaining({
         pagination: expect.objectContaining({
-          currentCount: 1,
-          endIndex: 51,
-          startIndex: 51,
+          currentCount: 10,
+          endIndex: 20,
+          startIndex: 11,
           totalCount: 51,
         }),
         label: "RSVPs",

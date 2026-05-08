@@ -211,11 +211,11 @@
 
 .cardGrid {
   grid-auto-rows: 1fr;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 25rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 25rem), 1fr));
 }
 
 .compactCardGrid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
 }
 
 .previewCard {
@@ -446,7 +446,7 @@
 }
 
 .photoReviewGrid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 25rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 25rem), 1fr));
 }
 
 .photoReviewCard {
@@ -1134,7 +1134,7 @@
 }
 
 .photoGrid.remembranceGrid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
   justify-content: start;
 }
 

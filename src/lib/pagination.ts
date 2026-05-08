@@ -1,7 +1,10 @@
 import { z } from "zod";
 
-export const DEFAULT_PAGE_SIZE = 50;
+export const DEFAULT_PAGE_SIZE = 10;
 export const MAX_PAGE_SIZE = 50;
+export const PAGE_SIZE_OPTIONS = [10, 20, 30, 40, MAX_PAGE_SIZE] as const;
+
+type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
 
 export type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
@@ -76,6 +79,47 @@ function parsePositiveInteger(
   return result.success ? result.data : fallback;
 }
 
+function isPageSizeOption(value: number): value is PageSizeOption {
+  return PAGE_SIZE_OPTIONS.includes(value as PageSizeOption);
+}
+
+function getAllowedPageSizes(maxPageSize: number) {
+  const allowedPageSizes = PAGE_SIZE_OPTIONS.filter(
+    (pageSize) => pageSize <= maxPageSize,
+  );
+
+  return allowedPageSizes.length ? allowedPageSizes : [maxPageSize];
+}
+
+function normalizeDefaultPageSize(
+  pageSize: number,
+  allowedPageSizes: readonly number[],
+) {
+  const largestAllowedPageSize = allowedPageSizes[allowedPageSizes.length - 1];
+
+  if (pageSize >= largestAllowedPageSize) {
+    return largestAllowedPageSize;
+  }
+
+  return isPageSizeOption(pageSize) && allowedPageSizes.includes(pageSize)
+    ? pageSize
+    : allowedPageSizes[0];
+}
+
+function normalizeRequestedPageSize(
+  pageSize: number,
+  allowedPageSizes: readonly number[],
+  fallbackPageSize: number,
+) {
+  const largestAllowedPageSize = allowedPageSizes[allowedPageSizes.length - 1];
+
+  if (pageSize >= largestAllowedPageSize) {
+    return largestAllowedPageSize;
+  }
+
+  return allowedPageSizes.includes(pageSize) ? pageSize : fallbackPageSize;
+}
+
 export function parsePaginationParams(
   searchParams: SearchParamsRecord | undefined,
   options: PaginationKeyOptions = {},
@@ -83,15 +127,17 @@ export function parsePaginationParams(
   const pageKey = options.pageKey ?? "page";
   const pageSizeKey = options.pageSizeKey ?? "pageSize";
   const maxPageSize = Math.max(1, options.maxPageSize ?? MAX_PAGE_SIZE);
-  const defaultPageSize = Math.min(
-    maxPageSize,
+  const allowedPageSizes = getAllowedPageSizes(maxPageSize);
+  const defaultPageSize = normalizeDefaultPageSize(
     Math.max(1, options.defaultPageSize ?? DEFAULT_PAGE_SIZE),
+    allowedPageSizes,
   );
   const params = searchParams ?? {};
   const page = parsePositiveInteger(params[pageKey], 1);
-  const pageSize = Math.min(
+  const pageSize = normalizeRequestedPageSize(
     parsePositiveInteger(params[pageSizeKey], defaultPageSize),
-    maxPageSize,
+    allowedPageSizes,
+    defaultPageSize,
   );
 
   return {
