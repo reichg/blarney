@@ -254,6 +254,7 @@
   background: rgb(24 64 49 / 4%);
   outline: 3px solid var(--brass);
   outline-offset: -3px;
+  border-radius: var(--radius);
 }
 
 .previewCardHint {
@@ -1335,7 +1336,6 @@
 .photoPreview {
   aspect-ratio: 4 / 3;
   background: var(--surface-strong);
-  border-radius: var(--radius);
   object-fit: cover;
   width: 100%;
 }

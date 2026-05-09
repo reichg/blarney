@@ -184,8 +184,6 @@ export default async function ChairPhotosPage({
   }));
   const pendingFilters = [
     { value: "caption:yes", label: "Has caption" },
-    { value: "feedback:yes", label: "Has feedback" },
-    { value: "feedback:no", label: "No feedback" },
   ];
   const reviewedFilters = [
     { value: "notes:yes", label: "Has review notes" },

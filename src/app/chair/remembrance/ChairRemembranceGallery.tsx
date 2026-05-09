@@ -200,8 +200,6 @@ export function ChairRemembranceGallery({
               value={filterValue}
             >
               <option value="">All remembrance photos</option>
-              <option value="caption:yes">Has caption</option>
-              <option value="caption:no">No caption</option>
               <option value="note:yes">Has note</option>
               <option value="note:no">No note</option>
             </select>
