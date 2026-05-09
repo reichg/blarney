@@ -1,33 +1,13 @@
+import type {
+  PairingApplicant,
+  PairingDistributionGroup,
+  SortablePairingGolfer,
+} from "@/lib/type";
 import type { Gender } from "@prisma/client";
 
-export type PairingApplicant = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  gender: Gender;
-  age: number;
-  averageScore: number;
-};
-
-export type PairingGroupResult = {
-  name: string;
-  sortOrder: number;
-  members: Array<{
-    applicant: PairingApplicant;
-    slot: number;
-    isGoodGolfer: boolean;
-  }>;
-};
+export type { PairingApplicant, PairingGroupResult } from "@/lib/type";
 
 const maxPairingGroupMembers = 4;
-
-type PairingDistributionGroup = {
-  sortOrder: number;
-  members: PairingApplicant[];
-  femaleCount: number;
-  goodCount: number;
-  badCount: number;
-};
 
 const pairingGenderSortOrder: Record<Gender, number> = {
   MALE: 0,
@@ -35,11 +15,6 @@ const pairingGenderSortOrder: Record<Gender, number> = {
   NON_BINARY: 2,
   PREFER_NOT_TO_SAY: 3,
 };
-
-type SortablePairingGolfer = Pick<
-  PairingApplicant,
-  "id" | "firstName" | "lastName" | "gender" | "age" | "averageScore"
->;
 
 export function isGoodGolfer(averageScore: number) {
   return averageScore <= 41;

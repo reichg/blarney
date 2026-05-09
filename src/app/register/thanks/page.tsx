@@ -1,5 +1,9 @@
 import styles from "@/app/forms.module.css";
 import { RegistrationConfirmationPoller } from "@/app/register/thanks/RegistrationConfirmationPoller";
+import type {
+  RegisterThanksPageProps,
+  RegistrationStatusCard,
+} from "@/app/register/thanks/type";
 import { db } from "@/lib/db";
 import {
   getOptionalRegistrationPaymentBreakdown,
@@ -11,19 +15,6 @@ import { registrationCheckoutPayloadSchema } from "@/lib/registrationCheckout";
 import { reconcileRegistrationPayment } from "@/lib/registrationPayment";
 import { CreditCard } from "lucide-react";
 import { redirect } from "next/navigation";
-
-type RegisterThanksPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-type RegistrationStatusCard = {
-  eyebrow: string;
-  title: string;
-  body: string;
-  nextSteps: string[];
-  note?: string;
-  actionLabel?: string;
-};
 
 const configurationSignals = new Set([
   "CONFIG",

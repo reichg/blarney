@@ -1,6 +1,6 @@
 import styles from "@/app/forms.module.css";
 import { getEventSettings } from "@/lib/content";
-import { CalendarDays, MapPin, UsersRound } from "lucide-react";
+import { CalendarDays, MapPin } from "lucide-react";
 
 export default async function LogisticsPage() {
   const settings = await getEventSettings();
@@ -15,36 +15,67 @@ export default async function LogisticsPage() {
         </div>
       </header>
       <section className={styles.formSection}>
-        <div className={styles.formShell}>
+        <div className={`${styles.formShell} ${styles.balancedShell}`}>
           <article className={styles.panel}>
-            <MapPin aria-hidden="true" color="var(--brass)" size={26} />
-            <h2>Location</h2>
-            <p>{settings.eventLocation}</p>
-            <p>{settings.courseName}</p>
+            <div className={styles.panelHeader}>
+              <span className={styles.panelBadge}>
+                <MapPin aria-hidden="true" size={22} />
+              </span>
+              <div>
+                <p className={styles.panelKicker}>Where to be</p>
+                <h2>Course and location</h2>
+                <p className={styles.panelLead}>
+                  Keep the arrival details close so the weekend starts without
+                  guesswork.
+                </p>
+              </div>
+            </div>
+            <div className={styles.featureGrid}>
+              <div className={styles.featureCard}>
+                <strong>{settings.eventLocation}</strong>
+                <span>Main event location</span>
+              </div>
+              <div className={styles.featureCard}>
+                <strong>{settings.courseName}</strong>
+                <span>Course for the round and gathering</span>
+              </div>
+            </div>
           </article>
-          <div className={styles.panel}>
-            <h2>Weekend Plan</h2>
+          <article className={`${styles.panel} ${styles.panelStack}`}>
+            <div className={styles.panelHeader}>
+              <span className={styles.panelBadge}>
+                <CalendarDays aria-hidden="true" size={22} />
+              </span>
+              <div>
+                <p className={styles.panelKicker}>When to expect things</p>
+                <h2>Weekend plan</h2>
+                <p className={styles.panelLead}>
+                  A quick view of the schedule, the day-before event, and how
+                  updates will be shared.
+                </p>
+              </div>
+            </div>
             <ul className={styles.detailList}>
-              <li>
-                <CalendarDays
-                  aria-hidden="true"
-                  color="var(--brass)"
-                  size={18}
-                />{" "}
-                {settings.eventDates}
-              </li>
-              <li>{settings.eventTime}</li>
               <li>{settings.dayBeforeEventName}</li>
               <li>
                 Pairings and tee times will publish to the Home page once
                 finalized.
               </li>
               <li>
-                <UsersRound aria-hidden="true" color="var(--brass)" size={18} />{" "}
-                Chair contact: {settings.chairContact}
+                Keep Pay/Register handy if your party size or golf plans change.
               </li>
             </ul>
-          </div>
+            <div className={styles.featureGrid}>
+              <div className={styles.featureCard}>
+                <strong>{settings.eventDates}</strong>
+                <span>{settings.eventTime}</span>
+              </div>
+              <div className={styles.featureCard}>
+                <strong>Chair contact</strong>
+                <span>{settings.chairContact}</span>
+              </div>
+            </div>
+          </article>
         </div>
       </section>
     </>

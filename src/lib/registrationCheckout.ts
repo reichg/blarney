@@ -4,124 +4,22 @@ import {
   getRegistrationPaymentLinkState,
   hasSquarePaymentConfiguration,
 } from "@/lib/payment";
-import { Prisma, RegistrationCheckoutStatus } from "@prisma/client";
+import {
+  registrationCheckoutPayloadSchema,
+  type CheckoutLogLevel,
+  type RegistrationCheckoutConfirmationResult,
+  type RegistrationCheckoutPayload,
+  type RegistrationCheckoutPaymentResult,
+  type RegistrationCheckoutRecord,
+} from "@/lib/type";
+import { Prisma } from "@prisma/client";
 import { createHash, randomUUID } from "crypto";
-import { z } from "zod";
-
-function normalizeRequiredFormValue(value: unknown) {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-
-  return value ?? undefined;
-}
-
-const requiredTextSchema = z.preprocess(
-  normalizeRequiredFormValue,
-  z.string().trim().min(1),
-);
-
-const optionalTextSchema = z
-  .preprocess(
-    (value) => (typeof value === "string" ? value.trim() : value),
-    z.string().optional().nullable(),
-  )
-  .transform((value) => (value && value.length > 0 ? value : null));
-
-const golferSchema = z.object({
-  firstName: z.string().trim().min(1),
-  lastName: z.string().trim().min(1),
-  gender: z.enum(["MALE", "FEMALE"]),
-  age: z.coerce.number().int().min(1).max(110),
-  averageScore: z.coerce.number().int().min(20).max(120),
-});
-
-export const registrationCheckoutPayloadSchema = z
-  .object({
-    firstName: z.string().trim().min(1),
-    lastName: z.string().trim().min(1),
-    email: z
-      .string()
-      .trim()
-      .email()
-      .transform((value) => value.toLowerCase()),
-    phone: requiredTextSchema,
-    packageSelection: z.string().trim().min(1),
-    golfers: z.array(golferSchema).min(1).max(20),
-    bbqOnlyAdultCount: z.coerce.number().int().min(0).max(30),
-    bbqOnlyKidCount: z.coerce.number().int().min(0).max(30),
-    notes: optionalTextSchema,
-    dietaryNotes: optionalTextSchema,
-  })
-  .refine((data) => data.bbqOnlyAdultCount + data.bbqOnlyKidCount <= 30, {
-    message: "Keep additional BBQ-only guests at 30 or fewer.",
-    path: ["bbqOnlyAdultCount"],
-  });
-
-export type RegistrationCheckoutPayload = z.infer<
-  typeof registrationCheckoutPayloadSchema
->;
-
-type RegistrationCheckoutRecord = {
-  id: string;
-  idempotencyKey: string;
-  email: string;
-  payload: unknown;
-  paymentReference: string | null;
-  paymentOrderId: string | null;
-  paymentUrl: string | null;
-  status: RegistrationCheckoutStatus;
-  registrationId: string | null;
-  confirmedAt: Date | null;
-  paymentCompletedAt: Date | null;
-  paymentReviewReason: string | null;
-  lastReconciledAt: Date | null;
-  updatedAt: Date;
-};
-
-export type RegistrationCheckoutPaymentResult =
-  | {
-      ok: true;
-      status: "pending";
-      checkoutId: string;
-      paymentReference: string;
-      paymentUrl: string;
-    }
-  | {
-      ok: true;
-      status: "confirmed";
-      checkoutId: string;
-      registrationId: string;
-      paymentUrl: null;
-    }
-  | {
-      ok: false;
-      reason:
-        | "configuration"
-        | "duplicate"
-        | "not_found"
-        | "review"
-        | "unavailable";
-    };
-
-export type RegistrationCheckoutConfirmationResult =
-  | {
-      ok: true;
-      registrationId: string;
-    }
-  | {
-      ok: false;
-      reason:
-        | "duplicate"
-        | "invalid"
-        | "pending"
-        | "review"
-        | "retry"
-        | "unavailable";
-      paymentUrl?: string | null;
-    };
+export { registrationCheckoutPayloadSchema } from "@/lib/type";
+export type {
+  RegistrationCheckoutConfirmationResult,
+  RegistrationCheckoutPayload,
+  RegistrationCheckoutPaymentResult,
+} from "@/lib/type";
 
 function isUniqueConstraintError(error: unknown) {
   return (
@@ -129,8 +27,6 @@ function isUniqueConstraintError(error: unknown) {
     error.code === "P2002"
   );
 }
-
-type CheckoutLogLevel = "info" | "warn" | "error";
 
 function getPaymentReferenceFingerprint(reference: string | null | undefined) {
   if (!reference) {

@@ -1,68 +1,13 @@
 "use server";
 
 import {
+  registrationSubmitSchema,
+  type SubmitRegistrationResult,
+} from "@/app/actions/type";
+import {
   createRegistrationCheckoutPayment,
   registrationCheckoutPayloadSchema,
 } from "@/lib/registrationCheckout";
-import { z } from "zod";
-
-function normalizeRequiredFormValue(value: unknown) {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-
-  return value ?? undefined;
-}
-
-const requiredTextSchema = z.preprocess(
-  normalizeRequiredFormValue,
-  z.string().trim().min(1),
-);
-
-const optionalTextSchema = z
-  .preprocess(
-    (value) => (typeof value === "string" ? value.trim() : value),
-    z.string().optional().nullable(),
-  )
-  .transform((value) => (value && value.length > 0 ? value : null));
-
-const requiredIntSchema = (minimum: number, maximum: number) =>
-  z.preprocess(
-    normalizeRequiredFormValue,
-    z.coerce.number().int().min(minimum).max(maximum),
-  );
-
-const golferSubmitSchema = z.object({
-  firstName: requiredTextSchema,
-  lastName: requiredTextSchema,
-  gender: z.enum(["MALE", "FEMALE"]),
-  age: requiredIntSchema(1, 110),
-  averageScore: requiredIntSchema(20, 120),
-});
-
-const registrationSubmitSchema = z
-  .object({
-    firstName: requiredTextSchema,
-    lastName: requiredTextSchema,
-    email: z
-      .string()
-      .trim()
-      .email()
-      .transform((value) => value.toLowerCase()),
-    phone: requiredTextSchema,
-    packageSelection: requiredTextSchema,
-    golfers: z.array(golferSubmitSchema).min(1).max(20),
-    bbqOnlyAdultCount: requiredIntSchema(0, 30),
-    bbqOnlyKidCount: requiredIntSchema(0, 30),
-    notes: optionalTextSchema,
-    dietaryNotes: optionalTextSchema,
-  })
-  .refine((data) => data.bbqOnlyAdultCount + data.bbqOnlyKidCount <= 30, {
-    message: "Keep additional BBQ-only guests at 30 or fewer.",
-    path: ["bbqOnlyAdultCount"],
-  });
 
 function getFirstFormValue(formData: FormData, names: string[]) {
   for (const name of names) {
@@ -154,22 +99,6 @@ function getRegistrationPaymentErrorMessage(error: unknown) {
 
 const duplicateRegistrationMessage =
   "This email already has a registration or RSVP on file.";
-
-export type SubmitRegistrationResult =
-  | {
-      ok: true;
-      checkoutId: string;
-      checkoutUrl: string;
-      paymentUrl: string;
-      paymentPath: string;
-      thanksPath: string;
-      registrationId?: string;
-      alreadyConfirmed?: boolean;
-    }
-  | {
-      ok: false;
-      error: string;
-    };
 
 export async function submitRegistration(
   formData: FormData,

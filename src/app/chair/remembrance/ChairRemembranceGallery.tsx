@@ -3,27 +3,9 @@
 import styles from "@/app/chair/chair.module.css";
 import { filterChairListItems } from "@/app/chair/listFiltering";
 import { RemembrancePhotoCard } from "@/app/chair/remembrance/RemembrancePhotoCard";
-import {
-  formatPaginationSummary,
-  type PaginationState,
-} from "@/lib/pagination";
+import { type ChairRemembranceGalleryProps } from "@/app/chair/remembrance/type";
+import { formatPaginationSummary } from "@/lib/pagination";
 import { useEffect, useMemo, useRef, useState } from "react";
-
-type RemembrancePhoto = {
-  id: string;
-  title: string;
-  caption: string | null;
-  submitterEmail: string;
-  submitterName: string;
-  notePreview: string | null;
-  note: string | null;
-  receivedAtLabel: string;
-};
-
-type ChairRemembranceGalleryProps = {
-  photos: RemembrancePhoto[];
-  pagination?: PaginationState;
-};
 
 function getAttachmentFileName(contentDisposition: string | null) {
   if (!contentDisposition) {

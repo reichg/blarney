@@ -6,12 +6,15 @@ import {
   pickSearchParams,
 } from "@/app/chair/listFiltering";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
+import {
+  type ChairRsvpHeaderTotals,
+  type ChairRsvpsPageProps,
+} from "@/app/chair/rsvps/type";
 import { PaginationNav } from "@/components/PaginationNav";
 import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import {
   getChairRsvpPartyCounts,
   sumChairRsvpPartyCounts,
-  type ChairRsvpPartyCounts,
 } from "@/lib/chairRsvps";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
@@ -24,10 +27,6 @@ import {
 import type { Prisma, RsvpSource } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
-
-type ChairRsvpsPageProps = {
-  searchParams: Promise<SearchParamsRecord>;
-};
 
 const chairRsvpFilterParamKey = "filter";
 const chairRsvpSources = ["FORM", "REGISTRATION"] as const;
@@ -51,11 +50,6 @@ const chairRsvpPartyCountsSelect = {
     },
   },
 } satisfies Prisma.RsvpSelect;
-
-type ChairRsvpHeaderTotals = {
-  overall: ChairRsvpPartyCounts;
-  filtered: ChairRsvpPartyCounts | null;
-};
 
 function parseRsvpFilter(searchParams: SearchParamsRecord | undefined) {
   const filterValue = parseChairListFilterParam(

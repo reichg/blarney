@@ -1,10 +1,7 @@
 import { db } from "@/lib/db";
 import { getPhotoReadUrl } from "@/lib/s3";
 import { NextResponse } from "next/server";
-
-type PhotoViewContext = {
-  params: Promise<{ id: string }>;
-};
+import { type PhotoViewContext } from "./type";
 
 export async function GET(_request: Request, context: PhotoViewContext) {
   const { id } = await context.params;

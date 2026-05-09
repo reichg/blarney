@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
+import type { EventSettings } from "@/lib/type";
 
-export const defaultSettings = {
+export type { EventSettings } from "@/lib/type";
+
+export const defaultSettings: EventSettings = {
   eventTitle: "Blarney 42",
   eventDates: "Dates to be announced",
   eventTime: "Tee times to be announced",
@@ -15,8 +18,6 @@ export const defaultSettings = {
   remembranceUrl: "https://example.com/in-remembrance",
   chairContact: "chair@example.com",
 };
-
-export type EventSettings = typeof defaultSettings;
 
 export async function getEventSettings(): Promise<EventSettings> {
   try {

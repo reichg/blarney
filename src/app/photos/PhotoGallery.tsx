@@ -1,17 +1,9 @@
 "use client";
 
+import type { PhotoGalleryProps } from "@/app/photos/type";
 import { ModularCard } from "@/components/ModularCard";
 import { useEffect, useId, useRef, useState } from "react";
 import photoStyles from "./photos.module.css";
-
-type PhotoGalleryPhoto = {
-  id: string;
-  caption: string | null;
-};
-
-type PhotoGalleryProps = {
-  photos: PhotoGalleryPhoto[];
-};
 
 export function PhotoGallery({ photos }: PhotoGalleryProps) {
   const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);

@@ -1,13 +1,6 @@
-export type PhotoUploadRequest = {
-  caption?: string;
-  contentType: string;
-  feedbackId?: string;
-  fileName: string;
-  fileSize: number;
-  purpose?: "GALLERY" | "REMEMBRANCE";
-  submitterEmail: string;
-  submitterName: string;
-};
+import type { PhotoUploadRequest } from "@/lib/type";
+
+export type { PhotoUploadRequest } from "@/lib/type";
 
 export async function uploadPhotoWithPresign(
   photo: File,

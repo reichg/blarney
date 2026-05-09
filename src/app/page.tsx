@@ -1,3 +1,4 @@
+import { type HomePageProps } from "@/app/type";
 import { PaginationNav } from "@/components/PaginationNav";
 import { getEventSettings } from "@/lib/content";
 import { db } from "@/lib/db";
@@ -6,7 +7,6 @@ import {
   buildPaginationState,
   parsePaginationParams,
   type PaginationParams,
-  type SearchParamsRecord,
 } from "@/lib/pagination";
 import {
   CalendarDays,
@@ -20,10 +20,6 @@ import Link from "next/link";
 import styles from "./page.module.css";
 
 export const dynamic = "force-dynamic";
-
-type HomePageProps = {
-  searchParams: Promise<SearchParamsRecord>;
-};
 
 async function getPublishedPairings(pagination: PaginationParams) {
   try {
@@ -78,34 +74,71 @@ export default async function Home({ searchParams }: HomePageProps) {
         />
         <div className={styles.heroOverlay} />
         <div className={styles.heroContent}>
-          <p className="eyebrow">{settings.eventLocation}</p>
-          <h1>{settings.eventTitle}</h1>
-          <p>{settings.logisticsSummary}</p>
-          <div className={styles.heroFacts}>
-            <span className={styles.heroFact}>{settings.eventDates}</span>
-            <span className={styles.heroFact}>{settings.eventTime}</span>
-            <span className={styles.heroFact}>{settings.courseName}</span>
+          <div className={styles.heroCopy}>
+            <p className="eyebrow">{settings.eventLocation}</p>
+            <h1>{settings.eventTitle}</h1>
+            <p>{settings.logisticsSummary}</p>
+            <div className={styles.heroFacts}>
+              <span className={styles.heroFact}>{settings.eventDates}</span>
+              <span className={styles.heroFact}>{settings.eventTime}</span>
+              <span className={styles.heroFact}>{settings.courseName}</span>
+            </div>
+            <div className="button-row">
+              <Link className="primary-button" href="/register">
+                <Flag aria-hidden="true" size={18} />
+                Register or RSVP
+              </Link>
+              <Link className="secondary-button" href="/logistics">
+                <CalendarDays aria-hidden="true" size={18} />
+                Logistics
+              </Link>
+            </div>
           </div>
-          <div className="button-row">
-            <Link className="primary-button" href="/register">
-              <Flag aria-hidden="true" size={18} />
-              Register or RSVP
-            </Link>
-            <Link className="secondary-button" href="/logistics">
-              <CalendarDays aria-hidden="true" size={18} />
-              Logistics
-            </Link>
-          </div>
+          <aside className={styles.heroPanel}>
+            <p className={styles.heroPanelEyebrow}>Weekend at a glance</p>
+            <div className={styles.heroPanelList}>
+              <div className={styles.heroPanelItem}>
+                <span className={styles.heroPanelLabel}>Dates</span>
+                <strong>{settings.eventDates}</strong>
+              </div>
+              <div className={styles.heroPanelItem}>
+                <span className={styles.heroPanelLabel}>Tee window</span>
+                <strong>{settings.eventTime}</strong>
+              </div>
+              <div className={styles.heroPanelItem}>
+                <span className={styles.heroPanelLabel}>Course</span>
+                <strong>{settings.courseName}</strong>
+              </div>
+              <div className={styles.heroPanelItem}>
+                <span className={styles.heroPanelLabel}>Chair contact</span>
+                <strong>{settings.chairContact}</strong>
+              </div>
+            </div>
+            <div className={styles.heroPanelLinks}>
+              <Link className={styles.heroPanelLink} href="/photos">
+                <Images aria-hidden="true" size={18} />
+                Browse photos
+              </Link>
+              <Link className={styles.heroPanelLink} href="/feedback">
+                <MessageSquare aria-hidden="true" size={18} />
+                Send feedback
+              </Link>
+            </div>
+          </aside>
         </div>
       </section>
 
-      <section className="section">
+      <section className={`section ${styles.pairingSection}`}>
         <div className="section-inner">
-          <div className="section-inner">
+          <div className={styles.pairingShell}>
             <div className={styles.pairingHeader}>
-              <div>
+              <div className={styles.pairingIntro}>
                 <p className="eyebrow">Pairings and tee times</p>
                 <h2 className="section-title">The first tee, once set.</h2>
+                <p className="section-copy">
+                  Published groups appear here as soon as the chair finalizes
+                  the draw.
+                </p>
               </div>
               <Link className="secondary-button" href="/register">
                 <Flag aria-hidden="true" size={18} />
@@ -146,43 +179,81 @@ export default async function Home({ searchParams }: HomePageProps) {
               searchParams={params}
             />
           </div>
-          <hr className={styles.sectionDivider} />
+        </div>
+      </section>
+
+      <section className={`section ${styles.overviewSection}`}>
+        <div className="section-inner">
+          <div className="section-intro">
+            <p className="eyebrow">Plan the weekend</p>
+            <h2 className="section-title">
+              Everything guests need, without the clutter.
+            </h2>
+            <p className="section-copy">
+              Start with Pay/Register, confirm the weekend plan, browse the
+              gallery, and leave the chair a note from one clear home page.
+            </p>
+          </div>
           <div className={styles.overviewGrid}>
             <article className={styles.overviewItem}>
-              <UsersRound aria-hidden="true" color="var(--brass)" size={24} />
-              <h3>Register or RSVP</h3>
+              <div className={styles.overviewIcon}>
+                <UsersRound aria-hidden="true" color="var(--brass)" size={24} />
+              </div>
+              <h3>Pay/Register</h3>
               <p>
-                Register golfers, add BBQ-only adults or kids, or send a
-                BBQ-only RSVP from one Pay/Register form.
+                Register golfers, add BBQ-only guests, or send a BBQ-only RSVP
+                from one streamlined form.
               </p>
+              <Link className={styles.overviewLink} href="/register">
+                Start registration
+              </Link>
             </article>
             <article className={styles.overviewItem}>
-              <CalendarDays aria-hidden="true" color="var(--brass)" size={24} />
-              <h3>Payment Handoff</h3>
+              <div className={styles.overviewIcon}>
+                <CalendarDays
+                  aria-hidden="true"
+                  color="var(--brass)"
+                  size={24}
+                />
+              </div>
+              <h3>Weekend logistics</h3>
               <p>
-                Golf registration includes BBQ, and BBQ-only RSVPs continue to
-                Square checkout for adult and kid counts.
+                Keep the date, time, location, and pre-event details close at
+                hand without hunting through messages.
               </p>
+              <Link className={styles.overviewLink} href="/logistics">
+                View logistics
+              </Link>
             </article>
             <article className={styles.overviewItem}>
-              <Images aria-hidden="true" color="var(--brass)" size={24} />
+              <div className={styles.overviewIcon}>
+                <Images aria-hidden="true" color="var(--brass)" size={24} />
+              </div>
               <h3>Photos</h3>
               <p>
-                Past tournament memories can be submitted for chair review
-                before they reach the public gallery.
+                Share favorite tournament shots for review, then browse the
+                approved public gallery.
               </p>
+              <Link className={styles.overviewLink} href="/photos">
+                Open gallery
+              </Link>
             </article>
             <article className={styles.overviewItem}>
-              <MessageSquare
-                aria-hidden="true"
-                color="var(--brass)"
-                size={24}
-              />
+              <div className={styles.overviewIcon}>
+                <MessageSquare
+                  aria-hidden="true"
+                  color="var(--brass)"
+                  size={24}
+                />
+              </div>
               <h3>Feedback</h3>
               <p>
-                Participants can send notes that are collected privately for the
-                chair.
+                Send private notes about registration, logistics, pairings, or
+                family events directly to the chair.
               </p>
+              <Link className={styles.overviewLink} href="/feedback">
+                Share feedback
+              </Link>
             </article>
           </div>
         </div>

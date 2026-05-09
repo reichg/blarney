@@ -1,27 +1,16 @@
-import { arrayToCsv, type CsvField } from "@/lib/csv";
+import { arrayToCsv } from "@/lib/csv";
+import type {
+  ChairRegistrationExportRecord,
+  ChairRegistrationExportScope,
+  CsvField,
+} from "@/lib/type";
 
 const goodGolferScoreThreshold = 41;
 
-export type ChairRegistrationExportRecord = {
-  paymentStatus: string;
-  packageSelection: string;
-  adultGuestCount: number;
-  childGuestCount: number;
-  checkout: {
-    email: string | null;
-  } | null;
-  participant: {
-    firstName: string;
-    lastName: string;
-    email: string | null;
-    phone: string | null;
-    age: number;
-    gender: string;
-    averageScore: number;
-  };
-};
-
-export type ChairRegistrationExportScope = "general" | "golfers";
+export type {
+  ChairRegistrationExportRecord,
+  ChairRegistrationExportScope,
+} from "@/lib/type";
 
 export function formatRegistrationPaymentStatus(paymentStatus: string): string {
   if (paymentStatus === "EXTERNAL_PENDING") {

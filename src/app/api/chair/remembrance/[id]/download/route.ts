@@ -1,17 +1,14 @@
+import { requireChairApiAuth } from "@/lib/chairAuth.server";
 import {
   buildChairRemembranceDownloadFileName,
   findChairRemembrancePhotoForDownload,
   getChairRemembrancePhotoObjectKey,
 } from "@/lib/chairPhotos";
-import { requireChairApiAuth } from "@/lib/chairAuth.server";
 import { getPhotoObjectBytes } from "@/lib/s3";
 import { NextRequest, NextResponse } from "next/server";
+import { type ChairRemembranceDownloadContext } from "./type";
 
 export const runtime = "nodejs";
-
-type ChairRemembranceDownloadContext = {
-  params: Promise<{ id: string }>;
-};
 
 export async function GET(
   request: NextRequest,

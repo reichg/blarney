@@ -1,35 +1,17 @@
 import { db } from "@/lib/db";
-import {
-  buildPaginationState,
-  type PaginationParams,
-  type PaginationState,
-} from "@/lib/pagination";
+import { buildPaginationState, type PaginationParams } from "@/lib/pagination";
 import { getPhotoObjectBytes } from "@/lib/s3";
+import {
+  chairPhotoListOrderBy,
+  chairPhotoReviewInclude,
+  chairRemembranceDownloadSelect,
+  type ChairPhotoListPageOptions,
+  type ChairRemembranceDownloadPhoto,
+  type PaginatedChairPhotoResult,
+} from "@/lib/type";
 import { type PhotoPurpose, type Prisma } from "@prisma/client";
 import { zipSync } from "fflate";
 import { basename, extname } from "node:path";
-
-const chairPhotoReviewInclude = {
-  feedback: {
-    select: {
-      id: true,
-      message: true,
-    },
-  },
-} as const;
-
-const chairPhotoListOrderBy = [
-  { createdAt: "desc" },
-  { id: "desc" },
-] satisfies Prisma.PhotoSubmissionOrderByWithRelationInput[];
-
-const chairRemembranceDownloadSelect = {
-  id: true,
-  caption: true,
-  s3Key: true,
-  approvedS3Key: true,
-  createdAt: true,
-} as const;
 
 const uuidFilePrefixPattern =
   /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}-/i;
@@ -37,28 +19,7 @@ const uuidFilePrefixPattern =
 export const REMEMBRANCE_ZIP_FILE_NAME = "blarney-remembrance.zip";
 export const REMEMBRANCE_ZIP_FOLDER_NAME = "blarney-remembrance";
 
-export type ChairRemembranceDownloadPhoto = {
-  id: string;
-  caption: string | null;
-  s3Key: string;
-  approvedS3Key: string | null;
-  createdAt: Date;
-};
-
-type ChairPhotoRecord = Prisma.PhotoSubmissionGetPayload<{
-  include: typeof chairPhotoReviewInclude;
-}>;
-
-type PaginatedChairPhotoResult = {
-  photos: ChairPhotoRecord[];
-  pagination: PaginationState;
-};
-
-type ChairPhotoListPageOptions = {
-  pagination: PaginationParams;
-  purpose: PhotoPurpose;
-  where?: Prisma.PhotoSubmissionWhereInput;
-};
+export type { ChairRemembranceDownloadPhoto } from "@/lib/type";
 
 async function listChairPhotosByPurpose(purpose: PhotoPurpose) {
   try {

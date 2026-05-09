@@ -1,4 +1,5 @@
 import styles from "@/app/forms.module.css";
+import type { PhotosPageProps } from "@/app/photos/type";
 import { PaginationNav } from "@/components/PaginationNav";
 import { PhotoUploadForm } from "@/components/PhotoUploadForm";
 import { db } from "@/lib/db";
@@ -6,16 +7,11 @@ import {
   buildPaginationState,
   parsePaginationParams,
   type PaginationParams,
-  type SearchParamsRecord,
 } from "@/lib/pagination";
 import { PhotoGallery } from "./PhotoGallery";
 import photoStyles from "./photos.module.css";
 
 export const dynamic = "force-dynamic";
-
-type PhotosPageProps = {
-  searchParams: Promise<SearchParamsRecord>;
-};
 
 async function getApprovedPhotos(pagination: PaginationParams) {
   const where = {
@@ -83,7 +79,7 @@ export default async function PhotosPage({ searchParams }: PhotosPageProps) {
           </section>
           <section
             aria-labelledby="approved-photos-heading"
-            className={photoStyles.gallerySection}
+            className={`${styles.panel} ${photoStyles.gallerySection}`}
           >
             <div className={photoStyles.galleryHeader}>
               <h2 id="approved-photos-heading">Approved photos</h2>

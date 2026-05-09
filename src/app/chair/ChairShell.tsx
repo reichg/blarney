@@ -1,12 +1,8 @@
 "use client";
 
+import type { ChairShellProps } from "@/app/chair/type";
 import { usePathname } from "next/navigation";
 import styles from "./chair.module.css";
-
-type ChairShellProps = {
-  children: React.ReactNode;
-  logout: React.ReactNode;
-};
 
 export function ChairShell({ children, logout }: ChairShellProps) {
   const pathname = usePathname();

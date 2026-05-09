@@ -1,20 +1,13 @@
 "use client";
 
 import styles from "@/components/Navigation.module.css";
+import type { MobileNavigationProps } from "@/components/type";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
-export type NavLink = {
-  href: string;
-  label: string;
-  external?: boolean;
-};
-
-type MobileNavigationProps = {
-  links: NavLink[];
-};
+export type { NavLink } from "@/components/type";
 
 function isActivePath(pathname: string, href: string) {
   if (href === "/" || href === "/chair") {

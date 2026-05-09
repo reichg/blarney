@@ -1,11 +1,8 @@
 import { loginChair } from "@/app/actions/chairAuth";
 import styles from "@/app/chair/chair.module.css";
+import { type ChairLoginPageProps } from "@/app/chair/login/type";
 import formStyles from "@/app/forms.module.css";
 import { LockKeyhole } from "lucide-react";
-
-type ChairLoginPageProps = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-};
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;

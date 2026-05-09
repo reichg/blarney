@@ -5,16 +5,12 @@ import {
   hasSquarePaymentConfiguration,
   isCompleteRegistrationPaymentStatus,
 } from "@/lib/payment";
+import type {
+  RegistrationPaymentReconciliation,
+  RegistrationPaymentRecord,
+} from "@/lib/type";
 
-type RegistrationPaymentRecord = {
-  id: string;
-  paymentStatus: string;
-  paymentReference: string | null;
-};
-
-export type RegistrationPaymentReconciliation = RegistrationPaymentRecord & {
-  existingPaymentUrl: string | null;
-};
+export type { RegistrationPaymentReconciliation } from "@/lib/type";
 
 export async function reconcileRegistrationPayment(
   registration: RegistrationPaymentRecord,

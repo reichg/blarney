@@ -1,20 +1,16 @@
 import styles from "@/app/chair/chair.module.css";
 import { ChairRemembranceGallery } from "@/app/chair/remembrance/ChairRemembranceGallery";
+import {
+  type ChairRemembrancePageProps,
+  type RemembrancePhoto,
+} from "@/app/chair/remembrance/type";
 import { PaginationNav } from "@/components/PaginationNav";
 import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import { listChairRemembrancePhotosPage } from "@/lib/chairPhotos";
 import { formatDateTime } from "@/lib/format";
-import {
-  parsePaginationParams,
-  type PaginationState,
-  type SearchParamsRecord,
-} from "@/lib/pagination";
+import { parsePaginationParams, type PaginationState } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
-
-type ChairRemembrancePageProps = {
-  searchParams: Promise<SearchParamsRecord>;
-};
 
 function summarizeMessage(message: string) {
   if (message.length <= 220) {
@@ -33,7 +29,7 @@ export default async function ChairRemembrancePage({
   const paginationParams = parsePaginationParams(params);
   const { photos, pagination } =
     await listChairRemembrancePhotosPage(paginationParams);
-  const remembrancePhotos = photos.map((photo) => ({
+  const remembrancePhotos: RemembrancePhoto[] = photos.map((photo) => ({
     id: photo.id,
     title: photo.caption ?? "N/A",
     caption: photo.caption,

@@ -1,5 +1,6 @@
 "use server";
 
+import { photoIdSchema, photoReviewSchema } from "@/app/actions/type";
 import { CHAIR_COOKIE, verifyChairToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -11,29 +12,6 @@ import {
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { z } from "zod";
-
-function normalizeRequiredFormValue(value: unknown) {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    return trimmed.length ? trimmed : undefined;
-  }
-
-  return value ?? undefined;
-}
-
-const photoReviewSchema = z.object({
-  id: z.preprocess(normalizeRequiredFormValue, z.string().trim().min(1)),
-  reviewNotes: z.preprocess(
-    normalizeRequiredFormValue,
-    z.string().trim().min(1).optional(),
-  ),
-});
-
-const photoIdSchema = z.object({
-  id: z.preprocess(normalizeRequiredFormValue, z.string().trim().min(1)),
-});
 
 async function requireChairSession() {
   const cookieStore = await cookies();

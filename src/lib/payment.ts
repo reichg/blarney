@@ -1,4 +1,17 @@
 import { formatCurrency } from "@/lib/format";
+import type {
+  RegistrationGuestCounts,
+  RegistrationPaymentBreakdown,
+  RegistrationPaymentLineItem,
+  RegistrationPaymentLinkState,
+  RsvpAttendeeCounts,
+  RsvpPaymentBreakdown,
+  SquareOrder,
+  SquareOrderLineItem,
+  SquareOrderResponse,
+  SquarePaymentLinkDetailsResponse,
+  SquarePaymentLinkResponse,
+} from "@/lib/type";
 import { createHash } from "crypto";
 import { jwtVerify, SignJWT } from "jose";
 
@@ -17,120 +30,14 @@ export const completeRegistrationPaymentStatuses = [
 export function isCompleteRegistrationPaymentStatus(status: string) {
   return status === "CONFIRMED" || status === "WAIVED";
 }
-
-type SquarePaymentLinkResponse = {
-  errors?: Array<{
-    code?: string;
-    detail?: string;
-  }>;
-  payment_link?: {
-    id?: string;
-    url?: string;
-    order_id?: string;
-  };
-};
-
-type SquareOrder = {
-  id?: string;
-  state?: string;
-  tenders?: Array<{
-    id?: string;
-    payment_id?: string;
-  }>;
-  net_amount_due_money?: {
-    amount?: number;
-    currency?: string;
-  };
-};
-
-type SquarePaymentLinkDetailsResponse = SquarePaymentLinkResponse & {
-  payment_link?: {
-    id?: string;
-    url?: string;
-    order_id?: string;
-  };
-  related_resources?: {
-    orders?: SquareOrder[];
-  };
-};
-
-type SquareOrderResponse = {
-  errors?: Array<{
-    code?: string;
-    detail?: string;
-  }>;
-  order?: SquareOrder;
-};
-
-type SquareOrderLineItem = {
-  name: string;
-  quantity: string;
-  base_price_money: {
-    amount: number;
-    currency: string;
-  };
-};
-
-export type RegistrationGuestCounts = {
-  golferCount?: number;
-  bbqOnlyAdultCount?: number;
-  bbqOnlyKidCount?: number;
-  adultGuestCount?: number;
-  childGuestCount?: number;
-};
-
-export type RsvpAttendeeCounts = {
-  adultAttendeeCount: number;
-  childAttendeeCount: number;
-};
-
-export type RegistrationPaymentLineItem = {
-  label: string;
-  quantity: number;
-  unitPriceCents: number;
-  unitPriceLabel: string;
-  totalCents: number;
-  totalLabel: string;
-};
-
-export type RegistrationPaymentBreakdown = {
-  currency: string;
-  golferCount: number;
-  golfPriceCents: number;
-  golfPriceLabel: string;
-  bbqOnlyAdultCount: number;
-  bbqOnlyKidCount: number;
-  adultGuestCount: number;
-  adultGuestPriceCents: number;
-  adultGuestPriceLabel: string;
-  childGuestCount: number;
-  childGuestPriceCents: number;
-  childGuestPriceLabel: string;
-  totalCents: number;
-  totalLabel: string;
-  lineItems: RegistrationPaymentLineItem[];
-};
-
-export type RsvpPaymentBreakdown = {
-  currency: string;
-  adultAttendeeCount: number;
-  adultGuestPriceCents: number;
-  adultGuestPriceLabel: string;
-  childAttendeeCount: number;
-  childGuestPriceCents: number;
-  childGuestPriceLabel: string;
-  totalCents: number;
-  totalLabel: string;
-  lineItems: RegistrationPaymentLineItem[];
-};
-
-export type RegistrationPaymentLinkState = {
-  reference: string;
-  orderId: string | null;
-  url: string | null;
-  orderState: string | null;
-  isComplete: boolean;
-};
+export type {
+  RegistrationGuestCounts,
+  RegistrationPaymentBreakdown,
+  RegistrationPaymentLineItem,
+  RegistrationPaymentLinkState,
+  RsvpAttendeeCounts,
+  RsvpPaymentBreakdown,
+} from "@/lib/type";
 
 function parseIntegerEnv(
   variableName: string,

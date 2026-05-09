@@ -1,46 +1,14 @@
 "use client";
 
 import styles from "@/app/chair/chair.module.css";
-import {
-  filterChairListItems,
-  type ChairListItemFilter,
-  type ChairListSearchItem,
-} from "@/app/chair/listFiltering";
+import { filterChairListItems } from "@/app/chair/listFiltering";
+import type { FilterableCardGridProps } from "@/app/chair/type";
 import {
   formatPaginationSummary,
-  type PaginationState,
   type SearchParamsRecord,
 } from "@/lib/pagination";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Children,
-  useMemo,
-  useState,
-  useTransition,
-  type ReactNode,
-} from "react";
-
-type UrlBackedFilter = {
-  value: string;
-  searchParams: SearchParamsRecord;
-  filterParamKey?: string;
-  pageParamKey?: string;
-};
-
-type FilterableCardGridProps = {
-  items: ChairListSearchItem[];
-  filters?: ChairListItemFilter[];
-  searchLabel: string;
-  searchPlaceholder: string;
-  filterLabel?: string;
-  filterAllLabel?: string;
-  emptyMessage: string;
-  resultLabel: string;
-  className?: string;
-  children: ReactNode;
-  urlBackedFilter?: UrlBackedFilter;
-  pagination?: PaginationState;
-};
+import { Children, useMemo, useState, useTransition } from "react";
 
 function buildSearchParams(searchParams: SearchParamsRecord) {
   const params = new URLSearchParams();

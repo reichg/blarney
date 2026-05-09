@@ -1,26 +1,12 @@
-import type { RsvpSource } from "@prisma/client";
+import type {
+  ChairRsvpPartyCounts,
+  ChairRsvpPartyCountsInput,
+} from "@/lib/type";
 
-type ChairRsvpRegistrationCounts = {
-  adultGuestCount: number;
-  childGuestCount: number;
-};
-
-export type ChairRsvpPartyCountsInput = {
-  source: RsvpSource;
-  adultAttendeeCount: number | null;
-  childAttendeeCount: number | null;
-  attendeeCount: number;
-  participant: {
-    age: number;
-    registrations: ChairRsvpRegistrationCounts[];
-  } | null;
-};
-
-export type ChairRsvpPartyCounts = {
-  adultAttendeeCount: number;
-  childAttendeeCount: number;
-  attendeeCount: number;
-};
+export type {
+  ChairRsvpPartyCounts,
+  ChairRsvpPartyCountsInput,
+} from "@/lib/type";
 
 export function getChairRsvpPartyCounts(
   rsvp: ChairRsvpPartyCountsInput,

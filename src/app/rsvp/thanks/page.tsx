@@ -1,5 +1,9 @@
 import styles from "@/app/forms.module.css";
 import { RegistrationConfirmationPoller } from "@/app/register/thanks/RegistrationConfirmationPoller";
+import {
+  type RsvpStatusCard,
+  type RsvpThanksPageProps,
+} from "@/app/rsvp/thanks/type";
 import { db } from "@/lib/db";
 import {
   getRsvpCheckoutPaymentPath,
@@ -8,19 +12,6 @@ import {
 import { rsvpCheckoutPayloadSchema } from "@/lib/rsvpCheckout";
 import { CreditCard } from "lucide-react";
 import { redirect } from "next/navigation";
-
-type RsvpThanksPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-type RsvpStatusCard = {
-  eyebrow: string;
-  title: string;
-  body: string;
-  nextSteps: string[];
-  note?: string;
-  actionLabel?: string;
-};
 
 const configurationSignals = new Set([
   "CONFIG",

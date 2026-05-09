@@ -4,6 +4,7 @@ import {
   joinSearchText,
   uniqueFilterOptions,
 } from "@/app/chair/display";
+import { type ChairFeedbackPageProps } from "@/app/chair/feedback/type";
 import { FilterableCardGrid } from "@/app/chair/FilterableCardGrid";
 import {
   parseChairListFilterParam,
@@ -24,10 +25,6 @@ import { REMEMBRANCE_FEEDBACK_CATEGORY } from "@/lib/remembrance";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
-
-type ChairFeedbackPageProps = {
-  searchParams: Promise<SearchParamsRecord>;
-};
 
 const feedbackFilterParamKey = "filter";
 

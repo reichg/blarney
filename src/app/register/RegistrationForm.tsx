@@ -1,55 +1,20 @@
 "use client";
 
-import type { SubmitRegistrationResult } from "@/app/actions/registration";
-import type { SubmitRsvpResult } from "@/app/actions/rsvp";
 import styles from "@/app/forms.module.css";
+import type {
+  Golfer,
+  GolferField,
+  PendingCheckoutResume,
+  RegistrationFormProps,
+  SignupMode,
+  SummaryItem,
+} from "@/app/register/type";
 import { CreditCard, Flag, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 
 const checkoutStorageKey = "blarney.registrationCheckout";
 const maxGolferCount = 20;
-
-type RegistrationFormProps = {
-  currency: string;
-  defaultPackageSelection: string;
-  golfPriceCents: number | null;
-  golfPriceLabel: string | null;
-  adultGuestPriceCents: number | null;
-  adultGuestPriceLabel: string | null;
-  childGuestPriceCents: number | null;
-  childGuestPriceLabel: string | null;
-  submitRegistrationAction: (
-    formData: FormData,
-  ) => Promise<SubmitRegistrationResult>;
-  submitRsvpAction: (formData: FormData) => Promise<SubmitRsvpResult>;
-};
-
-type SummaryItem = {
-  label: string;
-  quantity: number;
-  unitPriceLabel: string;
-};
-
-type PendingCheckoutResume = {
-  kind: "registration" | "rsvp";
-  checkoutId: string;
-  paymentPath: string;
-  thanksPath: string;
-};
-
-type SignupMode = "golf" | "bbq";
-
-type Golfer = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  gender: string;
-  age: string;
-  averageScore: string;
-};
-
-type GolferField = Exclude<keyof Golfer, "id">;
 
 function createGolfer(id: number): Golfer {
   return {

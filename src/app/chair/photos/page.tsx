@@ -10,6 +10,7 @@ import {
   parseChairListFilterParam,
   pickSearchParams,
 } from "@/app/chair/listFiltering";
+import { type ChairPhotosPageProps } from "@/app/chair/photos/type";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { PaginationNav } from "@/components/PaginationNav";
 import { requireChairPageAuth } from "@/lib/chairAuth.server";
@@ -26,20 +27,8 @@ import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
-type ChairPhotosPageProps = {
-  searchParams: Promise<SearchParamsRecord>;
-};
-
 const pendingFilterParamKey = "pendingFilter";
 const reviewedFilterParamKey = "reviewedFilter";
-
-function summarizeMessage(message: string) {
-  if (message.length <= 140) {
-    return message;
-  }
-
-  return `${message.slice(0, 137)}...`;
-}
 
 function parsePendingPhotoFilter(searchParams: SearchParamsRecord | undefined) {
   const filterValue = parseChairListFilterParam(

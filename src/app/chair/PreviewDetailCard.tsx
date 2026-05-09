@@ -1,18 +1,8 @@
 "use client";
 
 import styles from "@/app/chair/chair.module.css";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-
-type PreviewDetailCardProps = {
-  title: string;
-  openLabel: string;
-  eyebrow?: string;
-  header?: ReactNode;
-  preview: ReactNode;
-  actions?: ReactNode;
-  children: ReactNode;
-  className?: string;
-};
+import type { PreviewDetailCardProps } from "@/app/chair/type";
+import { useEffect, useId, useRef, useState } from "react";
 
 export function PreviewDetailCard({
   title,

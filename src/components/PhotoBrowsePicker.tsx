@@ -1,8 +1,9 @@
 "use client";
 
 import styles from "@/components/PhotoBrowsePicker.module.css";
+import type { PhotoBrowsePickerProps } from "@/components/type";
 import { acceptedPhotoContentTypes } from "@/lib/photoUpload";
-import { ChevronDown, FolderOpen, Images } from "lucide-react";
+import { ChevronDown, Images } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 const folderPickerAttributes = {
@@ -12,15 +13,6 @@ const folderPickerAttributes = {
 
 const defaultDescription =
   "Select one image, several images at once, or a folder when your browser supports folder selection.";
-
-type PhotoBrowsePickerProps = {
-  description?: string;
-  disabled?: boolean;
-  emptySelectionLabel?: string;
-  helpTextId: string;
-  inputName?: string;
-  title?: string;
-};
 
 export function getSelectedPhotoFiles(formData: FormData, fieldName = "photo") {
   return formData

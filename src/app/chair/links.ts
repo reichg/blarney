@@ -1,7 +1,6 @@
-export type ChairLink = {
-  href: string;
-  label: string;
-};
+import type { ChairLink } from "@/app/chair/type";
+
+export type { ChairLink } from "@/app/chair/type";
 
 export const chairLinks: ChairLink[] = [
   { href: "/chair", label: "Dashboard" },

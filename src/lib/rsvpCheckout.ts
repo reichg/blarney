@@ -4,108 +4,22 @@ import {
   getRegistrationPaymentLinkState,
   hasSquarePaymentConfiguration,
 } from "@/lib/payment";
-import { Prisma, RsvpCheckoutStatus } from "@prisma/client";
+import {
+  rsvpCheckoutPayloadSchema,
+  type CheckoutLogLevel,
+  type RsvpCheckoutConfirmationResult,
+  type RsvpCheckoutPayload,
+  type RsvpCheckoutPaymentResult,
+  type RsvpCheckoutRecord,
+} from "@/lib/type";
+import { Prisma } from "@prisma/client";
 import { createHash, randomUUID } from "crypto";
-import { z } from "zod";
-
-const requiredTextSchema = z
-  .preprocess(
-    (value) => (typeof value === "string" ? value.trim() : value),
-    z.string().trim().min(1),
-  )
-  .transform((value) => value.trim());
-
-const optionalTextSchema = z
-  .preprocess(
-    (value) => (typeof value === "string" ? value.trim() : value),
-    z.string().optional().nullable(),
-  )
-  .transform((value) => (value && value.length > 0 ? value : null));
-
-export const rsvpCheckoutPayloadSchema = z
-  .object({
-    firstName: requiredTextSchema,
-    lastName: requiredTextSchema,
-    email: z
-      .string()
-      .trim()
-      .email()
-      .transform((value) => value.toLowerCase()),
-    adultAttendeeCount: z.coerce.number().int().min(0).max(30),
-    childAttendeeCount: z.coerce.number().int().min(0).max(30),
-    familyNames: optionalTextSchema,
-    dietaryNotes: optionalTextSchema,
-    notes: optionalTextSchema,
-  })
-  .refine((data) => data.adultAttendeeCount + data.childAttendeeCount <= 30, {
-    message: "Keep the party size at 30 attendees or fewer.",
-    path: ["adultAttendeeCount"],
-  })
-  .refine((data) => data.adultAttendeeCount + data.childAttendeeCount > 0, {
-    message: "Add at least one attendee to RSVP.",
-    path: ["adultAttendeeCount"],
-  });
-
-export type RsvpCheckoutPayload = z.infer<typeof rsvpCheckoutPayloadSchema>;
-
-type RsvpCheckoutRecord = {
-  id: string;
-  idempotencyKey: string;
-  email: string;
-  payload: unknown;
-  paymentReference: string | null;
-  paymentOrderId: string | null;
-  paymentUrl: string | null;
-  status: RsvpCheckoutStatus;
-  rsvpId: string | null;
-  confirmedAt: Date | null;
-  paymentCompletedAt: Date | null;
-  paymentReviewReason: string | null;
-  lastReconciledAt: Date | null;
-  updatedAt: Date;
-};
-
-export type RsvpCheckoutPaymentResult =
-  | {
-      ok: true;
-      status: "pending";
-      checkoutId: string;
-      paymentReference: string;
-      paymentUrl: string;
-    }
-  | {
-      ok: true;
-      status: "confirmed";
-      checkoutId: string;
-      rsvpId: string;
-      paymentUrl: null;
-    }
-  | {
-      ok: false;
-      reason:
-        | "configuration"
-        | "duplicate"
-        | "not_found"
-        | "review"
-        | "unavailable";
-    };
-
-export type RsvpCheckoutConfirmationResult =
-  | {
-      ok: true;
-      rsvpId: string;
-    }
-  | {
-      ok: false;
-      reason:
-        | "duplicate"
-        | "invalid"
-        | "pending"
-        | "review"
-        | "retry"
-        | "unavailable";
-      paymentUrl?: string | null;
-    };
+export { rsvpCheckoutPayloadSchema } from "@/lib/type";
+export type {
+  RsvpCheckoutConfirmationResult,
+  RsvpCheckoutPayload,
+  RsvpCheckoutPaymentResult,
+} from "@/lib/type";
 
 function isUniqueConstraintError(error: unknown) {
   return (
@@ -113,8 +27,6 @@ function isUniqueConstraintError(error: unknown) {
     error.code === "P2002"
   );
 }
-
-type CheckoutLogLevel = "info" | "warn" | "error";
 
 function getPaymentReferenceFingerprint(reference: string | null | undefined) {
   if (!reference) {
@@ -129,7 +41,7 @@ function getPaymentReferenceFingerprint(reference: string | null | undefined) {
 }
 
 function getErrorLogData(error: unknown) {
-  let errorType = typeof error;
+  let errorType: string = typeof error;
   let errorCode: string | null = null;
   let errorStatus: number | null = null;
 

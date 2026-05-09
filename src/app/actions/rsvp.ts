@@ -1,89 +1,12 @@
 "use server";
 
+import { rsvpSchema, type SubmitRsvpResult } from "@/app/actions/type";
 import { db } from "@/lib/db";
 import { getRsvpCheckoutPaymentPath } from "@/lib/payment";
 import {
   createRsvpCheckoutPayment,
   rsvpCheckoutPayloadSchema,
 } from "@/lib/rsvpCheckout";
-import { z } from "zod";
-
-function normalizeRequiredFormValue(value: unknown) {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-
-  return value ?? undefined;
-}
-
-const requiredTextSchema = z.preprocess(
-  normalizeRequiredFormValue,
-  z.string().trim().min(1),
-);
-
-const optionalTextSchema = z
-  .preprocess(
-    (value) => (typeof value === "string" ? value.trim() : value),
-    z.string().optional().nullable(),
-  )
-  .transform((value) => (value && value.length > 0 ? value : null));
-
-const requiredIntSchema = (minimum: number, maximum: number) =>
-  z.preprocess(
-    normalizeRequiredFormValue,
-    z.coerce.number().int().min(minimum).max(maximum),
-  );
-
-const rsvpSchema = z
-  .object({
-    firstName: requiredTextSchema,
-    lastName: requiredTextSchema,
-    email: z
-      .string()
-      .trim()
-      .email()
-      .transform((value) => value.toLowerCase()),
-    phone: requiredTextSchema,
-    adultAttendeeCount: requiredIntSchema(0, 30),
-    childAttendeeCount: requiredIntSchema(0, 30),
-    familyNames: optionalTextSchema,
-    dietaryNotes: optionalTextSchema,
-    notes: optionalTextSchema,
-  })
-  .refine((data) => data.adultAttendeeCount + data.childAttendeeCount <= 30, {
-    message: "Keep the party size at 30 attendees or fewer.",
-    path: ["adultAttendeeCount"],
-  })
-  .refine((data) => data.adultAttendeeCount + data.childAttendeeCount > 0, {
-    message: "Add at least one BBQ attendee.",
-    path: ["adultAttendeeCount"],
-  });
-
-export type SubmitRsvpResult =
-  | {
-      ok: true;
-      requiresPayment?: false;
-      thanksPath: string;
-      rsvpId?: string;
-    }
-  | {
-      ok: true;
-      requiresPayment: true;
-      checkoutId: string;
-      checkoutUrl: string;
-      paymentUrl: string;
-      paymentPath: string;
-      thanksPath: string;
-      rsvpId?: string;
-      alreadyConfirmed?: boolean;
-    }
-  | {
-      ok: false;
-      reason: "invalid" | "duplicate" | "unavailable";
-      error: string;
-    };
 
 const duplicateRsvpMessage =
   "This email already has a registration or RSVP on file.";

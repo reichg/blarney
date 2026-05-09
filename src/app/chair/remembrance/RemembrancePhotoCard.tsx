@@ -2,20 +2,7 @@
 
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import styles from "@/app/chair/chair.module.css";
-
-type RemembrancePhotoCardProps = {
-  photo: {
-    id: string;
-    title: string;
-    caption: string | null;
-    submitterEmail: string;
-    submitterName: string;
-    note: string | null;
-    receivedAtLabel: string;
-  };
-  isSelected: boolean;
-  onToggleSelect: (id: string) => void;
-};
+import { type RemembrancePhotoCardProps } from "./type";
 
 export function RemembrancePhotoCard({
   photo,

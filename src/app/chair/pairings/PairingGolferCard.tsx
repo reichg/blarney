@@ -1,29 +1,7 @@
 import { assignPairingMember } from "@/app/actions/pairings";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import styles from "@/app/chair/chair.module.css";
-
-type PairingOption = {
-  id: string;
-  label: string;
-  disabled: boolean;
-};
-
-type PairingGolferCardProps = {
-  golfer: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    age: number;
-    gender: string;
-    averageScore: number;
-    pairingNote: string | null;
-    draftAssignment: {
-      groupId: string;
-      groupName: string;
-    } | null;
-  };
-  groupOptions: PairingOption[];
-};
+import type { PairingGolferCardProps } from "./type";
 
 export function PairingGolferCard({
   golfer,

@@ -21,8 +21,7 @@
 }
 
 .detailsGrid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 1rem;
 }
 
@@ -36,7 +35,12 @@
 }
 
 .photoFieldset {
-  background: rgb(249 246 239 / 52%);
+  background: linear-gradient(
+    180deg,
+    rgb(249 246 239 / 88%),
+    rgb(255 255 255 / 94%)
+  );
+  border-color: rgb(24 64 49 / 10%);
   min-width: 0;
   width: 100%;
 }
@@ -53,7 +57,7 @@
   flex-wrap: wrap;
   gap: 0.75rem 1rem;
   justify-content: space-between;
-  padding: 1rem 0 0;
+  padding: 1.2rem 0 0;
 }
 
 .status {
@@ -73,9 +77,10 @@
 
 .uploadButton {
   align-items: center;
-  background: var(--pine);
+  background: linear-gradient(135deg, var(--pine), var(--pine-2));
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--button-radius);
+  box-shadow: var(--shadow-soft);
   color: var(--white);
   display: inline-flex;
   font-weight: 800;
@@ -83,14 +88,16 @@
   justify-content: center;
   min-height: 2.85rem;
   min-width: 13rem;
-  padding: 0.85rem 1.15rem;
+  padding: 0.9rem 1.25rem;
   width: fit-content;
   cursor: pointer;
 }
 
-.uploadButton:hover {
-  background: var(--pine-dark);
-  transition: background-color 0.3s;
+.uploadButton:hover,
+.uploadButton:focus-visible {
+  box-shadow: var(--focus-ring), var(--shadow-interactive);
+  filter: saturate(1.05);
+  outline: none;
 }
 
 .uploadButton:disabled {

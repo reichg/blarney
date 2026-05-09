@@ -2,10 +2,7 @@ import { requireChairApiAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
 import { getPhotoReadUrl } from "@/lib/s3";
 import { NextRequest, NextResponse } from "next/server";
-
-type ChairPhotoViewContext = {
-  params: Promise<{ id: string }>;
-};
+import { type ChairPhotoViewContext } from "./type";
 
 export async function GET(
   request: NextRequest,

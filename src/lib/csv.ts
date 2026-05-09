@@ -1,4 +1,6 @@
-export type CsvField = string | number | boolean | null | undefined;
+import type { CsvField } from "@/lib/type";
+
+export type { CsvField } from "@/lib/type";
 
 export function escapeCsvField(value: CsvField): string {
   if (value === null || value === undefined) {

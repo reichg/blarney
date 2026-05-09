@@ -1,54 +1,22 @@
 "use server";
 
+import {
+  assignMemberSchema,
+  createGroupSchema,
+  deleteGroupSchema,
+  removeMemberSchema,
+  updateGroupSchema,
+  type PairingTransaction,
+} from "@/app/actions/type";
 import { CHAIR_COOKIE, verifyChairToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { buildPairingGroups } from "@/lib/pairings";
 import { completeRegistrationPaymentStatuses } from "@/lib/payment";
-import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 
 const maxPairingGroupMembers = 4;
-
-type PairingTransaction = Prisma.TransactionClient;
-
-function normalizeRequiredFormValue(value: unknown) {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    return trimmed.length ? trimmed : undefined;
-  }
-
-  return value ?? undefined;
-}
-
-const createGroupSchema = z.object({
-  name: z.string().trim().min(1),
-  sortOrder: z.coerce.number().int().min(1),
-  teeTime: z.preprocess(normalizeRequiredFormValue, z.coerce.date().optional()),
-});
-
-const updateGroupSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().trim().min(1),
-  sortOrder: z.coerce.number().int().min(1),
-  teeTime: z.preprocess(normalizeRequiredFormValue, z.coerce.date().optional()),
-});
-
-const deleteGroupSchema = z.object({
-  id: z.string().min(1),
-});
-
-const assignMemberSchema = z.object({
-  groupId: z.string().min(1),
-  participantId: z.string().min(1),
-});
-
-const removeMemberSchema = z.object({
-  memberId: z.string().min(1),
-});
 
 async function requireChairSession() {
   const cookieStore = await cookies();

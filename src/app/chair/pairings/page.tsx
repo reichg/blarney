@@ -15,53 +15,27 @@ import {
 } from "@/app/chair/listFiltering";
 import { PairingGolferCard } from "@/app/chair/pairings/PairingGolferCard";
 import { PairingGroupCard } from "@/app/chair/pairings/PairingGroupCard";
+import {
+  type ChairPairingsPageProps,
+  type GolferAssignment,
+  type PairingGroupWithMembers,
+  type PairingNotice,
+} from "@/app/chair/pairings/type";
 import { PaginationNav } from "@/components/PaginationNav";
 import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
-import { sortPairingGolfers } from "@/lib/pairings";
 import {
   buildPaginationState,
   parsePaginationParams,
   type PaginationParams,
   type SearchParamsRecord,
 } from "@/lib/pagination";
+import { sortPairingGolfers } from "@/lib/pairings";
 import { completeRegistrationPaymentStatuses } from "@/lib/payment";
-import type { Gender, PairingStatus, Participant } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
-type PairingGroupWithMembers = {
-  id: string;
-  name: string;
-  teeTime: Date | null;
-  sortOrder: number;
-  status: PairingStatus;
-  members: Array<{
-    id: string;
-    slot: number;
-    snapshotScore: number;
-    snapshotAge: number;
-    snapshotGender: Gender;
-    participant: Participant;
-  }>;
-};
-
-type GolferAssignment = {
-  groupId: string;
-  groupName: string;
-} | null;
-
-type ChairPairingsPageProps = {
-  searchParams?: Promise<SearchParamsRecord>;
-};
-
-type PairingNotice = {
-  tone: "success" | "error";
-  title: string;
-  body: string;
-};
 
 const chairPairingsPath = "/chair/pairings";
 const unassignedFilterParamKey = "unassignedFilter";

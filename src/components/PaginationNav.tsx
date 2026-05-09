@@ -1,17 +1,11 @@
+import type { PaginationNavProps } from "@/components/type";
 import {
   formatPaginationSummary,
   PAGE_SIZE_OPTIONS,
-  type PaginationState,
   type SearchParamsRecord,
 } from "@/lib/pagination";
 import Link from "next/link";
 import styles from "./PaginationNav.module.css";
-
-type PaginationNavProps = {
-  pagination: PaginationState;
-  searchParams?: SearchParamsRecord;
-  label?: string;
-};
 
 function buildSearchParams(searchParams: SearchParamsRecord | undefined) {
   const params = new URLSearchParams();

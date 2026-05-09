@@ -1,13 +1,7 @@
 import { getRegistrationCheckoutPayment } from "@/lib/registrationCheckout";
 import { getRsvpCheckoutPayment } from "@/lib/rsvpCheckout";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-
-const paymentRequestSchema = z.object({
-  checkout: z.string().trim().min(1).optional(),
-  registration: z.string().trim().min(1).optional(),
-  rsvpCheckout: z.string().trim().min(1).optional(),
-});
+import { paymentRequestSchema } from "./type";
 
 function buildThanksUrl(
   request: Request,

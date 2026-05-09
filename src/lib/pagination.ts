@@ -1,39 +1,22 @@
+import type {
+  PageSizeOption,
+  PaginationKeyOptions,
+  PaginationParams,
+  PaginationState,
+  SearchParamsRecord,
+} from "@/lib/type";
 import { z } from "zod";
 
 export const DEFAULT_PAGE_SIZE = 10;
 export const MAX_PAGE_SIZE = 50;
 export const PAGE_SIZE_OPTIONS = [10, 20, 30, 40, MAX_PAGE_SIZE] as const;
 
-type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
-
-export type SearchParamsRecord = Record<string, string | string[] | undefined>;
-
-type PaginationKeyOptions = {
-  pageKey?: string;
-  pageSizeKey?: string;
-  defaultPageSize?: number;
-  maxPageSize?: number;
-};
-
-export type PaginationParams = {
-  page: number;
-  pageSize: number;
-  skip: number;
-  take: number;
-  pageKey: string;
-  pageSizeKey: string;
-};
-
-export type PaginationState = PaginationParams & {
-  totalCount: number;
-  totalPages: number;
-  currentCount: number;
-  startIndex: number;
-  endIndex: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
-  isEmpty: boolean;
-};
+export type {
+  PaginationKeyOptions,
+  PaginationParams,
+  PaginationState,
+  SearchParamsRecord,
+} from "@/lib/type";
 
 export function formatPaginationSummary(
   pagination: Pick<

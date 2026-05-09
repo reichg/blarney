@@ -6,6 +6,15 @@ import {
   pickSearchParams,
 } from "@/app/chair/listFiltering";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
+import {
+  registrationAttendeeTotalsSelect,
+  type ChairRegistrationsPageProps,
+  type RegistrationAttendeeTotalsRow,
+  type RegistrationGolferBreakdown,
+  type RegistrationGuestBreakdown,
+  type RegistrationHeaderSummary,
+  type RegistrationHeaderTotals,
+} from "@/app/chair/registrations/type";
 import { PaginationNav } from "@/components/PaginationNav";
 import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
@@ -21,10 +30,6 @@ import { Download } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-type ChairRegistrationsPageProps = {
-  searchParams: Promise<SearchParamsRecord>;
-};
-
 const registrationFilterParamKey = "filter";
 const registrationPaymentStatuses = [
   "CONFIRMED",
@@ -37,47 +42,6 @@ const registrationGenders = [
   "NON_BINARY",
   "PREFER_NOT_TO_SAY",
 ] as const;
-
-const registrationAttendeeTotalsSelect = {
-  adultGuestCount: true,
-  childGuestCount: true,
-  participant: {
-    select: {
-      age: true,
-      gender: true,
-    },
-  },
-} satisfies Prisma.RegistrationSelect;
-
-type RegistrationAttendeeTotalsRow = Prisma.RegistrationGetPayload<{
-  select: typeof registrationAttendeeTotalsSelect;
-}>;
-
-type RegistrationGolferBreakdown = {
-  maleAdultCount: number;
-  femaleAdultCount: number;
-  otherAdultCount: number;
-  maleChildCount: number;
-  femaleChildCount: number;
-  otherChildCount: number;
-};
-
-type RegistrationGuestBreakdown = {
-  totalCount: number;
-  adultCount: number;
-  childCount: number;
-};
-
-type RegistrationHeaderTotals = {
-  totalCount: number;
-  golfers: RegistrationGolferBreakdown;
-  guests: RegistrationGuestBreakdown;
-};
-
-type RegistrationHeaderSummary = {
-  overall: RegistrationHeaderTotals;
-  filtered: RegistrationHeaderTotals | null;
-};
 
 function parseRegistrationFilter(searchParams: SearchParamsRecord | undefined) {
   const filterValue = parseChairListFilterParam(

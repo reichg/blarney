@@ -1,16 +1,11 @@
+import type { ChairListSearchItem } from "@/app/chair/type";
 import type { SearchParamsRecord } from "@/lib/pagination";
 import { z } from "zod";
 
-export type ChairListItemFilter = {
-  value: string;
-  label: string;
-};
-
-export type ChairListSearchItem = {
-  id: string;
-  searchText: string;
-  filters?: string[];
-};
+export type {
+  ChairListItemFilter,
+  ChairListSearchItem,
+} from "@/app/chair/type";
 
 const chairListFilterParamSchema = z.string().trim().max(80);
 

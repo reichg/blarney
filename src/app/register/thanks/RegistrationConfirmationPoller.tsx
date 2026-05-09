@@ -1,45 +1,11 @@
 "use client";
 
 import styles from "@/app/forms.module.css";
+import type {
+  CheckoutStatusResponse,
+  RegistrationConfirmationPollerProps,
+} from "@/app/register/thanks/type";
 import { useEffect, useState } from "react";
-
-type CheckoutStatusResponse =
-  | {
-      ok: true;
-      status: "confirmed";
-      thanksPath: string;
-    }
-  | {
-      ok: true;
-      status: "retry";
-      paymentPath: string;
-    }
-  | {
-      ok: true;
-      status: "processing";
-      paymentPath: string;
-    }
-  | {
-      ok: true;
-      status: "review";
-    }
-  | {
-      ok: false;
-      status: "invalid" | "not_found";
-    };
-
-type RegistrationConfirmationPollerProps = {
-  checkoutId: string;
-  confirmedMessage?: string;
-  missingMessage?: string;
-  processingMessage?: string;
-  reviewMessage?: string;
-  retryLabel?: string;
-  retryMessage?: string;
-  statusPath?: string;
-  timeoutMessage?: string;
-  unavailableMessage?: string;
-};
 
 export function RegistrationConfirmationPoller({
   checkoutId,

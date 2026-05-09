@@ -1,18 +1,6 @@
-import {
-  type ComponentPropsWithoutRef,
-  type ElementType,
-  type ReactNode,
-} from "react";
+import type { ModularCardProps } from "@/components/type";
+import type { ElementType } from "react";
 import styles from "./ModularCard.module.css";
-
-type ModularCardOwnProps<T extends ElementType> = {
-  as?: T;
-  children: ReactNode;
-  className?: string;
-};
-
-type ModularCardProps<T extends ElementType> = ModularCardOwnProps<T> &
-  Omit<ComponentPropsWithoutRef<T>, keyof ModularCardOwnProps<T>>;
 
 export function ModularCard<T extends ElementType = "article">({
   as,

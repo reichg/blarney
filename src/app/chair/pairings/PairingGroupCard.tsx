@@ -3,32 +3,10 @@ import {
   removePairingMember,
   updatePairingGroup,
 } from "@/app/actions/pairings";
-import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import styles from "@/app/chair/chair.module.css";
+import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { formatDateTime } from "@/lib/format";
-
-type PairingGroupMember = {
-  id: string;
-  slot: number;
-  snapshotScore: number;
-  snapshotAge: number;
-  participant: {
-    firstName: string;
-    lastName: string;
-  };
-};
-
-type PairingGroupCardProps = {
-  group: {
-    id: string;
-    name: string;
-    teeTime: Date | null;
-    sortOrder: number;
-    status: string;
-    members: PairingGroupMember[];
-  };
-  isDraft: boolean;
-};
+import type { PairingGroupCardProps, PairingGroupMember } from "./type";
 
 function datetimeLocalValue(value: Date | null) {
   if (!value) {

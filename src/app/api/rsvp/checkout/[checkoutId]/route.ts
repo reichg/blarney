@@ -2,19 +2,9 @@ import { db } from "@/lib/db";
 import { getRsvpCheckoutPaymentPath } from "@/lib/payment";
 import { confirmRsvpCheckoutPayment } from "@/lib/rsvpCheckout";
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { checkoutStatusSchema, type CheckoutStatusRouteContext } from "./type";
 
 export const dynamic = "force-dynamic";
-
-const checkoutStatusSchema = z.object({
-  checkoutId: z.string().trim().min(1),
-});
-
-type CheckoutStatusRouteContext = {
-  params: Promise<{
-    checkoutId: string;
-  }>;
-};
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
   return NextResponse.json(body, {
