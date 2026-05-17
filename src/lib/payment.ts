@@ -153,7 +153,7 @@ function getSiteUrl() {
       throw new Error("NEXT_PUBLIC_SITE_URL must be configured.");
     }
 
-    return "http://localhost:3000";
+    return "http://localhost:3001";
   }
 
   return siteUrl.replace(/\/$/, "");

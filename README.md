@@ -43,7 +43,7 @@ A Next.js, TypeScript, Prisma, Postgres, and AWS S3 site for the Blarney 42 golf
 
 ## Local Development With Cloudflared
 
-- For normal UI work, use `http://localhost:3000` in the browser. Hot reload is most reliable on the local origin.
+- For normal UI work, use `http://localhost:3001` in the browser. Hot reload is most reliable on the local origin.
 - Use Cloudflared mainly when Square webhooks or hosted-checkout return URLs need a public HTTPS URL.
 - When browsing through a Cloudflared tunnel, start Next with:
 
@@ -51,6 +51,7 @@ A Next.js, TypeScript, Prisma, Postgres, and AWS S3 site for the Blarney 42 golf
   pnpm dev:tunnel
   ```
 
+- On Windows, Cloudflared may resolve `localhost` to `::1`. `pnpm dev:tunnel` binds Next on `::` so the tunnel can reach the dev server over either IPv6 or IPv4 loopback.
 - Start the tunnel against the local Next server, then set `CLOUDFLARED_TUNNEL_URL`, `NEXT_PUBLIC_SITE_URL`, and `SQUARE_WEBHOOK_NOTIFICATION_URL` to the same public tunnel origin while testing external callbacks.
 - If hydration or hot-reload errors keep repeating after config or environment changes, stop `pnpm dev:tunnel`, delete `.next`, restart the dev server, and hard-refresh the browser tab.
 - Avoid switching one browser tab back and forth between `localhost` and the tunnel URL during the same dev-server session; stale React Server Component payloads and HMR websocket reconnects can look like hydration failures.

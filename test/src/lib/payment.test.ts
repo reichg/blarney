@@ -269,6 +269,42 @@ describe("registration payment pricing", () => {
     ).resolves.toEqual({ checkoutId: "rsvp-checkout-123" });
   });
 
+  it("defaults development payment redirects to localhost:3001", async () => {
+    vi.stubEnv("REGISTRATION_GOLF_PRICE_CENTS", "12500");
+    vi.stubEnv("REGISTRATION_PRE_EVENT_ADULT_PRICE_CENTS", "3500");
+    vi.stubEnv("REGISTRATION_PRE_EVENT_CHILD_PRICE_CENTS", "1500");
+    vi.stubEnv("ADMIN_SESSION_SECRET", "payment-confirmation-secret");
+    vi.stubEnv("SQUARE_ENVIRONMENT", "sandbox");
+    vi.stubEnv("SQUARE_ACCESS_TOKEN", "sandbox-token");
+    vi.stubEnv("SQUARE_LOCATION_ID", "location-id");
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        payment_link: {
+          id: "payment-link-id",
+          order_id: "order-123",
+          url: "https://square.link/u/example",
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createRegistrationPaymentLink({
+      checkoutId: "checkout-123",
+      email: "player@example.com",
+      adultGuestCount: 0,
+      childGuestCount: 0,
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse(requestInit.body as string);
+    const redirectUrl = new URL(body.checkout_options.redirect_url);
+
+    expect(redirectUrl.origin).toBe("http://localhost:3001");
+  });
+
   it("requires an explicit payment confirmation secret in production", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("ADMIN_SESSION_SECRET", "admin-session-secret");

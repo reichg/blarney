@@ -15,8 +15,8 @@ function getHostFromUrl(value: string | undefined) {
 const allowedDevOrigins = Array.from(
   new Set(
     [
-      "localhost:3000",
-      "127.0.0.1:3000",
+      "localhost:3001",
+      "127.0.0.1:3001",
       "blarney42.com",
       "blarney42.gabe-reichenberger.com",
       "*.trycloudflare.com",
