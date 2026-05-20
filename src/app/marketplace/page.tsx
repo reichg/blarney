@@ -33,7 +33,10 @@ export default async function MarketplacePage() {
       </header>
       <section className={formsStyles.formSection}>
         <div className={styles.shell}>
-          <aside className={formsStyles.panelStack}>
+          <aside
+            aria-label="Marketplace details and checkout notes"
+            className={styles.infoPanels}
+          >
             <section className={formsStyles.panel}>
               <div className={formsStyles.panelHeader}>
                 <span className={formsStyles.panelBadge}>

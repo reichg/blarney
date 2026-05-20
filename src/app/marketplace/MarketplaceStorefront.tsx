@@ -255,6 +255,7 @@ export function MarketplaceStorefront({
                           </button>
                           <input
                             aria-describedby={helpTextId}
+                            className={styles.quantityInput}
                             id={quantityInputId}
                             inputMode="numeric"
                             max={maximumQuantity ?? 25}
@@ -347,7 +348,7 @@ export function MarketplaceStorefront({
               checkout handoff.
             </p>
           </div>
-          <div className={formsStyles.gridTwo}>
+          <div className={styles.buyerFields}>
             <label className={formsStyles.field}>
               <span className={formsStyles.requiredLabel}>Email</span>
               <input
@@ -370,21 +371,17 @@ export function MarketplaceStorefront({
                 value={name}
               />
             </label>
+            <label className={formsStyles.field}>
+              <span>Phone</span>
+              <input
+                autoComplete="tel"
+                name="phone"
+                onChange={(event) => setPhone(event.target.value)}
+                type="tel"
+                value={phone}
+              />
+            </label>
           </div>
-          <label className={formsStyles.field}>
-            <span>Phone</span>
-            <input
-              autoComplete="tel"
-              name="phone"
-              onChange={(event) => setPhone(event.target.value)}
-              type="tel"
-              value={phone}
-            />
-            <span className={formsStyles.fieldHint}>
-              Optional, but helpful if the chair needs to follow up about
-              pickup.
-            </span>
-          </label>
 
           {error ? (
             <div className={formsStyles.errorNotice}>{error}</div>
