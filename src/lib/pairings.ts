@@ -12,8 +12,6 @@ const maxPairingGroupMembers = 4;
 const pairingGenderSortOrder: Record<Gender, number> = {
   MALE: 0,
   FEMALE: 1,
-  NON_BINARY: 2,
-  PREFER_NOT_TO_SAY: 3,
 };
 
 export function isGoodGolfer(averageScore: number) {

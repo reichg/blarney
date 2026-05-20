@@ -173,7 +173,7 @@ describe("chair registrations page", () => {
           childGuestCount: 0,
           participant: {
             age: 37,
-            gender: "NON_BINARY",
+            gender: "FEMALE",
           },
         },
       ];

@@ -1,4 +1,5 @@
 import { isSquareOrderPaid } from "@/lib/payment";
+import { confirmMarketplaceCheckoutPaymentByOrderId } from "@/lib/marketplaceCheckout";
 import { confirmRegistrationCheckoutPaymentByOrderId } from "@/lib/registrationCheckout";
 import { confirmRsvpCheckoutPaymentByOrderId } from "@/lib/rsvpCheckout";
 import { createHmac, timingSafeEqual } from "crypto";
@@ -174,7 +175,33 @@ async function confirmPublicCheckoutPaymentByOrderId(orderId: string) {
     };
   }
 
-  return rsvpConfirmation;
+  if (rsvpConfirmation.reason !== "invalid") {
+    return rsvpConfirmation;
+  }
+
+  const marketplaceConfirmation =
+    await confirmMarketplaceCheckoutPaymentByOrderId(orderId);
+
+  if (
+    marketplaceConfirmation.ok &&
+    marketplaceConfirmation.status === "confirmed"
+  ) {
+    return {
+      ok: true as const,
+      kind: "marketplace" as const,
+      orderId: marketplaceConfirmation.orderId,
+    };
+  }
+
+  if (marketplaceConfirmation.ok) {
+    return { ok: false as const, reason: "unavailable" as const };
+  }
+
+  if (marketplaceConfirmation.reason === "not_found") {
+    return { ok: false as const, reason: "invalid" as const };
+  }
+
+  return marketplaceConfirmation;
 }
 
 export async function POST(request: Request) {
@@ -228,6 +255,14 @@ export async function POST(request: Request) {
         ok: true,
         status: "confirmed",
         rsvpId: confirmation.rsvpId,
+      });
+    }
+
+    if (confirmation.kind === "marketplace") {
+      return NextResponse.json({
+        ok: true,
+        status: "confirmed",
+        orderId: confirmation.orderId,
       });
     }
 

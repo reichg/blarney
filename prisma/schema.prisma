@@ -9,8 +9,6 @@ datasource db {
 enum Gender {
   MALE
   FEMALE
-  NON_BINARY
-  PREFER_NOT_TO_SAY
 }
 
 enum PaymentStatus {
@@ -51,6 +49,40 @@ enum RsvpCheckoutStatus {
   PENDING
   CONFIRMED
   PAYMENT_REVIEW
+}
+
+enum MarketplaceListingStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum MarketplaceCheckoutStatus {
+  PENDING
+  PAYMENT_REVIEW
+  CONFIRMED
+  EXPIRED
+  CANCELED
+}
+
+enum MarketplacePaymentProvider {
+  SQUARE
+}
+
+enum MarketplacePaymentAttemptStatus {
+  PENDING
+  OPEN
+  REVIEW
+  COMPLETED
+  EXPIRED
+  CANCELED
+}
+
+enum MarketplaceFulfillmentStatus {
+  UNFULFILLED
+  READY
+  FULFILLED
+  CANCELED
 }
 
 model Participant {
@@ -157,6 +189,171 @@ model RsvpCheckout {
 
   @@index([email])
   @@index([status, createdAt])
+}
+
+model MarketplaceListing {
+  id              String                      @id @default(cuid())
+  slug            String                      @unique
+  title           String
+  description     String?
+  imageUrl        String?
+  fulfillmentNote String?
+  status          MarketplaceListingStatus    @default(DRAFT)
+  sortOrder       Int                         @default(0)
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  variants        MarketplaceListingVariant[]
+  checkoutItems   MarketplaceCheckoutItem[]
+  orderItems      MarketplaceOrderItem[]
+
+  @@index([status, sortOrder])
+}
+
+model MarketplaceListingVariant {
+  id                String                    @id @default(cuid())
+  listingId         String
+  label             String
+  sku               String?                   @unique
+  unitAmount        Int
+  currency          String
+  inventoryQuantity Int?
+  isActive          Boolean                   @default(true)
+  sortOrder         Int                       @default(0)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  listing           MarketplaceListing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  checkoutItems     MarketplaceCheckoutItem[]
+  orderItems        MarketplaceOrderItem[]
+
+  @@unique([listingId, label])
+  @@index([listingId, isActive, sortOrder])
+}
+
+model MarketplaceCheckout {
+  id               String                      @id @default(cuid())
+  idempotencyKey   String                      @unique
+  publicTokenHash  String                      @unique
+  snapshotHash     String
+  buyerEmail       String?
+  buyerName        String?
+  status           MarketplaceCheckoutStatus   @default(PENDING)
+  currency         String
+  subtotalAmount   Int
+  taxAmount        Int                         @default(0)
+  shippingAmount   Int                         @default(0)
+  discountAmount   Int                         @default(0)
+  totalAmount      Int
+  requestSnapshot  Json?
+  customerSnapshot Json?
+  expiresAt        DateTime
+  confirmedAt      DateTime?
+  canceledAt       DateTime?
+  expiredAt        DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+  items            MarketplaceCheckoutItem[]
+  paymentAttempts  MarketplacePaymentAttempt[]
+  order            MarketplaceOrder?
+
+  @@index([buyerEmail, createdAt])
+  @@index([status, createdAt])
+  @@index([expiresAt])
+}
+
+model MarketplaceCheckoutItem {
+  id             String                     @id @default(cuid())
+  checkoutId     String
+  listingId      String?
+  variantId      String?
+  lineNumber     Int
+  title          String
+  variantLabel   String?
+  sku            String?
+  quantity       Int
+  currency       String
+  unitAmount     Int
+  totalAmount    Int
+  detailSnapshot Json
+  createdAt      DateTime                   @default(now())
+  checkout       MarketplaceCheckout        @relation(fields: [checkoutId], references: [id], onDelete: Cascade)
+  listing        MarketplaceListing?        @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  variant        MarketplaceListingVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@unique([checkoutId, lineNumber])
+  @@index([listingId])
+  @@index([variantId])
+}
+
+model MarketplacePaymentAttempt {
+  id                  String                          @id @default(cuid())
+  checkoutId          String
+  provider            MarketplacePaymentProvider      @default(SQUARE)
+  status              MarketplacePaymentAttemptStatus @default(PENDING)
+  idempotencyKey      String                          @unique
+  expectedCurrency    String
+  expectedTotalAmount Int
+  providerLinkId      String?                         @unique
+  providerOrderId     String?                         @unique
+  providerPaymentId   String?                         @unique
+  paymentUrl          String?
+  expiresAt           DateTime?
+  completedAt         DateTime?
+  lastReconciledAt    DateTime?
+  createdAt           DateTime                        @default(now())
+  updatedAt           DateTime                        @updatedAt
+  checkout            MarketplaceCheckout             @relation(fields: [checkoutId], references: [id], onDelete: Cascade)
+
+  @@index([checkoutId, status, createdAt])
+}
+
+model MarketplaceOrder {
+  id                String                       @id @default(cuid())
+  checkoutId        String                       @unique
+  publicTokenHash   String                       @unique
+  buyerEmail        String?
+  buyerName         String?
+  currency          String
+  subtotalAmount    Int
+  taxAmount         Int                          @default(0)
+  shippingAmount    Int                          @default(0)
+  discountAmount    Int                          @default(0)
+  totalAmount       Int
+  customerSnapshot  Json?
+  paymentProvider   MarketplacePaymentProvider
+  providerOrderId   String?
+  fulfillmentStatus MarketplaceFulfillmentStatus @default(UNFULFILLED)
+  confirmedAt       DateTime
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  checkout          MarketplaceCheckout          @relation(fields: [checkoutId], references: [id], onDelete: Restrict)
+  items             MarketplaceOrderItem[]
+
+  @@index([buyerEmail, createdAt])
+  @@index([fulfillmentStatus, createdAt])
+}
+
+model MarketplaceOrderItem {
+  id             String                     @id @default(cuid())
+  orderId        String
+  listingId      String?
+  variantId      String?
+  lineNumber     Int
+  title          String
+  variantLabel   String?
+  sku            String?
+  quantity       Int
+  currency       String
+  unitAmount     Int
+  totalAmount    Int
+  detailSnapshot Json
+  createdAt      DateTime                   @default(now())
+  order          MarketplaceOrder           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  listing        MarketplaceListing?        @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  variant        MarketplaceListingVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@unique([orderId, lineNumber])
+  @@index([listingId])
+  @@index([variantId])
 }
 
 model Feedback {

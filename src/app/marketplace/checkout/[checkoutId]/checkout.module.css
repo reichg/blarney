@@ -1,0 +1,75 @@
+.shell {
+  align-items: start;
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(18rem, 0.42fr) minmax(0, 1fr);
+  margin: 0 auto;
+  width: min(1120px, 100%);
+}
+
+.statusAside {
+  display: grid;
+}
+
+.statusPanel {
+  display: grid;
+  gap: 1rem;
+}
+
+.statusHeader {
+  align-items: start;
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.statusHeader h2 {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 0;
+}
+
+.statusEyebrow {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.spinner,
+.pendingIcon,
+.reviewIcon,
+.successIcon {
+  margin-top: 0.2rem;
+}
+
+.spinner {
+  animation: marketplace-checkout-spin 1s linear infinite;
+  color: var(--pine);
+}
+
+.pendingIcon {
+  color: var(--brass);
+}
+
+.reviewIcon {
+  color: var(--rose);
+}
+
+.successIcon {
+  color: var(--pine-2);
+}
+
+@keyframes marketplace-checkout-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+}

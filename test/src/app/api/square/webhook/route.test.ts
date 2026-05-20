@@ -2,11 +2,17 @@ import { createHmac } from "crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  confirmMarketplaceCheckoutPaymentByOrderId,
   confirmRegistrationCheckoutPaymentByOrderId,
   confirmRsvpCheckoutPaymentByOrderId,
 } = vi.hoisted(() => ({
+  confirmMarketplaceCheckoutPaymentByOrderId: vi.fn(),
   confirmRegistrationCheckoutPaymentByOrderId: vi.fn(),
   confirmRsvpCheckoutPaymentByOrderId: vi.fn(),
+}));
+
+vi.mock("@/lib/marketplaceCheckout", () => ({
+  confirmMarketplaceCheckoutPaymentByOrderId,
 }));
 
 vi.mock("@/lib/registrationCheckout", () => ({
@@ -83,6 +89,10 @@ function buildOrderWebhookBody(overrides = {}) {
 beforeEach(() => {
   vi.stubEnv("SQUARE_WEBHOOK_SIGNATURE_KEY", signatureKey);
   vi.stubEnv("SQUARE_WEBHOOK_NOTIFICATION_URL", notificationUrl);
+  confirmMarketplaceCheckoutPaymentByOrderId.mockResolvedValue({
+    ok: false,
+    reason: "not_found",
+  });
   confirmRsvpCheckoutPaymentByOrderId.mockResolvedValue({
     ok: false,
     reason: "invalid",
@@ -106,6 +116,7 @@ describe("Square payment webhook route", () => {
     });
     expect(response.status).toBe(200);
     expect(confirmRegistrationCheckoutPaymentByOrderId).not.toHaveBeenCalled();
+    expect(confirmMarketplaceCheckoutPaymentByOrderId).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid Square signature", async () => {
@@ -117,6 +128,7 @@ describe("Square payment webhook route", () => {
     });
     expect(response.status).toBe(401);
     expect(confirmRegistrationCheckoutPaymentByOrderId).not.toHaveBeenCalled();
+    expect(confirmMarketplaceCheckoutPaymentByOrderId).not.toHaveBeenCalled();
   });
 
   it("materializes a checkout when Square reports a completed payment", async () => {
@@ -164,6 +176,42 @@ describe("Square payment webhook route", () => {
     expect(response.status).toBe(200);
   });
 
+  it("materializes a marketplace order when no registration or RSVP checkout matches", async () => {
+    confirmRegistrationCheckoutPaymentByOrderId.mockResolvedValue({
+      ok: false,
+      reason: "invalid",
+    });
+    confirmRsvpCheckoutPaymentByOrderId.mockResolvedValue({
+      ok: false,
+      reason: "invalid",
+    });
+    confirmMarketplaceCheckoutPaymentByOrderId.mockResolvedValue({
+      ok: true,
+      status: "confirmed",
+      checkoutId: "checkout-123",
+      orderId: "marketplace-order-123",
+      paymentUrl: null,
+    });
+
+    const response = await POST(buildRequest(buildWebhookBody()));
+
+    expect(confirmRegistrationCheckoutPaymentByOrderId).toHaveBeenCalledWith(
+      "order-123",
+    );
+    expect(confirmRsvpCheckoutPaymentByOrderId).toHaveBeenCalledWith(
+      "order-123",
+    );
+    expect(confirmMarketplaceCheckoutPaymentByOrderId).toHaveBeenCalledWith(
+      "order-123",
+    );
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      status: "confirmed",
+      orderId: "marketplace-order-123",
+    });
+    expect(response.status).toBe(200);
+  });
+
   it("ignores non-completed payments without materializing a checkout", async () => {
     const response = await POST(
       buildRequest(buildWebhookBody({ status: "APPROVED" })),
@@ -174,6 +222,7 @@ describe("Square payment webhook route", () => {
       status: "ignored",
     });
     expect(confirmRegistrationCheckoutPaymentByOrderId).not.toHaveBeenCalled();
+    expect(confirmMarketplaceCheckoutPaymentByOrderId).not.toHaveBeenCalled();
   });
 
   it("materializes a checkout from a paid order update", async () => {
@@ -213,10 +262,15 @@ describe("Square payment webhook route", () => {
       status: "ignored",
     });
     expect(confirmRegistrationCheckoutPaymentByOrderId).not.toHaveBeenCalled();
+    expect(confirmMarketplaceCheckoutPaymentByOrderId).not.toHaveBeenCalled();
   });
 
   it("ignores unknown Square orders safely", async () => {
     confirmRegistrationCheckoutPaymentByOrderId.mockResolvedValue({
+      ok: false,
+      reason: "invalid",
+    });
+    confirmRsvpCheckoutPaymentByOrderId.mockResolvedValue({
       ok: false,
       reason: "invalid",
     });
@@ -229,9 +283,35 @@ describe("Square payment webhook route", () => {
     expect(confirmRsvpCheckoutPaymentByOrderId).toHaveBeenCalledWith(
       "order-123",
     );
+    expect(confirmMarketplaceCheckoutPaymentByOrderId).toHaveBeenCalledWith(
+      "order-123",
+    );
     await expect(response.json()).resolves.toEqual({
       ok: true,
       status: "ignored",
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("acknowledges marketplace confirmations that require manual review", async () => {
+    confirmRegistrationCheckoutPaymentByOrderId.mockResolvedValue({
+      ok: false,
+      reason: "invalid",
+    });
+    confirmRsvpCheckoutPaymentByOrderId.mockResolvedValue({
+      ok: false,
+      reason: "invalid",
+    });
+    confirmMarketplaceCheckoutPaymentByOrderId.mockResolvedValue({
+      ok: false,
+      reason: "review",
+    });
+
+    const response = await POST(buildRequest(buildWebhookBody()));
+
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      status: "review",
     });
     expect(response.status).toBe(200);
   });

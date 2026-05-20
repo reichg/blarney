@@ -1,4 +1,5 @@
 import {
+  createMarketplacePaymentLink,
   createRegistrationPaymentConfirmationToken,
   createRegistrationPaymentLink,
   createRsvpPaymentLink,
@@ -267,6 +268,120 @@ describe("registration payment pricing", () => {
     await expect(
       verifyRsvpPaymentConfirmationToken(confirmationToken),
     ).resolves.toEqual({ checkoutId: "rsvp-checkout-123" });
+  });
+
+  it("creates a marketplace Square payment link from persisted snapshot items without a redirect", async () => {
+    vi.stubEnv("SQUARE_ENVIRONMENT", "sandbox");
+    vi.stubEnv("SQUARE_ACCESS_TOKEN", "sandbox-token");
+    vi.stubEnv("SQUARE_LOCATION_ID", "location-id");
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        payment_link: {
+          id: "marketplace-payment-link-id",
+          order_id: "marketplace-order-123",
+          url: "https://square.link/u/marketplace-example",
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      createMarketplacePaymentLink({
+        paymentAttemptId: "attempt-123",
+        email: "buyer@example.com",
+        currency: "USD",
+        items: [
+          {
+            title: "Blarney Hoodie",
+            variantLabel: "Medium",
+            quantity: 2,
+            unitAmount: 4500,
+          },
+          {
+            title: "Blarney Polo",
+            variantLabel: null,
+            quantity: 1,
+            unitAmount: 5200,
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      reference: "marketplace-payment-link-id",
+      orderId: "marketplace-order-123",
+      url: "https://square.link/u/marketplace-example",
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse(requestInit.body as string);
+
+    expect(body.order.line_items).toEqual([
+      {
+        name: "Blarney Hoodie (Medium)",
+        quantity: "2",
+        base_price_money: {
+          amount: 4500,
+          currency: "USD",
+        },
+      },
+      {
+        name: "Blarney Polo",
+        quantity: "1",
+        base_price_money: {
+          amount: 5200,
+          currency: "USD",
+        },
+      },
+    ]);
+    expect(body.pre_populated_data).toEqual({
+      buyer_email: "buyer@example.com",
+    });
+    expect(body.checkout_options).toBeUndefined();
+    expect(typeof body.idempotency_key).toBe("string");
+    expect(body.idempotency_key.length).toBeGreaterThan(0);
+  });
+
+  it("includes a marketplace redirect when one is provided", async () => {
+    vi.stubEnv("SQUARE_ENVIRONMENT", "sandbox");
+    vi.stubEnv("SQUARE_ACCESS_TOKEN", "sandbox-token");
+    vi.stubEnv("SQUARE_LOCATION_ID", "location-id");
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        payment_link: {
+          id: "marketplace-payment-link-id",
+          order_id: "marketplace-order-123",
+          url: "https://square.link/u/marketplace-example",
+        },
+      }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createMarketplacePaymentLink({
+      paymentAttemptId: "attempt-123",
+      email: "buyer@example.com",
+      currency: "USD",
+      items: [
+        {
+          title: "Blarney Hoodie",
+          variantLabel: "Medium",
+          quantity: 1,
+          unitAmount: 4500,
+        },
+      ],
+      redirectUrl: "https://example.com/marketplace/checkout/checkout-123",
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse(requestInit.body as string);
+
+    expect(body.checkout_options).toEqual({
+      redirect_url: "https://example.com/marketplace/checkout/checkout-123",
+    });
   });
 
   it("defaults development payment redirects to localhost:3001", async () => {

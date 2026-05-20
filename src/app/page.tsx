@@ -13,6 +13,7 @@ import {
   Flag,
   Images,
   MessageSquare,
+  ShoppingBag,
   UsersRound,
 } from "lucide-react";
 import Image from "next/image";
@@ -115,6 +116,10 @@ export default async function Home({ searchParams }: HomePageProps) {
               </div>
             </div>
             <div className={styles.heroPanelLinks}>
+              <Link className={styles.heroPanelLink} href="/marketplace">
+                <ShoppingBag aria-hidden="true" size={18} />
+                Browse marketplace
+              </Link>
               <Link className={styles.heroPanelLink} href="/photos">
                 <Images aria-hidden="true" size={18} />
                 Browse photos

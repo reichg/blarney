@@ -27,6 +27,13 @@ export const completeRegistrationPaymentStatuses = [
   "WAIVED",
 ] as const;
 
+type MarketplaceSquarePaymentItem = {
+  title: string;
+  variantLabel: string | null;
+  quantity: number;
+  unitAmount: number;
+};
+
 export function isCompleteRegistrationPaymentStatus(status: string) {
   return status === "CONFIRMED" || status === "WAIVED";
 }
@@ -99,6 +106,18 @@ function getSquareRequestHeaders(accessToken: string) {
   };
 }
 
+function getMarketplacePaymentLinkIdempotencyKey(
+  paymentAttemptId: string,
+  staleReference?: string | null,
+) {
+  return createHash("sha256")
+    .update(
+      `marketplace-payment-link:${paymentAttemptId}:${staleReference ?? "initial"}`,
+    )
+    .digest("hex")
+    .slice(0, 45);
+}
+
 function getSquareErrorDetail(errors: SquarePaymentLinkResponse["errors"]) {
   return errors
     ?.map(({ code, detail: message }) =>
@@ -112,10 +131,7 @@ async function readSquareResponse<T>(response: Response) {
 }
 
 export function hasSquarePaymentConfiguration() {
-  if (
-    !process.env.SQUARE_ACCESS_TOKEN?.trim() ||
-    !process.env.SQUARE_LOCATION_ID?.trim()
-  ) {
+  if (!hasSquareCheckoutConfiguration()) {
     return false;
   }
 
@@ -125,6 +141,17 @@ export function hasSquarePaymentConfiguration() {
   } catch {
     return false;
   }
+}
+
+export function hasSquareCheckoutConfiguration() {
+  if (
+    !process.env.SQUARE_ACCESS_TOKEN?.trim() ||
+    !process.env.SQUARE_LOCATION_ID?.trim()
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function getSquareEnvironment() {
@@ -216,6 +243,22 @@ function toSquareOrderLineItem(
     quantity: String(item.quantity),
     base_price_money: {
       amount: item.unitPriceCents,
+      currency,
+    },
+  };
+}
+
+function toSquareMarketplaceOrderLineItem(
+  item: MarketplaceSquarePaymentItem,
+  currency: string,
+): SquareOrderLineItem {
+  return {
+    name: item.variantLabel
+      ? `${item.title} (${item.variantLabel})`
+      : item.title,
+    quantity: String(item.quantity),
+    base_price_money: {
+      amount: item.unitAmount,
       currency,
     },
   };
@@ -422,6 +465,14 @@ export function getRsvpCheckoutPaymentPath(checkoutId: string) {
   return `/register/payment?rsvpCheckout=${encodeURIComponent(checkoutId)}`;
 }
 
+export function getMarketplaceCheckoutConfirmationPath(checkoutId: string) {
+  return `/marketplace/checkout/${encodeURIComponent(checkoutId)}`;
+}
+
+export function getMarketplaceCheckoutConfirmationUrl(checkoutId: string) {
+  return `${getSiteUrl()}${getMarketplaceCheckoutConfirmationPath(checkoutId)}`;
+}
+
 export function getRegistrationPaymentConfirmationPath(
   checkoutId: string,
   token: string,
@@ -561,7 +612,7 @@ async function getSquareOrderState(
   return payload.order;
 }
 
-export async function getRegistrationPaymentLinkState(
+export async function getSquarePaymentLinkState(
   paymentReference: string,
 ): Promise<RegistrationPaymentLinkState | null> {
   const reference = paymentReference.trim();
@@ -619,6 +670,12 @@ export async function getRegistrationPaymentLinkState(
   };
 }
 
+export async function getRegistrationPaymentLinkState(
+  paymentReference: string,
+) {
+  return getSquarePaymentLinkState(paymentReference);
+}
+
 export async function createRegistrationPaymentLink({
   checkoutId,
   email,
@@ -671,6 +728,74 @@ export async function createRegistrationPaymentLink({
           buyer_email: email,
         },
       }),
+      cache: "no-store",
+    },
+  );
+
+  const payload = await readSquareResponse<SquarePaymentLinkResponse>(response);
+
+  if (!response.ok || !payload.payment_link?.url) {
+    throw new Error(
+      getSquareErrorDetail(payload.errors) ||
+        "Square payment link request failed.",
+    );
+  }
+
+  return {
+    reference: payload.payment_link.id ?? null,
+    orderId: payload.payment_link.order_id ?? null,
+    url: payload.payment_link.url,
+  };
+}
+
+export async function createMarketplacePaymentLink({
+  paymentAttemptId,
+  email,
+  currency,
+  items,
+  redirectUrl,
+  staleReference,
+}: {
+  paymentAttemptId: string;
+  email?: string | null;
+  currency: string;
+  items: MarketplaceSquarePaymentItem[];
+  redirectUrl?: string;
+  staleReference?: string | null;
+}) {
+  const accessToken = getRequiredEnv("SQUARE_ACCESS_TOKEN");
+  const locationId = getRequiredEnv("SQUARE_LOCATION_ID");
+  const requestBody: Record<string, unknown> = {
+    idempotency_key: getMarketplacePaymentLinkIdempotencyKey(
+      paymentAttemptId,
+      staleReference,
+    ),
+    order: {
+      location_id: locationId,
+      line_items: items.map((item) =>
+        toSquareMarketplaceOrderLineItem(item, currency),
+      ),
+    },
+  };
+
+  if (email) {
+    requestBody.pre_populated_data = {
+      buyer_email: email,
+    };
+  }
+
+  if (redirectUrl) {
+    requestBody.checkout_options = {
+      redirect_url: redirectUrl,
+    };
+  }
+
+  const response = await fetch(
+    `${getSquareApiBaseUrl()}/online-checkout/payment-links`,
+    {
+      method: "POST",
+      headers: getSquareRequestHeaders(accessToken),
+      body: JSON.stringify(requestBody),
       cache: "no-store",
     },
   );

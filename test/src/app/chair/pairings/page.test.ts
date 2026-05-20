@@ -231,7 +231,7 @@ beforeEach(() => {
       age: 48,
       averageScore: 41,
       firstName: "Nora",
-      gender: "NON_BINARY",
+      gender: "FEMALE",
       id: "golfer-nora",
       lastName: "Neutral",
       registrations: [{ notes: null }],

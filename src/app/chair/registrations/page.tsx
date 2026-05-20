@@ -38,9 +38,7 @@ const registrationPaymentStatuses = [
 ] as const;
 const registrationGenders = [
   "MALE",
-  "FEMALE",
-  "NON_BINARY",
-  "PREFER_NOT_TO_SAY",
+  "FEMALE"
 ] as const;
 
 function parseRegistrationFilter(searchParams: SearchParamsRecord | undefined) {

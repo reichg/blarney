@@ -9,6 +9,11 @@ const globalForPrisma = globalThis as unknown as {
 const requiredPrismaDelegates = [
   "registrationCheckout",
   "rsvpCheckout",
+  "marketplaceListing",
+  "marketplaceListingVariant",
+  "marketplaceCheckout",
+  "marketplacePaymentAttempt",
+  "marketplaceOrder",
 ] as const;
 
 const connectionString =
