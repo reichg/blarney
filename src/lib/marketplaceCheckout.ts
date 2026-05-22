@@ -69,10 +69,10 @@ type MarketplaceCheckoutStateRecord = Prisma.MarketplaceCheckoutGetPayload<{
   include: typeof marketplaceCheckoutStateInclude;
 }>;
 
-type MarketplaceCheckoutFinalizationRecord =
-  Prisma.MarketplaceCheckoutGetPayload<{
-    include: typeof marketplaceCheckoutFinalizationInclude;
-  }>;
+// type MarketplaceCheckoutFinalizationRecord =
+//   Prisma.MarketplaceCheckoutGetPayload<{
+//     include: typeof marketplaceCheckoutFinalizationInclude;
+//   }>;
 
 type FinalizeMarketplaceOrderResult =
   | {
