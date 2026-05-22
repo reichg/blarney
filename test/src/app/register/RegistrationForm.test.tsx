@@ -23,15 +23,19 @@ function createProps(): RegistrationFormProps {
     adultGuestPriceLabel: "$25.00",
     childGuestPriceCents: 1200,
     childGuestPriceLabel: "$12.00",
-    submitRegistrationAction: vi.fn(async () => ({
+    submitRegistrationAction: vi.fn<
+      RegistrationFormProps["submitRegistrationAction"]
+    >(async () => ({
       ok: false,
       error: "unused",
     })),
-    submitRsvpAction: vi.fn(async () => ({
-      ok: false,
-      reason: "invalid",
-      error: "unused",
-    })),
+    submitRsvpAction: vi.fn<RegistrationFormProps["submitRsvpAction"]>(
+      async () => ({
+        ok: false,
+        reason: "invalid",
+        error: "unused",
+      }),
+    ),
   };
 }
 

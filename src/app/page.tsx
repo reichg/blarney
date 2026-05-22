@@ -65,14 +65,6 @@ export default async function Home({ searchParams }: HomePageProps) {
   return (
     <>
       <section className={styles.hero}>
-        <Image
-          alt="Golf green above the coast"
-          className={styles.heroImage}
-          fill
-          priority
-          sizes="100vw"
-          src="/images/background.png"
-        />
         <div className={styles.heroOverlay} />
         <div className={styles.heroContent}>
           <div className={styles.heroCopy}>

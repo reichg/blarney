@@ -1,13 +1,3 @@
-.pageHeader {
-  background:
-    radial-gradient(
-      circle at top right,
-      rgb(179 134 63 / 24%),
-      transparent 34%
-    ),
-    linear-gradient(135deg, #173f35 0%, #1c4a3e 55%, #224a42 100%);
-}
-
 .shell {
   align-items: start;
   grid-template-columns: minmax(0, 0.95fr) minmax(22rem, 1.05fr);
