@@ -3,59 +3,47 @@
   background-size: cover;
   background-position: center;
   color: var(--white);
-  isolation: isolate;
+  min-height: min(820px, 82vh);
   overflow: hidden;
   position: relative;
+}
+
+.pageHeader::before {
+  background: rgba(19, 37, 31, 0.644);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
 }
 
 .pageHeaderInner {
   align-content: center;
-  block-size: 45rem;
   display: grid;
   gap: 1rem;
-  overflow: hidden;
+  min-height: min(820px, 82vh);
   padding: 7rem;
+  padding-right: 9rem;
   position: relative;
-  width: 100%;
   z-index: 1;
-}
-
-.pageHeaderInner > p:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pageHeaderInner > h1 {
   display: -webkit-box;
   line-clamp: 2;
-  overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .pageHeaderInner > p:last-child {
   display: -webkit-box;
-  line-clamp: 2;
-  overflow: hidden;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.pageHeaderInner::before {
-  -webkit-backdrop-filter: blur(3px) saturate(100%);
-  backdrop-filter: blur(3px) saturate(100%);
-  background: linear-gradient(135deg, rgb(13 30 26 / 44%), rgb(27 62 54 / 22%));
-  border: 1px solid rgb(255 255 255 / 16%);
-  content: "";
-  inset: 0;
-  pointer-events: none;
-  position: absolute;
-  z-index: -1;
+  -webkit-line-clamp: 3;
 }
 
 .pageHeader h1 {
-  font-size: clamp(1.6rem, 5vw, 3.5rem);
+  font-size: clamp(1.6rem, 5vw, 4rem);
 }
 
 .pageHeader p {
@@ -605,9 +593,13 @@
     grid-template-columns: 1fr;
   }
 
+  .pageHeader {
+    min-height: 25rem;
+  }
+
   .pageHeaderInner {
-    block-size: 35rem;
-    padding: 4rem;
+    min-height: 35rem;
+    padding: clamp(4rem, 10vw, 5rem) var(--page-gutter);
   }
 }
 
@@ -617,8 +609,8 @@
   }
 
   .pageHeaderInner {
-    block-size: 30rem;
-    padding: 3rem;
+    min-height: auto;
+    padding: 4.5rem var(--page-gutter) 5rem;
   }
 
   .pageHeaderInner > h1 {

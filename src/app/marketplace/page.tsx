@@ -3,6 +3,7 @@ import { getMarketplaceCatalog } from "@/lib/marketplaceCatalog";
 import { PackageOpen, ShieldCheck, ShoppingBag } from "lucide-react";
 import { MarketplaceStorefront } from "./MarketplaceStorefront";
 import styles from "./marketplace.module.css";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 

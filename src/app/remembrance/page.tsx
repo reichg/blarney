@@ -6,7 +6,7 @@ import { ModularCard } from "@/components/ModularCard";
 export default function RemembrancePage() {
   return (
     <>
-      <header className={`${formStyles.pageHeader} ${styles.pageHeader}`}>
+      <header className={formStyles.pageHeader}>
         <div className={formStyles.pageHeaderInner}>
           <p className="eyebrow">In Remembrance</p>
           <h1 className="section-title">
