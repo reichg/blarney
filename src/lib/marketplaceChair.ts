@@ -1,10 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db";
-import {
-  marketplaceCheckoutCustomerSchema,
-  marketplaceFulfillmentStatusSchema,
-} from "@/lib/marketplaceCheckout.schema";
+import { marketplaceCheckoutCustomerSchema } from "@/lib/marketplaceCheckout.schema";
 import type {
   MarketplaceCheckoutCustomer,
   MarketplaceCheckoutStatus,

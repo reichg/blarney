@@ -58,6 +58,7 @@ const {
   filterableCardGrid: vi.fn(({ children }) =>
     createElement("section", null, children),
   ),
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   paginationNav: vi.fn((_props: PaginationNavProps) =>
     createElement("nav", null, "pagination"),
   ),
