@@ -17,6 +17,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { getMarketplaceCatalog } from "@/lib/marketplaceCatalog";
+import { getMarketplaceListingImageViewPath } from "@/lib/marketplaceListingImage";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -77,5 +78,37 @@ describe("marketplace catalog service", () => {
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       }),
     );
+  });
+
+  it("maps managed listing image keys to the public marketplace image route", async () => {
+    listingFindMany.mockResolvedValue([
+      {
+        id: "listing-hoodie",
+        slug: "hoodie",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "/listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: 1,
+        variants: [
+          {
+            id: "variant-hoodie-m",
+            label: "Medium",
+            sku: "HOODIE-M",
+            unitAmount: 4500,
+            currency: "USD",
+            inventoryQuantity: null,
+          },
+        ],
+      },
+    ]);
+
+    await expect(getMarketplaceCatalog()).resolves.toEqual([
+      expect.objectContaining({
+        imageUrl: getMarketplaceListingImageViewPath(
+          "/listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        ),
+      }),
+    ]);
   });
 });

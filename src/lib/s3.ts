@@ -1,3 +1,4 @@
+import { marketplaceListingImageKeyPrefix } from "@/lib/marketplaceListingImage";
 import {
   isAllowedImageType,
   isAllowedPhotoSize,
@@ -81,7 +82,7 @@ async function createPhotoUpload(
   fileName: string,
   contentType: string,
   fileSize: number,
-  prefix: "pending" | "remembrance",
+  prefix: string,
 ) {
   if (!isAllowedImageType(contentType)) {
     throw new Error("Unsupported image type.");
@@ -118,6 +119,36 @@ export async function createRemembrancePhotoUpload(
   fileSize: number,
 ) {
   return createPhotoUpload(fileName, contentType, fileSize, "remembrance");
+}
+
+export async function uploadMarketplaceListingImageObject(
+  fileName: string,
+  contentType: string,
+  fileSize: number,
+  body: Uint8Array,
+) {
+  if (!isAllowedImageType(contentType)) {
+    throw new Error("Unsupported image type.");
+  }
+
+  if (!isAllowedPhotoSize(fileSize)) {
+    throw new Error(`Photos must be ${photoUploadLimitLabel} or smaller.`);
+  }
+
+  const key = `${marketplaceListingImageKeyPrefix}/${randomUUID()}-${cleanFileName(fileName) || "listing-image"}`;
+
+  await getS3Client().send(
+    new PutObjectCommand({
+      Body: body,
+      Bucket: getBucket(),
+      ContentType: contentType,
+      Key: key,
+    }),
+  );
+
+  return {
+    key,
+  };
 }
 
 export async function movePendingPhotoToApproved(key: string) {

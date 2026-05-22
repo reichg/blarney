@@ -13,7 +13,8 @@ export default function FeedbackPage() {
         <div className={styles.pageHeaderInner}>
           <p className="eyebrow">Feedback</p>
           <h1 className="section-title">How can we improve The Blarney?</h1>
-          <p>Feedback is collected privately for the chair.</p>
+          <p>Feedback is collected privately for the chair.
+          </p>
         </div>
       </header>
       <section className={styles.formSection}>

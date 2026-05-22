@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { resolveMarketplaceListingImageUrl } from "@/lib/marketplaceListingImage";
 import { Prisma } from "@prisma/client";
 
 const marketplaceCatalogVariantWhere = {
@@ -66,7 +67,7 @@ export type MarketplaceCheckoutVariantRecord =
 export async function getMarketplaceCatalog(
   client: MarketplaceCatalogClient = db,
 ) {
-  return client.marketplaceListing.findMany({
+  const listings = await client.marketplaceListing.findMany({
     where: {
       status: "ACTIVE",
       variants: {
@@ -76,6 +77,11 @@ export async function getMarketplaceCatalog(
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     select: marketplaceCatalogListingSelect,
   });
+
+  return listings.map((listing) => ({
+    ...listing,
+    imageUrl: resolveMarketplaceListingImageUrl(listing.imageUrl),
+  }));
 }
 
 export async function getMarketplacePurchasableVariantsForCheckout(
