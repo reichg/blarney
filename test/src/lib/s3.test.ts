@@ -5,11 +5,13 @@ import {
   getPhotoObjectBytes,
   moveApprovedPhotoToPending,
   movePendingPhotoToApproved,
+  uploadMarketplaceListingImageObject,
 } from "@/lib/s3";
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -70,6 +72,30 @@ describe("S3 photo uploads", () => {
     expect(uploadUrl.searchParams.has("x-amz-sdk-checksum-algorithm")).toBe(
       false,
     );
+  });
+
+  it("uploads listing images into the marketplace listing prefix", async () => {
+    stubS3Env();
+    sendMock.mockResolvedValue({});
+
+    const upload = await uploadMarketplaceListingImageObject(
+      "Club Hoodie.png",
+      "image/png",
+      12_345,
+      Uint8Array.from([1, 2, 3]),
+    );
+
+    expect(upload.key).toMatch(
+      /^blarney\/listing\/[a-f0-9-]+-club-hoodie\.png$/,
+    );
+    expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(sendMock.mock.calls[0][0]).toBeInstanceOf(PutObjectCommand);
+    expect(sendMock.mock.calls[0][0].input).toMatchObject({
+      Body: Uint8Array.from([1, 2, 3]),
+      Bucket: "blarney-test",
+      ContentType: "image/png",
+      Key: upload.key,
+    });
   });
 
   it("moves approved photos out of pending by copying then deleting the original key", async () => {

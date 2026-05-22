@@ -75,8 +75,8 @@
 
 .listingCard {
   display: grid;
-  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
-  min-height: 24rem;
+  grid-template-columns: minmax(12rem, 19rem) minmax(0, 1fr);
+  min-height: clamp(19rem, 22vw, 24rem);
 }
 
 .listingMedia {
@@ -90,11 +90,15 @@
   border-right: 1px solid rgb(24 64 49 / 10%);
   display: flex;
   min-height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
 }
 
 .listingImage {
   display: block;
   height: 100%;
+  max-width: 100%;
   object-fit: cover;
   width: 100%;
 }
@@ -109,14 +113,24 @@
 
 .listingBody {
   display: grid;
+  justify-content: center;
   gap: 1rem;
   grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
   padding: 1.2rem;
 }
 
 .listingCopy {
+  justify-content: center;
   display: grid;
   gap: 0.45rem;
+}
+
+.listingCopy h3 {
+  font-size: 2.5rem;
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 0;
 }
 
 .listingCopy p {
@@ -126,25 +140,28 @@
 }
 
 .variantList {
-  align-content: start;
+  align-self: end;
   display: grid;
   gap: 0.85rem;
+  min-width: 0;
 }
 
 .variantRow {
-  align-items: start;
+  align-items: center;
   background: rgb(255 253 247 / 88%);
   border: 1px solid rgb(24 64 49 / 10%);
   border-radius: calc(var(--radius) - 4px);
   display: grid;
   gap: 0.85rem;
   grid-template-columns: minmax(0, 1fr) minmax(8.75rem, auto);
+  min-width: 0;
   padding: 0.95rem;
 }
 
 .variantMeta {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .variantMeta label {
@@ -154,7 +171,6 @@
   flex-wrap: wrap;
   gap: 0.55rem;
 }
-
 .variantMeta label span {
   color: var(--muted);
   font-size: 0.92rem;
@@ -300,12 +316,17 @@
 }
 
 @media (max-width: 1100px) {
+  .listingCard {
+    grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+  }
+
   .variantRow {
     grid-template-columns: 1fr;
   }
 
   .quantityControl {
-    justify-self: start;
+    justify-self: center;
+    width: min(100%, 9.65rem);
   }
 }
 
@@ -313,6 +334,19 @@
   .infoPanels,
   .storefront {
     grid-template-columns: 1fr;
+  }
+
+  .variantList {
+    justify-content: center;
+  }
+
+  .variantRow {
+    grid-template-columns: minmax(0, 1fr) minmax(8.75rem, auto);
+    width: min(100%, 28rem);
+  }
+
+  .quantityControl {
+    justify-self: end;
   }
 }
 
@@ -329,14 +363,6 @@
   .listingMedia {
     border-bottom: 1px solid rgb(24 64 49 / 10%);
     border-right: 0;
-    min-height: 12rem;
-  }
-
-  .variantRow {
-    grid-template-columns: 1fr;
-  }
-
-  .quantityControl {
-    width: min(100%, 9.65rem);
+    min-height: clamp(12rem, 48vw, 16rem);
   }
 }

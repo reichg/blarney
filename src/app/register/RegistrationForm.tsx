@@ -11,7 +11,13 @@ import type {
 } from "@/app/register/type";
 import { CreditCard, Flag, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 
 const checkoutStorageKey = "blarney.registrationCheckout";
 const maxGolferCount = 20;
@@ -70,6 +76,8 @@ export function RegistrationForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingCheckout, setPendingCheckout] =
     useState<PendingCheckoutResume | null>(null);
+  const attendeeDetailsHeadingId = useId();
+  const paymentHeadingId = useId();
   const isGolfMode = mode === "golf";
   const paymentKind = isGolfMode ? "registration" : "rsvp";
   const golferAges = golfers.map((golfer) => parseAgeValue(golfer.age));
@@ -383,371 +391,428 @@ export function RegistrationForm({
         </section>
       ) : null}
 
-      <div className={styles.gridTwo}>
-        <label className={styles.field}>
-          <span className={styles.requiredLabel}>Payer first name</span>
-          <input name="firstName" required type="text" />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.requiredLabel}>Payer last name</span>
-          <input name="lastName" required type="text" />
-        </label>
-      </div>
-      <div className={styles.gridTwo}>
-        <label className={styles.field}>
-          <span className={styles.requiredLabel}>Email</span>
-          <input name="email" required type="email" />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.requiredLabel}>Phone</span>
-          <input name="phone" required type="tel" />
-        </label>
-      </div>
+      <fieldset className={styles.fieldset}>
+        <legend>Payer information</legend>
+        <div className={styles.gridTwo}>
+          <label className={styles.field}>
+            <span className={styles.requiredLabel}>Payer first name</span>
+            <input name="firstName" required type="text" />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.requiredLabel}>Payer last name</span>
+            <input name="lastName" required type="text" />
+          </label>
+        </div>
+        <div className={styles.gridTwo}>
+          <label className={styles.field}>
+            <span className={styles.requiredLabel}>Email</span>
+            <input name="email" required type="email" />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.requiredLabel}>Phone</span>
+            <input name="phone" required type="tel" />
+          </label>
+        </div>
+      </fieldset>
 
       {isGolfMode ? (
         <>
-          <div className={styles.formSubsection}>
-            <div className={styles.subsectionHeader}>
+          <section
+            aria-labelledby={attendeeDetailsHeadingId}
+            className={styles.sectionCard}
+          >
+            <div className={styles.sectionHeader}>
               <div>
-                <h3>Golfers</h3>
-                <p className={styles.supportText}>
-                  Every golfer is included in the BBQ headcount.
+                <h2 id={attendeeDetailsHeadingId}>Attendee details</h2>
+                <p className={styles.sectionLead}>
+                  Add golfers and any BBQ-only guests for your party.
                 </p>
               </div>
-              <button
-                className={styles.addButton}
-                disabled={golfers.length >= maxGolferCount}
-                onClick={addGolfer}
-                type="button"
-              >
-                <Plus aria-hidden="true" size={18} /> Add golfer
-              </button>
             </div>
-            <div className={styles.golferList}>
-              {golfers.map((golfer, index) => {
-                const golferNumber = index + 1;
 
-                return (
-                  <fieldset className={styles.golferRow} key={golfer.id}>
-                    <legend>Golfer {golferNumber}</legend>
-                    {golfers.length > 1 ? (
-                      <div className={styles.golferActions}>
-                        <button
-                          aria-label={`Remove golfer ${golferNumber}`}
-                          className={styles.removeButton}
-                          onClick={() => {
-                            removeGolfer(golfer.id);
-                          }}
-                          type="button"
-                        >
-                          <Trash2 aria-hidden="true" size={16} /> Remove
-                        </button>
+            <div className={styles.formSubsection}>
+              <div className={styles.subsectionHeader}>
+                <div>
+                  <h3>Golfers</h3>
+                  <p className={styles.supportText}>
+                    Every golfer is included in the BBQ headcount.
+                  </p>
+                </div>
+                <button
+                  className={styles.addButton}
+                  disabled={golfers.length >= maxGolferCount}
+                  onClick={addGolfer}
+                  type="button"
+                >
+                  <Plus aria-hidden="true" size={18} /> Add golfer
+                </button>
+              </div>
+              <div className={styles.golferList}>
+                {golfers.map((golfer, index) => {
+                  const golferNumber = index + 1;
+
+                  return (
+                    <fieldset className={styles.golferRow} key={golfer.id}>
+                      <legend>Golfer {golferNumber}</legend>
+                      {golfers.length > 1 ? (
+                        <div className={styles.golferActions}>
+                          <button
+                            aria-label={`Remove golfer ${golferNumber}`}
+                            className={styles.removeButton}
+                            onClick={() => {
+                              removeGolfer(golfer.id);
+                            }}
+                            type="button"
+                          >
+                            <Trash2 aria-hidden="true" size={16} /> Remove
+                          </button>
+                        </div>
+                      ) : null}
+                      <div className={styles.gridTwo}>
+                        <label className={styles.field}>
+                          <span className={styles.requiredLabel}>
+                            Golfer {golferNumber} first name
+                          </span>
+                          <input
+                            name="golferFirstName"
+                            onChange={(event) => {
+                              updateGolfer(
+                                golfer.id,
+                                "firstName",
+                                event.target.value,
+                              );
+                            }}
+                            required
+                            type="text"
+                            value={golfer.firstName}
+                          />
+                        </label>
+                        <label className={styles.field}>
+                          <span className={styles.requiredLabel}>
+                            Golfer {golferNumber} last name
+                          </span>
+                          <input
+                            name="golferLastName"
+                            onChange={(event) => {
+                              updateGolfer(
+                                golfer.id,
+                                "lastName",
+                                event.target.value,
+                              );
+                            }}
+                            required
+                            type="text"
+                            value={golfer.lastName}
+                          />
+                        </label>
                       </div>
-                    ) : null}
-                    <div className={styles.gridTwo}>
+                      <div className={styles.gridTwo}>
+                        <label className={styles.field}>
+                          <span className={styles.requiredLabel}>
+                            Golfer {golferNumber} gender
+                          </span>
+                          <select
+                            name="golferGender"
+                            onChange={(event) => {
+                              updateGolfer(
+                                golfer.id,
+                                "gender",
+                                event.target.value,
+                              );
+                            }}
+                            required
+                            value={golfer.gender}
+                          >
+                            <option disabled value="">
+                              Select one
+                            </option>
+                            <option value="MALE">Male</option>
+                            <option value="FEMALE">Female</option>
+                          </select>
+                        </label>
+                        <label className={styles.field}>
+                          <span className={styles.requiredLabel}>
+                            Golfer {golferNumber} age
+                          </span>
+                          <input
+                            min="1"
+                            name="golferAge"
+                            onChange={(event) => {
+                              updateGolfer(
+                                golfer.id,
+                                "age",
+                                event.target.value,
+                              );
+                            }}
+                            required
+                            type="number"
+                            value={golfer.age}
+                          />
+                        </label>
+                      </div>
                       <label className={styles.field}>
                         <span className={styles.requiredLabel}>
-                          Golfer {golferNumber} first name
+                          Golfer {golferNumber} average Manzanita score (Par 32)
                         </span>
                         <input
-                          name="golferFirstName"
+                          max="120"
+                          min="20"
+                          name="golferAverageScore"
                           onChange={(event) => {
                             updateGolfer(
                               golfer.id,
-                              "firstName",
+                              "averageScore",
                               event.target.value,
                             );
-                          }}
-                          required
-                          type="text"
-                          value={golfer.firstName}
-                        />
-                      </label>
-                      <label className={styles.field}>
-                        <span className={styles.requiredLabel}>
-                          Golfer {golferNumber} last name
-                        </span>
-                        <input
-                          name="golferLastName"
-                          onChange={(event) => {
-                            updateGolfer(
-                              golfer.id,
-                              "lastName",
-                              event.target.value,
-                            );
-                          }}
-                          required
-                          type="text"
-                          value={golfer.lastName}
-                        />
-                      </label>
-                    </div>
-                    <div className={styles.gridTwo}>
-                      <label className={styles.field}>
-                        <span className={styles.requiredLabel}>
-                          Golfer {golferNumber} gender
-                        </span>
-                        <select
-                          name="golferGender"
-                          onChange={(event) => {
-                            updateGolfer(
-                              golfer.id,
-                              "gender",
-                              event.target.value,
-                            );
-                          }}
-                          required
-                          value={golfer.gender}
-                        >
-                          <option disabled value="">
-                            Select one
-                          </option>
-                          <option value="MALE">Male</option>
-                          <option value="FEMALE">Female</option>
-                        </select>
-                      </label>
-                      <label className={styles.field}>
-                        <span className={styles.requiredLabel}>
-                          Golfer {golferNumber} age
-                        </span>
-                        <input
-                          min="1"
-                          name="golferAge"
-                          onChange={(event) => {
-                            updateGolfer(golfer.id, "age", event.target.value);
                           }}
                           required
                           type="number"
-                          value={golfer.age}
+                          value={golfer.averageScore}
                         />
+                        <small className={styles.fieldHint}>
+                          Average Manzanita score (Par 32).
+                        </small>
                       </label>
-                    </div>
-                    <label className={styles.field}>
-                      <span className={styles.requiredLabel}>
-                        Golfer {golferNumber} average Manzanita score (Par 32)
-                      </span>
-                      <input
-                        max="120"
-                        min="20"
-                        name="golferAverageScore"
-                        onChange={(event) => {
-                          updateGolfer(
-                            golfer.id,
-                            "averageScore",
-                            event.target.value,
-                          );
-                        }}
-                        required
-                        type="number"
-                        value={golfer.averageScore}
-                      />
-                      <small className={styles.fieldHint}>
-                        Average Manzanita score (Par 32).
-                      </small>
-                    </label>
-                  </fieldset>
-                );
-              })}
+                    </fieldset>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <fieldset className={styles.fieldset}>
-            <legend>Additional BBQ-only guests</legend>
-            <div className={styles.gridTwo}>
-              <label className={styles.field}>
-                <span className={styles.requiredLabel}>
-                  BBQ-only adults not golfing
-                </span>
-                <input
-                  max="30"
-                  min="0"
-                  name="bbqOnlyAdultCount"
-                  onChange={(event) => {
-                    setBbqOnlyAdultCount(parseCountValue(event.target.value));
-                  }}
-                  required
-                  type="number"
-                  value={bbqOnlyAdultCount}
-                />
-              </label>
-              <label className={styles.field}>
-                <span className={styles.requiredLabel}>
-                  BBQ-only kids not golfing
-                </span>
-                <input
-                  max="30"
-                  min="0"
-                  name="bbqOnlyKidCount"
-                  onChange={(event) => {
-                    setBbqOnlyKidCount(parseCountValue(event.target.value));
-                  }}
-                  required
-                  type="number"
-                  value={bbqOnlyKidCount}
-                />
-              </label>
-            </div>
-          </fieldset>
+            <fieldset className={styles.fieldset}>
+              <legend>Additional BBQ-only guests</legend>
+              <div className={styles.gridTwo}>
+                <label className={styles.field}>
+                  <span className={styles.requiredLabel}>
+                    BBQ-only adults not golfing
+                  </span>
+                  <input
+                    max="30"
+                    min="0"
+                    name="bbqOnlyAdultCount"
+                    onChange={(event) => {
+                      setBbqOnlyAdultCount(parseCountValue(event.target.value));
+                    }}
+                    required
+                    type="number"
+                    value={bbqOnlyAdultCount}
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span className={styles.requiredLabel}>
+                    BBQ-only kids not golfing
+                  </span>
+                  <input
+                    max="30"
+                    min="0"
+                    name="bbqOnlyKidCount"
+                    onChange={(event) => {
+                      setBbqOnlyKidCount(parseCountValue(event.target.value));
+                    }}
+                    required
+                    type="number"
+                    value={bbqOnlyKidCount}
+                  />
+                </label>
+              </div>
+            </fieldset>
 
-          <section aria-live="polite" className={styles.summaryCard}>
-            <h3>BBQ Headcount</h3>
-            <dl className={styles.summaryGrid}>
-              <div>
-                <dt>Golfers 15 and older</dt>
-                <dd>{golferAdultCount}</dd>
-              </div>
-              <div>
-                <dt>Golfers under 15</dt>
-                <dd>{golferKidCount}</dd>
-              </div>
-              <div>
-                <dt>Additional BBQ-only adults</dt>
-                <dd>{bbqOnlyAdultCount}</dd>
-              </div>
-              <div>
-                <dt>Additional BBQ-only kids</dt>
-                <dd>{bbqOnlyKidCount}</dd>
-              </div>
-              <div className={styles.summaryValue}>
-                <dt>Known BBQ total</dt>
-                <dd>
-                  {golferAdultCount +
-                    golferKidCount +
-                    bbqOnlyAdultCount +
-                    bbqOnlyKidCount}
-                </dd>
-              </div>
-            </dl>
-            <p className={styles.supportText}>
-              Golfers under 15 count as kids for BBQ totals. Golfers are not
-              charged again for BBQ.
-            </p>
+            <section aria-live="polite" className={styles.summaryCard}>
+              <h3>BBQ Headcount</h3>
+              <dl className={styles.summaryGrid}>
+                <div>
+                  <dt>Golfers 15 and older</dt>
+                  <dd>{golferAdultCount}</dd>
+                </div>
+                <div>
+                  <dt>Golfers under 15</dt>
+                  <dd>{golferKidCount}</dd>
+                </div>
+                <div>
+                  <dt>Additional BBQ-only adults</dt>
+                  <dd>{bbqOnlyAdultCount}</dd>
+                </div>
+                <div>
+                  <dt>Additional BBQ-only kids</dt>
+                  <dd>{bbqOnlyKidCount}</dd>
+                </div>
+                <div className={styles.summaryValue}>
+                  <dt>Known BBQ total</dt>
+                  <dd>
+                    {golferAdultCount +
+                      golferKidCount +
+                      bbqOnlyAdultCount +
+                      bbqOnlyKidCount}
+                  </dd>
+                </div>
+              </dl>
+              <p className={styles.supportText}>
+                Golfers under 15 count as kids for BBQ totals. Golfers are not
+                charged again for BBQ.
+              </p>
+            </section>
           </section>
 
-          <label className={styles.field}>
-            <span>Dietary notes (optional)</span>
-            <textarea
-              name="dietaryNotes"
-              placeholder="Meal notes for golfers or BBQ-only guests."
-              rows={3}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>Registration notes (optional)</span>
-            <textarea
-              name="notes"
-              placeholder="Pairing notes, seating notes, or anything the chair should know."
-              rows={4}
-            />
-          </label>
+          <fieldset className={styles.fieldset}>
+            <legend>Notes</legend>
+            <label className={styles.field}>
+              <span>Dietary notes (optional)</span>
+              <textarea
+                name="dietaryNotes"
+                placeholder="Meal notes for golfers or BBQ-only guests."
+                rows={3}
+              />
+            </label>
+            <label className={styles.field}>
+              <span>Registration notes (optional)</span>
+              <textarea
+                name="notes"
+                placeholder="Pairing notes, seating notes, or anything the chair should know."
+                rows={4}
+              />
+            </label>
+          </fieldset>
         </>
       ) : (
         <>
-          <fieldset className={styles.fieldset}>
-            <legend>BBQ-only attendees (Including payer)</legend>
-            <div className={styles.gridTwo}>
-              <label className={styles.field}>
-                <span className={styles.requiredLabel}>BBQ-only adults</span>
-                <input
-                  max="30"
-                  min="0"
-                  name="adultAttendeeCount"
-                  onChange={(event) => {
-                    setRsvpAdultCount(parseCountValue(event.target.value));
-                  }}
-                  required
-                  type="number"
-                  value={rsvpAdultCount}
-                />
-              </label>
-              <label className={styles.field}>
-                <span className={styles.requiredLabel}>BBQ-only kids</span>
-                <input
-                  max="30"
-                  min="0"
-                  name="childAttendeeCount"
-                  onChange={(event) => {
-                    setRsvpKidCount(parseCountValue(event.target.value));
-                  }}
-                  required
-                  type="number"
-                  value={rsvpKidCount}
-                />
-              </label>
+          <section
+            aria-labelledby={attendeeDetailsHeadingId}
+            className={styles.sectionCard}
+          >
+            <div className={styles.sectionHeader}>
+              <div>
+                <h2 id={attendeeDetailsHeadingId}>Attendee details</h2>
+                <p className={styles.sectionLead}>
+                  Count everyone joining the BBQ, including the payer.
+                </p>
+              </div>
             </div>
-            <p aria-live="polite" className={styles.supportText}>
-              Total BBQ attendees: {rsvpAttendeeCount}
-            </p>
+
+            <fieldset className={styles.fieldset}>
+              <legend>BBQ-only attendees (Including payer)</legend>
+              <div className={styles.gridTwo}>
+                <label className={styles.field}>
+                  <span className={styles.requiredLabel}>BBQ-only adults</span>
+                  <input
+                    max="30"
+                    min="0"
+                    name="adultAttendeeCount"
+                    onChange={(event) => {
+                      setRsvpAdultCount(parseCountValue(event.target.value));
+                    }}
+                    required
+                    type="number"
+                    value={rsvpAdultCount}
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span className={styles.requiredLabel}>BBQ-only kids</span>
+                  <input
+                    max="30"
+                    min="0"
+                    name="childAttendeeCount"
+                    onChange={(event) => {
+                      setRsvpKidCount(parseCountValue(event.target.value));
+                    }}
+                    required
+                    type="number"
+                    value={rsvpKidCount}
+                  />
+                </label>
+              </div>
+              <p aria-live="polite" className={styles.supportText}>
+                Total BBQ attendees: {rsvpAttendeeCount}
+              </p>
+            </fieldset>
+
+            <label className={styles.field}>
+              <span>Family or guest names (optional)</span>
+              <textarea
+                name="familyNames"
+                placeholder="List everyone joining the BBQ."
+                rows={3}
+              />
+            </label>
+          </section>
+
+          <fieldset className={styles.fieldset}>
+            <legend>Notes</legend>
+            <label className={styles.field}>
+              <span>Dietary notes (optional)</span>
+              <textarea
+                name="dietaryNotes"
+                placeholder="Meal notes for your party."
+                rows={3}
+              />
+            </label>
+            <label className={styles.field}>
+              <span>BBQ notes (optional)</span>
+              <textarea
+                name="notes"
+                placeholder="Anything the chair should know."
+                rows={3}
+              />
+            </label>
           </fieldset>
-          <label className={styles.field}>
-            <span>Family or guest names (optional)</span>
-            <textarea
-              name="familyNames"
-              placeholder="List everyone joining the BBQ."
-              rows={3}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>Dietary notes (optional)</span>
-            <textarea
-              name="dietaryNotes"
-              placeholder="Meal notes for your party."
-              rows={3}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>BBQ notes (optional)</span>
-            <textarea
-              name="notes"
-              placeholder="Anything the chair should know."
-              rows={3}
-            />
-          </label>
         </>
       )}
 
-      {summaryItems.length > 0 && totalLabel ? (
-        <section className={styles.summaryCard}>
-          <h3>Payment Summary</h3>
-          <dl className={styles.summaryGrid}>
-            {summaryItems.map((item) => (
-              <div key={item.label}>
-                <dt>{item.label}</dt>
-                <dd>
-                  {item.quantity} x {item.unitPriceLabel}
-                </dd>
-              </div>
-            ))}
-            <div className={styles.summaryValue}>
-              <dt>Total due</dt>
-              <dd>{totalLabel}</dd>
-            </div>
-          </dl>
-        </section>
-      ) : null}
-
-      <p className={styles.supportText}>
-        Submitting opens a secure Square checkout in this tab. Your
-        {isGolfMode ? " registration" : " BBQ RSVP"} is finalized only after
-        payment succeeds.
-      </p>
-      {error ? (
-        <div aria-live="polite" className={styles.errorNotice}>
-          {error}
-        </div>
-      ) : null}
-      <button
-        className={styles.submitButton}
-        disabled={isSubmitting}
-        type="submit"
+      <section
+        aria-labelledby={paymentHeadingId}
+        className={styles.sectionCard}
       >
-        <CreditCard aria-hidden="true" size={18} />
-        {submitButtonText}
-      </button>
-      <div className={styles.notice}>
-        <Flag aria-hidden="true" size={18} /> Pairings remain private until the
-        chair publishes them.
-      </div>
+        <div className={styles.sectionHeader}>
+          <div>
+            <h2 id={paymentHeadingId}>Payment</h2>
+            <p className={styles.sectionLead}>
+              Review your total, then continue to secure Square checkout.
+            </p>
+          </div>
+        </div>
+
+        {summaryItems.length > 0 && totalLabel ? (
+          <div className={styles.paymentSummary}>
+            <h3>Payment summary</h3>
+            <dl className={styles.summaryGrid}>
+              {summaryItems.map((item) => (
+                <div key={item.label}>
+                  <dt>{item.label}</dt>
+                  <dd>
+                    {item.quantity} x {item.unitPriceLabel}
+                  </dd>
+                </div>
+              ))}
+              <div className={styles.summaryValue}>
+                <dt>Total due</dt>
+                <dd>{totalLabel}</dd>
+              </div>
+            </dl>
+          </div>
+        ) : null}
+
+        <p className={styles.supportText}>
+          Submitting opens a secure Square checkout in this tab. Your
+          {isGolfMode ? " registration" : " BBQ RSVP"} is finalized only after
+          payment succeeds.
+        </p>
+        {error ? (
+          <div aria-live="polite" className={styles.errorNotice}>
+            {error}
+          </div>
+        ) : null}
+        <button
+          className={styles.submitButton}
+          disabled={isSubmitting}
+          type="submit"
+        >
+          <CreditCard aria-hidden="true" size={18} />
+          {submitButtonText}
+        </button>
+        <div className={styles.notice}>
+          <Flag aria-hidden="true" size={18} /> Pairings remain private until
+          the chair publishes them.
+        </div>
+      </section>
     </form>
   );
 }

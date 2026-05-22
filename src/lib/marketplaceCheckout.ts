@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import {
   buildMarketplaceCheckoutDraftInputSchema,
   marketplaceCheckoutDraftSchema,
@@ -8,34 +9,34 @@ import {
   marketplaceOrderRecordSchema,
   marketplacePublicTokenSchema,
 } from "@/lib/marketplaceCheckout.schema";
-import {
-  getMarketplacePurchasableVariantsForCheckout,
-  type MarketplaceCheckoutVariantRecord,
-} from "./marketplaceCatalog";
-import { db } from "@/lib/db";
+import type {
+  BuildMarketplaceCheckoutDraftInput,
+  CreateOrReuseMarketplacePendingCheckoutResult,
+  GetMarketplacePendingCheckoutResult,
+  MarketplaceCheckoutDraft,
+  MarketplaceCheckoutItemRecord,
+  MarketplaceCheckoutPaymentAttemptRecord,
+  MarketplaceCheckoutPaymentResult,
+  MarketplaceCheckoutRecord,
+  MarketplaceCheckoutRequestInput,
+  MarketplaceCheckoutStatus,
+  MarketplaceOrderRecord,
+  MarketplacePaymentAttemptStatus,
+  MarketplacePublicToken,
+} from "@/lib/marketplaceCheckout.types";
+import { resolveMarketplaceListingImageUrl } from "@/lib/marketplaceListingImage";
 import {
   createMarketplacePaymentLink,
   getMarketplaceCheckoutConfirmationUrl,
   getSquarePaymentLinkState,
   hasSquareCheckoutConfiguration,
 } from "@/lib/payment";
-import type {
-  BuildMarketplaceCheckoutDraftInput,
-  MarketplaceCheckoutDraft,
-  MarketplaceCheckoutItemRecord,
-  MarketplaceCheckoutPaymentAttemptRecord,
-  MarketplaceCheckoutPaymentResult,
-  MarketplaceCheckoutRecord,
-  MarketplaceCheckoutStatus,
-  CreateOrReuseMarketplacePendingCheckoutResult,
-  GetMarketplacePendingCheckoutResult,
-  MarketplacePaymentAttemptStatus,
-  MarketplaceCheckoutRequestInput,
-  MarketplaceOrderRecord,
-  MarketplacePublicToken,
-} from "@/lib/marketplaceCheckout.types";
 import { Prisma } from "@prisma/client";
 import { createHash, randomUUID } from "crypto";
+import {
+  getMarketplacePurchasableVariantsForCheckout,
+  type MarketplaceCheckoutVariantRecord,
+} from "./marketplaceCatalog";
 
 const marketplaceCheckoutLifetimeMs = 1000 * 60 * 60 * 24;
 const reusableMarketplaceCheckoutStatuses: MarketplaceCheckoutStatus[] = [
@@ -762,7 +763,7 @@ function buildMarketplaceCheckoutLineSnapshots(
       detailSnapshot: {
         slug: variant.listing.slug,
         description: variant.listing.description ?? null,
-        imageUrl: variant.listing.imageUrl ?? null,
+        imageUrl: resolveMarketplaceListingImageUrl(variant.listing.imageUrl),
         fulfillmentNote: variant.listing.fulfillmentNote ?? null,
       },
     };

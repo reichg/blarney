@@ -14,4 +14,13 @@ describe("chair card grid styles", () => {
 
     expect(cardGridBlockMatch?.[1]).toContain("auto-fill");
   });
+
+  it("does not translate preview cards so fixed detail dialogs stay viewport-bound", () => {
+    const previewCardBlockMatch = chairStyles.match(
+      /\.previewCard\s*\{([\s\S]*?)\}\s*\.previewCard:hover,\s*\.previewCard:focus-within\s*\{([\s\S]*?)\}/,
+    );
+
+    expect(previewCardBlockMatch?.[1]).not.toContain("transform");
+    expect(previewCardBlockMatch?.[2]).not.toContain("transform");
+  });
 });

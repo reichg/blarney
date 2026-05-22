@@ -144,11 +144,17 @@ describe("MarketplaceStorefront", () => {
       "utf8",
     );
 
-    expect(css).toMatch(/\.listingCard\s*\{[\s\S]*?min-height:\s*24rem;/);
+    expect(css).toMatch(
+      /\.listingCard\s*\{[\s\S]*?min-height:\s*clamp\(19rem, 22vw, 24rem\);/,
+    );
     expect(css).toMatch(
       /\.listingBody\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\);/,
     );
-    expect(css).toMatch(/\.variantList\s*\{[\s\S]*?align-content:\s*start;/);
+    expect(css).toMatch(/\.listingBody\s*\{[\s\S]*?justify-content:\s*center;/);
+    expect(css).toMatch(/\.listingCopy\s*\{[\s\S]*?justify-content:\s*center;/);
+    expect(css).toMatch(/\.variantRow\s*\{[\s\S]*?min-width:\s*0;/);
+    expect(css).toMatch(/\.variantMeta\s*\{[\s\S]*?min-width:\s*0;/);
+    expect(css).toMatch(/\.variantList\s*\{[\s\S]*?align-self:\s*end;/);
   });
 
   it("defines responsive catalog and checkout breakpoints for the marketplace layout", () => {
@@ -164,10 +170,25 @@ describe("MarketplaceStorefront", () => {
       /@media \(min-width: 1120px\)\s*\{[\s\S]*?\.checkoutColumn\s*\{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*6rem;/,
     );
     expect(css).toMatch(
+      /@media \(max-width: 1100px\)\s*\{[\s\S]*?\.listingCard\s*\{[\s\S]*?grid-template-columns:\s*minmax\(11rem, 15rem\) minmax\(0, 1fr\);/,
+    );
+    expect(css).toMatch(
       /@media \(max-width: 1100px\)\s*\{[\s\S]*?\.variantRow\s*\{[\s\S]*?grid-template-columns:\s*1fr;/,
     );
     expect(css).toMatch(
+      /@media \(max-width: 1100px\)\s*\{[\s\S]*?\.quantityControl\s*\{[\s\S]*?width:\s*min\(100%, 9\.65rem\);/,
+    );
+    expect(css).toMatch(
       /@media \(max-width: 900px\)\s*\{[\s\S]*?\.infoPanels,\s*\.storefront\s*\{[\s\S]*?grid-template-columns:\s*1fr;/,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 900px\)\s*\{[\s\S]*?\.variantRow\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(8\.75rem, auto\);[\s\S]*?width:\s*min\(100%, 28rem\);/,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 900px\)\s*\{[\s\S]*?\.quantityControl\s*\{[\s\S]*?justify-self:\s*end;/,
+    );
+    expect(css).not.toMatch(
+      /@media \(max-width: 720px\)\s*\{[\s\S]*?\.variantRow\s*\{[\s\S]*?grid-template-columns:\s*1fr;/,
     );
     expect(css).toMatch(
       /@media \(max-width: 720px\)\s*\{[\s\S]*?\.listingCard\s*\{[\s\S]*?min-height:\s*0;/,
