@@ -3,10 +3,56 @@ import { getEventSettings } from "@/lib/content";
 import type { Metadata } from "next";
 import "./globals.css";
 
+const siteTitle = "Blarney 42";
+const siteDescription =
+  "Registration, logistics, pairings, feedback, and photos for the Blarney 42 golf event.";
+const metadataBaseFallback = "http://localhost:3001";
+
+function getMetadataBase() {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+
+  if (!siteUrl) {
+    return new URL(metadataBaseFallback);
+  }
+
+  try {
+    return new URL(siteUrl);
+  } catch {
+    return new URL(metadataBaseFallback);
+  }
+}
+
 export const metadata: Metadata = {
-  title: "Blarney 42",
-  description:
-    "Registration, logistics, pairings, feedback, and photos for the Blarney 42 golf event.",
+  metadataBase: getMetadataBase(),
+  title: siteTitle,
+  description: siteDescription,
+  applicationName: siteTitle,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: siteTitle,
+    description: siteDescription,
+    type: "website",
+    url: "/",
+    siteName: siteTitle,
+    images: [
+      {
+        url: "/images/background.png",
+        alt: "Blarney 42 golf event preview",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteTitle,
+    description: siteDescription,
+    images: ["/images/background.png"],
+  },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: ["/icon.svg"],
+  },
 };
 
 export const dynamic = "force-dynamic";
