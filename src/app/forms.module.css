@@ -30,20 +30,6 @@
   z-index: 1;
 }
 
-.pageHeaderInner > h1 {
-  display: -webkit-box;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.pageHeaderInner > p:last-child {
-  display: -webkit-box;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
 .pageHeader h1 {
   font-size: clamp(2.2rem, 5vw, 4rem);
 }
@@ -610,21 +596,19 @@
     min-height: 25rem;
   }
 
+  .pageHeader h1 {
+    font-size: clamp(2.2rem, 5vw, 4rem);
+  }
+
+  .pageHeader p {
+    line-height: 1.4;
+  }
+
   .panelHeader {
     grid-template-columns: 1fr;
   }
 
   .pageHeaderInner {
     padding: 4.5rem var(--page-gutter) 5rem;
-  }
-
-  .pageHeaderInner > h1 {
-    line-clamp: 3;
-    -webkit-line-clamp: 3;
-  }
-
-  .pageHeaderInner > p:last-child {
-    line-clamp: 3;
-    -webkit-line-clamp: 3;
   }
 }
