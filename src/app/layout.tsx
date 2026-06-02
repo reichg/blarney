@@ -63,7 +63,7 @@ export default async function RootLayout({
   const settings = await getEventSettings();
 
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body>
         <div className="page-shell">
           <Navigation />

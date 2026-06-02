@@ -8,6 +8,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": new URL("./src", import.meta.url).pathname,
+      // next's "server-only" guard has no meaning in the test environment
+      "server-only": new URL("./test/__mocks__/server-only.ts", import.meta.url)
+        .pathname,
     },
   },
 });
