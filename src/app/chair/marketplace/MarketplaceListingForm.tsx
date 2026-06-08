@@ -2,16 +2,22 @@
 
 import styles from "@/app/chair/chair.module.css";
 import { MarketplaceListingImageField } from "@/app/chair/marketplace/MarketplaceListingImageField";
+import {
+  useMarketplaceActionNavigation,
+  type MarketplaceFormAction,
+} from "@/app/chair/marketplace/useMarketplaceActionNavigation";
+import { usePreviewDetailCardClose } from "@/app/chair/PreviewDetailCardContext";
 import { uploadMarketplaceListingImage } from "@/lib/marketplaceListingImageClient";
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 
 type MarketplaceListingFormProps = {
-  action: (formData: FormData) => void | Promise<void>;
+  action: MarketplaceFormAction;
   children: ReactNode;
   fieldId: string;
   initialImageValue?: string | null;
   pendingSubmitLabel: string;
+  secondaryChildren?: ReactNode;
   submitLabel: string;
   uploadPendingLabel: string;
 };
@@ -63,9 +69,12 @@ export function MarketplaceListingForm({
   fieldId,
   initialImageValue = null,
   pendingSubmitLabel,
+  secondaryChildren = null,
   submitLabel,
   uploadPendingLabel,
 }: MarketplaceListingFormProps) {
+  const runMarketplaceAction = useMarketplaceActionNavigation();
+  const closePreviewDetailCard = usePreviewDetailCardClose();
   const hiddenImageInputRef = useRef<HTMLInputElement>(null);
   const skipSubmitInterceptionRef = useRef(false);
   const [currentImageValue, setCurrentImageValue] = useState(
@@ -75,6 +84,7 @@ export function MarketplaceListingForm({
   const [statusMessage, setStatusMessage] = useState(
     getDefaultStatusMessage(initialImageValue ?? ""),
   );
+  const [statusTone, setStatusTone] = useState<"info" | "warning">("info");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -89,6 +99,7 @@ export function MarketplaceListingForm({
   function handleFileChange(file: File | null) {
     setSelectedFile(file);
     setErrorMessage(null);
+    setStatusTone("info");
     setStatusMessage(
       file
         ? getSelectedFileMessage(file.name, currentImageValue)
@@ -100,6 +111,7 @@ export function MarketplaceListingForm({
     setSelectedFile(null);
     setHiddenImageValue("");
     setErrorMessage(null);
+    setStatusTone("warning");
     setStatusMessage(
       "Listing image will be removed when you save the listing.",
     );
@@ -122,6 +134,7 @@ export function MarketplaceListingForm({
     const pendingFile = selectedFile;
 
     setErrorMessage(null);
+    setStatusTone("info");
     setIsUploading(true);
     setStatusMessage(`Uploading ${pendingFile.name} and saving the listing...`);
 
@@ -154,7 +167,7 @@ export function MarketplaceListingForm({
 
   return (
     <form
-      action={action}
+      action={runMarketplaceAction(action, { onResult: closePreviewDetailCard })}
       className={styles.compactForm}
       onSubmit={handleSubmit}
     >
@@ -174,7 +187,9 @@ export function MarketplaceListingForm({
         onRemove={handleRemoveImage}
         selectedFile={selectedFile}
         statusMessage={statusMessage}
+        statusTone={statusTone}
       />
+      {secondaryChildren}
       <MarketplaceListingSubmitButton
         isUploading={isUploading}
         pendingSubmitLabel={pendingSubmitLabel}

@@ -1833,3 +1833,103 @@
     flex-direction: column;
   }
 }
+
+.marketplaceCreateListingPanel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.marketplaceCompartment {
+  background: linear-gradient(
+    180deg,
+    rgb(248 244 236 / 0.6),
+    rgb(255 255 255 / 0.92)
+  );
+  border: 1px solid rgb(24 64 49 / 0.12);
+  border-radius: calc(var(--radius) + 0.1rem);
+  box-shadow: 0 0.85rem 1.8rem rgb(24 64 49 / 0.06);
+  display: grid;
+  gap: 0.95rem;
+  padding: 1.15rem;
+}
+
+.marketplaceCompartmentHeader {
+  border-bottom: 1px solid rgb(24 64 49 / 0.12);
+  display: grid;
+  gap: 0.3rem;
+  padding-bottom: 0.75rem;
+}
+
+.marketplaceCompartmentTitle {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.marketplaceCompartmentIntro {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.marketplaceVariantCard {
+  background: rgb(255 255 255 / 0.82);
+  border: 1px solid rgb(24 64 49 / 0.1);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.marketplaceVariantCardHeader {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: space-between;
+}
+
+.marketplaceVariantCardHeader p {
+  color: var(--pine);
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.marketplaceVariantFieldGrid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.marketplaceImageRemovalNotice {
+  background: rgb(179 134 63 / 0.14);
+  border: 1px solid rgb(179 134 63 / 0.5);
+  border-radius: calc(var(--radius) - 0.2rem);
+  color: var(--rose);
+  font-weight: 800;
+  padding: 0.7rem 0.85rem;
+}
+
+.marketplaceListingActions {
+  border-top: 1px solid rgb(24 64 49 / 0.12);
+  display: grid;
+  gap: 0.6rem;
+  padding-top: 0.85rem;
+}
+
+.marketplaceListingActionsLabel {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+  .marketplaceVariantFieldGrid {
+    grid-template-columns: 1fr;
+  }
+}

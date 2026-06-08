@@ -18,7 +18,7 @@ vi.mock("@/app/actions/marketplace", () => ({
   archiveMarketplaceListingAction: vi.fn(async () => undefined),
   createMarketplaceListingAction: vi.fn(async () => undefined),
   createMarketplaceListingVariantAction: vi.fn(async () => undefined),
-  deleteArchivedMarketplaceListingAction: vi.fn(async () => undefined),
+  deleteMarketplaceListingAction: vi.fn(async () => undefined),
   publishMarketplaceListingAction: vi.fn(async () => undefined),
   restoreMarketplaceListingAction: vi.fn(async () => undefined),
   saveMarketplaceListingAction: vi.fn(async () => undefined),
@@ -63,6 +63,12 @@ vi.mock("@/lib/format", () => ({
 
 vi.mock("@/lib/marketplaceChair", () => ({
   getChairMarketplaceOverview,
+}));
+
+// The catalog view now wraps listing actions in a client component that reads
+// useRouter, so the static render needs a mounted-router stub to execute.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
 }));
 
 afterEach(() => {
@@ -304,7 +310,7 @@ describe("chair marketplace page", () => {
       noticeTitle: "Marketplace draft listing created.",
     },
     {
-      label: "an archived listing is deleted",
+      label: "a listing is deleted",
       searchParams: { marketplace: "listing-deleted" },
       noticeTitle: "Marketplace listing deleted.",
     },
@@ -485,7 +491,9 @@ describe("chair marketplace page", () => {
       expect(html).toContain("Draft Hoodie");
       expect(html).toContain("Live Tee");
       expect(html).toContain("Retired Cap");
-      expect(html).toContain("Image review");
+      expect(html).not.toContain("Image review");
+      expect(html).toContain("Overview");
+      expect(html).toContain("Listing details");
       expect(html).toContain("Listing image");
       expect(html).toContain("The file uploads when you save the listing.");
       expect(html).toContain("HOODIE-M");
@@ -493,9 +501,25 @@ describe("chair marketplace page", () => {
       expect(html).toContain('src="/images/hoodie.jpg"');
       expect(html).toContain('class="actionButton fullWidthButton"');
       expect(html).not.toContain("Image URL");
-      expect(html).toContain("Delete Variant");
+      expect(html).toContain("Delete variant");
       expect(html).toContain("Add variant");
       expect(html).toContain("Delete permanently");
+      // Every status now exposes a delete control. Draft and active listings
+      // use the generalized "Delete listing" label while archived keeps its
+      // existing "Delete permanently" copy asserted above.
+      expect(html).toContain("Delete listing");
+      expect(html).toContain('aria-label="Delete draft listing Draft Hoodie"');
+      expect(html).toContain(
+        'aria-label="Delete published listing Live Tee"',
+      );
+      expect(html).toContain(
+        'aria-label="Delete archived listing Retired Cap permanently"',
+      );
+      // Status actions also render inside the detail dialog content, not only in
+      // the card actions slot. The PreviewDetailCard mock renders children, so
+      // the "Manage listing" section is present in the static markup.
+      expect(html).toContain("Manage listing");
+      expect(html).toContain(" status or remove it from the chair");
       expect(html).not.toContain("Upload selected image");
       expect(html).not.toContain(
         "Remove this variant when you save the listing",
@@ -562,7 +586,7 @@ describe("chair marketplace page", () => {
 
   it("renders managed listing image keys through the marketplace listing image route", async () => {
     const managedImageKey =
-      "/listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png";
+      "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png";
 
     getChairMarketplaceCatalog.mockResolvedValue([
       {
@@ -600,7 +624,6 @@ describe("chair marketplace page", () => {
     expect(html).toContain(
       `src="${getMarketplaceListingImageViewPath(managedImageKey)}"`,
     );
-    expect(html).toContain("Managed S3 image");
   });
 
   it("renders archived listings as reference-only without edit controls", async () => {
