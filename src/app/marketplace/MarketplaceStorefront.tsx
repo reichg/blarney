@@ -1,10 +1,12 @@
 "use client";
 
 import formsStyles from "@/app/forms.module.css";
+import { DraftNotice } from "@/components/DraftNotice";
 import { ModularCard } from "@/components/ModularCard";
 import type { MarketplaceCatalogListing } from "@/lib/marketplaceCatalog";
 import { marketplaceCreateCheckoutResponseSchema } from "@/lib/marketplaceCheckout.contracts";
 import { isTrustedSquareCheckoutUrl } from "@/lib/squareCheckoutUrl";
+import { useControlledFormDraft } from "@/lib/useFormDraft";
 import {
   CreditCard,
   LoaderCircle,
@@ -13,8 +15,19 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import styles from "./marketplace.module.css";
+
+/** Persisted buyer cart + contact snapshot (no payment/card data). */
+type MarketplaceStoreDraft = {
+  quantities: Record<string, number>;
+  email: string;
+  name: string;
+  phone: string;
+};
+
+const MARKETPLACE_STORE_FORM_ID = "marketplaceStore";
+const MARKETPLACE_STORE_FORM_VERSION = 1;
 
 type MarketplaceStorefrontProps = {
   listings: MarketplaceCatalogListing[];
@@ -184,6 +197,25 @@ export function MarketplaceStorefront({
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const restoreDraft = useCallback((draft: MarketplaceStoreDraft) => {
+    setQuantities(draft.quantities);
+    setEmail(draft.email);
+    setName(draft.name);
+    setPhone(draft.phone);
+  }, []);
+
+  const { wasRestored, clearDraft } = useControlledFormDraft<MarketplaceStoreDraft>({
+    formId: MARKETPLACE_STORE_FORM_ID,
+    formVersion: MARKETPLACE_STORE_FORM_VERSION,
+    value: { quantities, email, name, phone },
+    onRestore: restoreDraft,
+    hasContent: (draft) =>
+      Object.values(draft.quantities).some((quantity) => quantity > 0) ||
+      draft.email.trim() !== "" ||
+      draft.name.trim() !== "" ||
+      draft.phone.trim() !== "",
+  });
+
   const cartLines = listings.flatMap((listing) =>
     listing.variants
       .map((variant) => ({
@@ -272,6 +304,7 @@ export function MarketplaceStorefront({
       const result = parsed.data;
 
       if (result.ok && result.status === "confirmed") {
+        clearDraft();
         router.push(
           `/marketplace/thanks?order=${encodeURIComponent(result.orderId)}`,
         );
@@ -286,6 +319,7 @@ export function MarketplaceStorefront({
           return;
         }
 
+        clearDraft();
         window.location.assign(result.paymentUrl);
         return;
       }
@@ -318,6 +352,16 @@ export function MarketplaceStorefront({
 
   return (
     <form className={styles.storefront} onSubmit={handleSubmit}>
+      <DraftNotice
+        onDiscard={() => {
+          clearDraft();
+          setQuantities({});
+          setEmail("");
+          setName("");
+          setPhone("");
+        }}
+        visible={wasRestored}
+      />
       <div className={styles.catalogGrid}>
         {listings.length ? (
           listings.map((listing) => (

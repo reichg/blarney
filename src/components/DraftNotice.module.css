@@ -1,0 +1,104 @@
+.notice {
+  align-items: center;
+  background: var(--sky);
+  border: 1px solid rgb(24 64 49 / 14%);
+  border-radius: var(--radius);
+  color: var(--pine);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  justify-content: space-between;
+  line-height: 1.5;
+  padding: 0.85rem 1rem;
+  /*
+   * The notice is dropped into form layouts that are CSS grids (often
+   * multi-column) or wrapping flexboxes. Force it onto its own full-width row
+   * so it never consumes a grid cell / flex slot and displaces sibling
+   * columns. No-op in single-column grids and block/column flow.
+   */
+  grid-column: 1 / -1;
+  flex-basis: 100%;
+}
+
+.message {
+  flex: 1 1 14rem;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.discardButton {
+  background: var(--surface-raised);
+  border: 1px solid rgb(24 64 49 / 22%);
+  border-radius: 999px;
+  color: var(--pine);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.4rem 0.9rem;
+  transition:
+    background-color 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.discardButton:hover {
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.dismissButton {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--pine);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1.25rem;
+  height: 2rem;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+  width: 2rem;
+}
+
+.dismissButton:hover {
+  background: rgb(24 64 49 / 8%);
+}
+
+.discardButton:focus-visible,
+.dismissButton:focus-visible {
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+@media (max-width: 640px) {
+  .actions {
+    width: 100%;
+  }
+
+  .discardButton {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discardButton,
+  .dismissButton {
+    transition-duration: 0.001ms;
+  }
+
+  .discardButton:hover {
+    transform: none;
+  }
+}

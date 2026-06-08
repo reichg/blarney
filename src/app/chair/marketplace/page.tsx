@@ -1267,6 +1267,7 @@ export default async function ChairMarketplacePage({
               <MarketplaceCreateListingPanel>
                 <MarketplaceListingForm
                   action={createMarketplaceListingAction}
+                  enableDraftPersistence
                   fieldId="create-listing-image"
                   initialImageValue={null}
                   pendingSubmitLabel="Creating draft listing..."
