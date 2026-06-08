@@ -194,7 +194,12 @@ export function MarketplaceListingForm({
 
   return (
     <form
-      action={runMarketplaceAction(action, { onResult: handleActionResult })}
+      action={runMarketplaceAction(action, {
+        onResult: handleActionResult,
+        // Reset the upload flag once the action settles so the submit button
+        // recovers from its "uploading" label after the image-upload path runs.
+        onSettled: () => setIsUploading(false),
+      })}
       className={styles.compactForm}
       onInput={handleChange}
       onSubmit={handleSubmit}

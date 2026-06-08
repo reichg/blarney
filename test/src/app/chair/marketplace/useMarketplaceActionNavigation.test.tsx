@@ -6,14 +6,22 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { replace } = vi.hoisted(() => ({
+const { replace, showToast } = vi.hoisted(() => ({
   replace: vi.fn(),
+  showToast: vi.fn(),
 }));
 
 // The hook navigates via the router instead of a server-side redirect(), so the
 // chair marketplace page keeps its scroll position after a listing action.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace }),
+}));
+
+// Error notices are surfaced through the toast context rather than navigation.
+vi.mock("@/app/chair/marketplace/MarketplaceActionToast", () => ({
+  useMarketplaceToast: () => showToast,
+  MarketplaceActionToastProvider: ({ children }: { children: unknown }) =>
+    children,
 }));
 
 afterEach(() => {
@@ -82,6 +90,29 @@ describe("useMarketplaceActionNavigation onResult contract", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("calls onSettled after a redirecting action so pending UI can reset", async () => {
+    const onSettled = vi.fn();
+    const action = vi.fn<MarketplaceFormAction>(async () => ({
+      redirectTo: "/chair/marketplace?marketplace=listing-saved",
+    }));
+
+    const runMarketplaceAction = captureRunMarketplaceAction();
+    await runMarketplaceAction(action, { onSettled })(new FormData());
+
+    expect(onSettled).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls onSettled when the action returns no redirect", async () => {
+    const onSettled = vi.fn();
+    const action = vi.fn<MarketplaceFormAction>(async () => undefined);
+
+    const runMarketplaceAction = captureRunMarketplaceAction();
+    await runMarketplaceAction(action, { onSettled })(new FormData());
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledTimes(1);
+  });
+
   it("navigates without an onResult callback when one is not provided", async () => {
     const action = vi.fn<MarketplaceFormAction>(async () => ({
       redirectTo: "/chair/marketplace?marketplace=listing-saved",
@@ -92,6 +123,64 @@ describe("useMarketplaceActionNavigation onResult contract", () => {
 
     expect(replace).toHaveBeenCalledWith(
       "/chair/marketplace?marketplace=listing-saved",
+      { scroll: false },
+    );
+  });
+});
+
+describe("useMarketplaceActionNavigation error toast contract", () => {
+  it("toasts the error notice without navigating or calling onResult", async () => {
+    const onResult = vi.fn();
+    const action = vi.fn<MarketplaceFormAction>(async () => ({
+      redirectTo:
+        "/chair/marketplace?marketplace=catalog-requires-active-variant",
+    }));
+
+    const runMarketplaceAction = captureRunMarketplaceAction();
+    await runMarketplaceAction(action, { onResult })(new FormData());
+
+    expect(showToast).toHaveBeenCalledTimes(1);
+    expect(showToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tone: "error",
+        title: "Publishing requires an active variant.",
+      }),
+    );
+    expect(replace).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("still runs onSettled after surfacing an error toast", async () => {
+    const onSettled = vi.fn();
+    const action = vi.fn<MarketplaceFormAction>(async () => ({
+      redirectTo: "/chair/marketplace?marketplace=catalog-error",
+    }));
+
+    const runMarketplaceAction = captureRunMarketplaceAction();
+    await runMarketplaceAction(action, { onSettled })(new FormData());
+
+    expect(showToast).toHaveBeenCalledTimes(1);
+    expect(onSettled).toHaveBeenCalledTimes(1);
+  });
+
+  it("toasts a success notice and still navigates to revalidate", async () => {
+    const onResult = vi.fn();
+    const action = vi.fn<MarketplaceFormAction>(async () => ({
+      redirectTo: "/chair/marketplace?marketplace=listing-published",
+    }));
+
+    const runMarketplaceAction = captureRunMarketplaceAction();
+    await runMarketplaceAction(action, { onResult })(new FormData());
+
+    expect(showToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tone: "success",
+        title: "Marketplace listing published.",
+      }),
+    );
+    expect(onResult).toHaveBeenCalledTimes(1);
+    expect(replace).toHaveBeenCalledWith(
+      "/chair/marketplace?marketplace=listing-published",
       { scroll: false },
     );
   });
