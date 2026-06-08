@@ -1,6 +1,6 @@
 import formsStyles from "@/app/forms.module.css";
 import { getMarketplaceCatalog } from "@/lib/marketplaceCatalog";
-import { PackageOpen, ShieldCheck, ShoppingBag } from "lucide-react";
+import { PackageOpen } from "lucide-react";
 import { MarketplaceStorefront } from "./MarketplaceStorefront";
 import styles from "./marketplace.module.css";
 

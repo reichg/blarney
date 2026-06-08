@@ -1,10 +1,12 @@
 "use client";
 
 import formsStyles from "@/app/forms.module.css";
+import { DraftNotice } from "@/components/DraftNotice";
 import { ModularCard } from "@/components/ModularCard";
 import type { MarketplaceCatalogListing } from "@/lib/marketplaceCatalog";
 import { marketplaceCreateCheckoutResponseSchema } from "@/lib/marketplaceCheckout.contracts";
 import { isTrustedSquareCheckoutUrl } from "@/lib/squareCheckoutUrl";
+import { useControlledFormDraft } from "@/lib/useFormDraft";
 import {
   CreditCard,
   LoaderCircle,
@@ -13,11 +15,32 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 import styles from "./marketplace.module.css";
+
+/** Persisted buyer cart + contact snapshot (no payment/card data). */
+type MarketplaceStoreDraft = {
+  quantities: Record<string, number>;
+  email: string;
+  name: string;
+  phone: string;
+};
+
+const MARKETPLACE_STORE_FORM_ID = "marketplaceStore";
+const MARKETPLACE_STORE_FORM_VERSION = 1;
 
 type MarketplaceStorefrontProps = {
   listings: MarketplaceCatalogListing[];
+};
+
+type ListingCardProps = {
+  listing: MarketplaceCatalogListing;
+  quantities: Record<string, number>;
+  updateQuantity: (
+    variantId: string,
+    nextQuantity: number,
+    maximum: number | null,
+  ) => void;
 };
 
 function formatCurrency(cents: number, currency: string) {
@@ -39,6 +62,129 @@ function clampQuantity(value: number, maximum: number | null) {
   return Math.min(normalizedValue, Math.min(maximum, 25));
 }
 
+function ListingCard({ listing, quantities, updateQuantity }: ListingCardProps) {
+  const [selectedVariantId, setSelectedVariantId] = useState(
+    listing.variants[0]?.id ?? "",
+  );
+
+  const selectedVariant =
+    listing.variants.find((variant) => variant.id === selectedVariantId) ??
+    listing.variants[0] ??
+    null;
+
+  const selectId = `marketplace-variant-${listing.id}`;
+  const quantityInputId = `marketplace-quantity-${listing.id}`;
+  const helpTextId = `${quantityInputId}-help`;
+
+  const quantity = selectedVariant
+    ? (quantities[selectedVariant.id] ?? 0)
+    : 0;
+  const maximumQuantity = selectedVariant?.inventoryQuantity ?? null;
+
+  return (
+    <ModularCard className={styles.listingCard}>
+      <div className={styles.listingMedia}>
+        {listing.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt={listing.title}
+            className={styles.listingImage}
+            loading="lazy"
+            src={listing.imageUrl}
+          />
+        ) : (
+          <div className={styles.listingPlaceholder}>
+            <ShoppingBag aria-hidden="true" size={28} />
+          </div>
+        )}
+      </div>
+      <div className={styles.listingBody}>
+        <div className={styles.listingCopy}>
+          <h3>{listing.title}</h3>
+          <p>
+            {listing.description ??
+              "Tournament merch for the current Blarney drop."}
+          </p>
+        </div>
+        {selectedVariant ? (
+          <div className={styles.variantPicker}>
+            <label className={styles.variantSelectField} htmlFor={selectId}>
+              <span>Size or variant</span>
+              <select
+                className={styles.variantSelect}
+                id={selectId}
+                onChange={(event) => setSelectedVariantId(event.target.value)}
+                value={selectedVariant.id}
+              >
+                {listing.variants.map((variant) => (
+                  <option key={variant.id} value={variant.id}>
+                    {variant.label} —{" "}
+                    {formatCurrency(variant.unitAmount, variant.currency)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className={styles.variantHelp} id={helpTextId}>
+              {listing.fulfillmentNote ??
+                (maximumQuantity === null
+                  ? "Available while current inventory lasts."
+                  : `${maximumQuantity} left in this size or variant.`)}
+            </p>
+            <div className={styles.quantityControl}>
+              <button
+                aria-label={`Decrease ${listing.title} ${selectedVariant.label}`}
+                className={styles.quantityButton}
+                onClick={() =>
+                  updateQuantity(
+                    selectedVariant.id,
+                    quantity - 1,
+                    maximumQuantity,
+                  )
+                }
+                type="button"
+              >
+                <Minus aria-hidden="true" size={16} />
+              </button>
+              <input
+                aria-describedby={helpTextId}
+                aria-label={`Quantity for ${listing.title} ${selectedVariant.label}`}
+                className={styles.quantityInput}
+                id={quantityInputId}
+                inputMode="numeric"
+                max={maximumQuantity ?? 25}
+                min={0}
+                onChange={(event) =>
+                  updateQuantity(
+                    selectedVariant.id,
+                    Number.parseInt(event.target.value || "0", 10),
+                    maximumQuantity,
+                  )
+                }
+                type="number"
+                value={quantity}
+              />
+              <button
+                aria-label={`Increase ${listing.title} ${selectedVariant.label}`}
+                className={styles.quantityButton}
+                onClick={() =>
+                  updateQuantity(
+                    selectedVariant.id,
+                    quantity + 1,
+                    maximumQuantity,
+                  )
+                }
+                type="button"
+              >
+                <Plus aria-hidden="true" size={16} />
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </ModularCard>
+  );
+}
+
 export function MarketplaceStorefront({
   listings,
 }: MarketplaceStorefrontProps) {
@@ -50,6 +196,25 @@ export function MarketplaceStorefront({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const restoreDraft = useCallback((draft: MarketplaceStoreDraft) => {
+    setQuantities(draft.quantities);
+    setEmail(draft.email);
+    setName(draft.name);
+    setPhone(draft.phone);
+  }, []);
+
+  const { wasRestored, clearDraft } = useControlledFormDraft<MarketplaceStoreDraft>({
+    formId: MARKETPLACE_STORE_FORM_ID,
+    formVersion: MARKETPLACE_STORE_FORM_VERSION,
+    value: { quantities, email, name, phone },
+    onRestore: restoreDraft,
+    hasContent: (draft) =>
+      Object.values(draft.quantities).some((quantity) => quantity > 0) ||
+      draft.email.trim() !== "" ||
+      draft.name.trim() !== "" ||
+      draft.phone.trim() !== "",
+  });
 
   const cartLines = listings.flatMap((listing) =>
     listing.variants
@@ -139,6 +304,7 @@ export function MarketplaceStorefront({
       const result = parsed.data;
 
       if (result.ok && result.status === "confirmed") {
+        clearDraft();
         router.push(
           `/marketplace/thanks?order=${encodeURIComponent(result.orderId)}`,
         );
@@ -153,6 +319,7 @@ export function MarketplaceStorefront({
           return;
         }
 
+        clearDraft();
         window.location.assign(result.paymentUrl);
         return;
       }
@@ -185,112 +352,25 @@ export function MarketplaceStorefront({
 
   return (
     <form className={styles.storefront} onSubmit={handleSubmit}>
+      <DraftNotice
+        onDiscard={() => {
+          clearDraft();
+          setQuantities({});
+          setEmail("");
+          setName("");
+          setPhone("");
+        }}
+        visible={wasRestored}
+      />
       <div className={styles.catalogGrid}>
         {listings.length ? (
           listings.map((listing) => (
-            <ModularCard className={styles.listingCard} key={listing.id}>
-              <div className={styles.listingMedia}>
-                {listing.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    alt={listing.title}
-                    className={styles.listingImage}
-                    loading="lazy"
-                    src={listing.imageUrl}
-                  />
-                ) : (
-                  <div className={styles.listingPlaceholder}>
-                    <ShoppingBag aria-hidden="true" size={28} />
-                  </div>
-                )}
-              </div>
-              <div className={styles.listingBody}>
-                <div className={styles.listingCopy}>
-                  <h3>{listing.title}</h3>
-                  <p>
-                    {listing.description ??
-                      "Tournament merch for the current Blarney drop."}
-                  </p>
-                </div>
-                <div className={styles.variantList}>
-                  {listing.variants.map((variant) => {
-                    const quantity = quantities[variant.id] ?? 0;
-                    const maximumQuantity = variant.inventoryQuantity ?? null;
-                    const quantityInputId = `marketplace-quantity-${variant.id}`;
-                    const helpTextId = `${quantityInputId}-help`;
-
-                    return (
-                      <div className={styles.variantRow} key={variant.id}>
-                        <div className={styles.variantMeta}>
-                          <label htmlFor={quantityInputId}>
-                            <strong>{variant.label}</strong>
-                            <span>
-                              {formatCurrency(
-                                variant.unitAmount,
-                                variant.currency,
-                              )}
-                            </span>
-                          </label>
-                          <p className={styles.variantHelp} id={helpTextId}>
-                            {listing.fulfillmentNote ??
-                              (maximumQuantity === null
-                                ? "Available while current inventory lasts."
-                                : `${maximumQuantity} left in this size or variant.`)}
-                          </p>
-                        </div>
-                        <div className={styles.quantityControl}>
-                          <button
-                            aria-label={`Decrease ${listing.title} ${variant.label}`}
-                            className={styles.quantityButton}
-                            onClick={() =>
-                              updateQuantity(
-                                variant.id,
-                                quantity - 1,
-                                maximumQuantity,
-                              )
-                            }
-                            type="button"
-                          >
-                            <Minus aria-hidden="true" size={16} />
-                          </button>
-                          <input
-                            aria-describedby={helpTextId}
-                            className={styles.quantityInput}
-                            id={quantityInputId}
-                            inputMode="numeric"
-                            max={maximumQuantity ?? 25}
-                            min={0}
-                            onChange={(event) =>
-                              updateQuantity(
-                                variant.id,
-                                Number.parseInt(event.target.value || "0", 10),
-                                maximumQuantity,
-                              )
-                            }
-                            type="number"
-                            value={quantity}
-                          />
-                          <button
-                            aria-label={`Increase ${listing.title} ${variant.label}`}
-                            className={styles.quantityButton}
-                            onClick={() =>
-                              updateQuantity(
-                                variant.id,
-                                quantity + 1,
-                                maximumQuantity,
-                              )
-                            }
-                            type="button"
-                          >
-                            <Plus aria-hidden="true" size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </ModularCard>
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              quantities={quantities}
+              updateQuantity={updateQuantity}
+            />
           ))
         ) : (
           <div className={styles.emptyCatalog}>

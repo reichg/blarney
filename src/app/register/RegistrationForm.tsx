@@ -1,5 +1,6 @@
 "use client";
 
+import { DraftNotice } from "@/components/DraftNotice";
 import styles from "@/app/forms.module.css";
 import type {
   Golfer,
@@ -9,9 +10,11 @@ import type {
   SignupMode,
   SummaryItem,
 } from "@/app/register/type";
+import { useControlledFormDraft } from "@/lib/useFormDraft";
 import { CreditCard, Flag, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
+  useCallback,
   useEffect,
   useId,
   useState,
@@ -21,6 +24,63 @@ import {
 
 const checkoutStorageKey = "blarney.registrationCheckout";
 const maxGolferCount = 20;
+const REGISTER_DRAFT_FORM_ID = "register";
+const REGISTER_DRAFT_FORM_VERSION = 1;
+
+type RegistrationDraft = {
+  mode: SignupMode;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  golfers: Golfer[];
+  nextGolferId: number;
+  bbqOnlyAdultCount: number;
+  bbqOnlyKidCount: number;
+  rsvpAdultCount: number;
+  rsvpKidCount: number;
+  dietaryNotes: string;
+  notes: string;
+  familyNames: string;
+};
+
+/**
+ * True when a registration draft holds user input beyond the untouched default
+ * form (golf mode, one blank golfer, one RSVP adult, empty text fields). Keeps
+ * the restore notice from appearing for a form the user never edited.
+ */
+function registrationDraftHasContent(draft: RegistrationDraft): boolean {
+  const textFieldsTouched =
+    draft.firstName.trim() !== "" ||
+    draft.lastName.trim() !== "" ||
+    draft.email.trim() !== "" ||
+    draft.phone.trim() !== "" ||
+    draft.dietaryNotes.trim() !== "" ||
+    draft.notes.trim() !== "" ||
+    draft.familyNames.trim() !== "";
+
+  const golfersTouched = draft.golfers.some(
+    (golfer) =>
+      golfer.firstName.trim() !== "" ||
+      golfer.lastName.trim() !== "" ||
+      golfer.gender !== "" ||
+      golfer.age.trim() !== "" ||
+      golfer.averageScore.trim() !== "",
+  );
+
+  const countsTouched =
+    draft.bbqOnlyAdultCount !== 0 ||
+    draft.bbqOnlyKidCount !== 0 ||
+    draft.rsvpAdultCount !== 1 ||
+    draft.rsvpKidCount !== 0;
+
+  return (
+    draft.mode !== "golf" ||
+    textFieldsTouched ||
+    golfersTouched ||
+    countsTouched
+  );
+}
 
 function createGolfer(id: number): Golfer {
   return {
@@ -66,16 +126,88 @@ export function RegistrationForm({
 }: RegistrationFormProps) {
   const router = useRouter();
   const [mode, setMode] = useState<SignupMode>("golf");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [nextGolferId, setNextGolferId] = useState(2);
   const [golfers, setGolfers] = useState<Golfer[]>(() => [createGolfer(1)]);
   const [bbqOnlyAdultCount, setBbqOnlyAdultCount] = useState(0);
   const [bbqOnlyKidCount, setBbqOnlyKidCount] = useState(0);
   const [rsvpAdultCount, setRsvpAdultCount] = useState(1);
   const [rsvpKidCount, setRsvpKidCount] = useState(0);
+  const [dietaryNotes, setDietaryNotes] = useState("");
+  const [notes, setNotes] = useState("");
+  const [familyNames, setFamilyNames] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingCheckout, setPendingCheckout] =
     useState<PendingCheckoutResume | null>(null);
+
+  const draftValue: RegistrationDraft = {
+    mode,
+    firstName,
+    lastName,
+    email,
+    phone,
+    golfers,
+    nextGolferId,
+    bbqOnlyAdultCount,
+    bbqOnlyKidCount,
+    rsvpAdultCount,
+    rsvpKidCount,
+    dietaryNotes,
+    notes,
+    familyNames,
+  };
+
+  const restoreDraft = useCallback((draft: RegistrationDraft) => {
+    setMode(draft.mode);
+    setFirstName(draft.firstName);
+    setLastName(draft.lastName);
+    setEmail(draft.email);
+    setPhone(draft.phone);
+    setGolfers(draft.golfers);
+    setNextGolferId(draft.nextGolferId);
+    setBbqOnlyAdultCount(draft.bbqOnlyAdultCount);
+    setBbqOnlyKidCount(draft.bbqOnlyKidCount);
+    setRsvpAdultCount(draft.rsvpAdultCount);
+    setRsvpKidCount(draft.rsvpKidCount);
+    setDietaryNotes(draft.dietaryNotes);
+    setNotes(draft.notes);
+    setFamilyNames(draft.familyNames);
+  }, []);
+
+  function resetForm() {
+    setMode("golf");
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setPhone("");
+    setGolfers([createGolfer(1)]);
+    setNextGolferId(2);
+    setBbqOnlyAdultCount(0);
+    setBbqOnlyKidCount(0);
+    setRsvpAdultCount(1);
+    setRsvpKidCount(0);
+    setDietaryNotes("");
+    setNotes("");
+    setFamilyNames("");
+    setError(null);
+  }
+
+  const { wasRestored, clearDraft } = useControlledFormDraft<RegistrationDraft>({
+    formId: REGISTER_DRAFT_FORM_ID,
+    formVersion: REGISTER_DRAFT_FORM_VERSION,
+    value: draftValue,
+    onRestore: restoreDraft,
+    hasContent: registrationDraftHasContent,
+  });
+
+  function discardDraft() {
+    clearDraft();
+    resetForm();
+  }
   const attendeeDetailsHeadingId = useId();
   const paymentHeadingId = useId();
   const isGolfMode = mode === "golf";
@@ -232,6 +364,8 @@ export function RegistrationForm({
       }
     }
 
+    clearDraft();
+
     window.location.assign(
       result.alreadyConfirmed ? result.checkoutUrl : result.paymentPath,
     );
@@ -282,6 +416,8 @@ export function RegistrationForm({
         }
       }
 
+      clearDraft();
+
       window.location.assign(
         result.alreadyConfirmed ? result.checkoutUrl : result.paymentPath,
       );
@@ -293,6 +429,8 @@ export function RegistrationForm({
     } catch {
       // Session storage can be unavailable; RSVP submission still works.
     }
+
+    clearDraft();
 
     router.push(result.thanksPath);
   }
@@ -344,6 +482,8 @@ export function RegistrationForm({
       className={`${styles.panel} ${styles.form}`}
       onSubmit={handleSubmit}
     >
+      <DraftNotice onDiscard={discardDraft} visible={wasRestored} />
+
       <fieldset className={styles.fieldset}>
         <legend className={styles.requiredLabel}>Signup type</legend>
         <label className={styles.choiceRow}>
@@ -396,21 +536,53 @@ export function RegistrationForm({
         <div className={styles.gridTwo}>
           <label className={styles.field}>
             <span className={styles.requiredLabel}>Payer first name</span>
-            <input name="firstName" required type="text" />
+            <input
+              name="firstName"
+              onChange={(event) => {
+                setFirstName(event.target.value);
+              }}
+              required
+              type="text"
+              value={firstName}
+            />
           </label>
           <label className={styles.field}>
             <span className={styles.requiredLabel}>Payer last name</span>
-            <input name="lastName" required type="text" />
+            <input
+              name="lastName"
+              onChange={(event) => {
+                setLastName(event.target.value);
+              }}
+              required
+              type="text"
+              value={lastName}
+            />
           </label>
         </div>
         <div className={styles.gridTwo}>
           <label className={styles.field}>
             <span className={styles.requiredLabel}>Email</span>
-            <input name="email" required type="email" />
+            <input
+              name="email"
+              onChange={(event) => {
+                setEmail(event.target.value);
+              }}
+              required
+              type="email"
+              value={email}
+            />
           </label>
           <label className={styles.field}>
             <span className={styles.requiredLabel}>Phone</span>
-            <input name="phone" required type="tel" />
+            <input
+              name="phone"
+              onChange={(event) => {
+                setPhone(event.target.value);
+              }}
+              required
+              type="tel"
+              value={phone}
+            />
           </label>
         </div>
       </fieldset>
@@ -659,16 +831,24 @@ export function RegistrationForm({
               <span>Dietary notes (optional)</span>
               <textarea
                 name="dietaryNotes"
+                onChange={(event) => {
+                  setDietaryNotes(event.target.value);
+                }}
                 placeholder="Meal notes for golfers or BBQ-only guests."
                 rows={3}
+                value={dietaryNotes}
               />
             </label>
             <label className={styles.field}>
               <span>Registration notes (optional)</span>
               <textarea
                 name="notes"
+                onChange={(event) => {
+                  setNotes(event.target.value);
+                }}
                 placeholder="Pairing notes, seating notes, or anything the chair should know."
                 rows={4}
+                value={notes}
               />
             </label>
           </fieldset>
@@ -729,8 +909,12 @@ export function RegistrationForm({
               <span>Family or guest names (optional)</span>
               <textarea
                 name="familyNames"
+                onChange={(event) => {
+                  setFamilyNames(event.target.value);
+                }}
                 placeholder="List everyone joining the BBQ."
                 rows={3}
+                value={familyNames}
               />
             </label>
           </section>
@@ -741,16 +925,24 @@ export function RegistrationForm({
               <span>Dietary notes (optional)</span>
               <textarea
                 name="dietaryNotes"
+                onChange={(event) => {
+                  setDietaryNotes(event.target.value);
+                }}
                 placeholder="Meal notes for your party."
                 rows={3}
+                value={dietaryNotes}
               />
             </label>
             <label className={styles.field}>
               <span>BBQ notes (optional)</span>
               <textarea
                 name="notes"
+                onChange={(event) => {
+                  setNotes(event.target.value);
+                }}
                 placeholder="Anything the chair should know."
                 rows={3}
+                value={notes}
               />
             </label>
           </fieldset>

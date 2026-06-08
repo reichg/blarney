@@ -5,6 +5,7 @@ import {
   isLegacyMarketplaceImageUrl,
   isMarketplaceListingImageKey,
 } from "@/lib/marketplaceListingImage";
+import { MAX_LISTING_VARIANTS } from "@/lib/marketplaceVariants";
 import { deletePhotoObject } from "@/lib/s3";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -164,12 +165,17 @@ const marketplaceListingVariantSaveSchema =
 const marketplaceListingDraftVariantSchema =
   marketplaceListingVariantCreateSchema.omit({ listingId: true });
 
+const marketplaceListingCreateWithVariantsSchema =
+  marketplaceListingCreateSchema.extend({
+    variants: z.array(z.unknown()).max(MAX_LISTING_VARIANTS).default([]),
+  });
+
 const marketplaceListingRemovedVariantIdSchema = z
   .array(z.preprocess(normalizeRequiredFormValue, z.string().trim().min(1)))
   .default([]);
 
 const marketplaceListingSaveSchema = marketplaceListingUpdateSchema.extend({
-  newVariant: z.unknown().optional(),
+  newVariants: z.array(z.unknown()).max(MAX_LISTING_VARIANTS).default([]),
   removedVariantIds: marketplaceListingRemovedVariantIdSchema,
   variants: z.array(marketplaceListingVariantSaveSchema).default([]),
 });
@@ -321,7 +327,7 @@ export async function createMarketplaceListing(
   input: unknown,
   client: MarketplaceCatalogAdminClient = db,
 ): Promise<MarketplaceCatalogMutationResult> {
-  const parsed = marketplaceListingCreateSchema.safeParse(input);
+  const parsed = marketplaceListingCreateWithVariantsSchema.safeParse(input);
 
   if (
     !parsed.success ||
@@ -331,18 +337,49 @@ export async function createMarketplaceListing(
     return { ok: false, reason: "invalid" };
   }
 
+  const parsedVariants = parsed.data.variants.map((value) =>
+    marketplaceListingDraftVariantSchema.safeParse(value),
+  );
+
+  if (parsedVariants.some((result) => !result.success)) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  const variantData = parsedVariants.flatMap((result) =>
+    result.success ? [result.data] : [],
+  );
+
   try {
-    const createdListing = await client.marketplaceListing.create({
-      data: {
-        slug: parsed.data.slug,
-        title: parsed.data.title,
-        description: parsed.data.description,
-        imageUrl: parsed.data.imageUrl,
-        fulfillmentNote: parsed.data.fulfillmentNote,
-        sortOrder: parsed.data.sortOrder,
-        status: "DRAFT",
-      },
-      select: { id: true },
+    const createdListing = await client.$transaction(async (transaction) => {
+      const listing = await transaction.marketplaceListing.create({
+        data: {
+          slug: parsed.data.slug,
+          title: parsed.data.title,
+          description: parsed.data.description,
+          imageUrl: parsed.data.imageUrl,
+          fulfillmentNote: parsed.data.fulfillmentNote,
+          sortOrder: parsed.data.sortOrder,
+          status: "DRAFT",
+        },
+        select: { id: true },
+      });
+
+      for (const variant of variantData) {
+        await transaction.marketplaceListingVariant.create({
+          data: {
+            listingId: listing.id,
+            label: variant.label,
+            sku: variant.sku,
+            unitAmount: variant.unitAmount,
+            currency: variant.currency,
+            inventoryQuantity: variant.inventoryQuantity,
+            isActive: variant.isActive,
+            sortOrder: variant.sortOrder,
+          },
+        });
+      }
+
+      return listing;
     });
 
     return {
@@ -441,12 +478,19 @@ export async function saveMarketplaceListing(
     return { ok: false, reason: "invalid" };
   }
 
-  const parsedNewVariant =
-    parsed.data.newVariant === undefined
-      ? { data: undefined, success: true as const }
-      : marketplaceListingDraftVariantSchema.safeParse(parsed.data.newVariant);
+  const parsedNewVariants = parsed.data.newVariants.map((value) =>
+    marketplaceListingDraftVariantSchema.safeParse(value),
+  );
 
-  if (!parsedNewVariant.success) {
+  if (parsedNewVariants.some((result) => !result.success)) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  const newVariantData = parsedNewVariants.flatMap((result) =>
+    result.success ? [result.data] : [],
+  );
+
+  if (parsed.data.variants.length + newVariantData.length > MAX_LISTING_VARIANTS) {
     return { ok: false, reason: "invalid" };
   }
 
@@ -573,17 +617,17 @@ export async function saveMarketplaceListing(
         });
       }
 
-      if (parsedNewVariant.data) {
+      for (const newVariant of newVariantData) {
         await transaction.marketplaceListingVariant.create({
           data: {
             listingId: parsed.data.listingId,
-            label: parsedNewVariant.data.label,
-            sku: parsedNewVariant.data.sku,
-            unitAmount: parsedNewVariant.data.unitAmount,
-            currency: parsedNewVariant.data.currency,
-            inventoryQuantity: parsedNewVariant.data.inventoryQuantity,
-            isActive: parsedNewVariant.data.isActive,
-            sortOrder: parsedNewVariant.data.sortOrder,
+            label: newVariant.label,
+            sku: newVariant.sku,
+            unitAmount: newVariant.unitAmount,
+            currency: newVariant.currency,
+            inventoryQuantity: newVariant.inventoryQuantity,
+            isActive: newVariant.isActive,
+            sortOrder: newVariant.sortOrder,
           },
         });
       }
@@ -799,7 +843,7 @@ export async function restoreMarketplaceListing(
   }
 }
 
-export async function deleteArchivedMarketplaceListing(
+export async function deleteMarketplaceListing(
   input: unknown,
   client: MarketplaceCatalogAdminClient = db,
 ): Promise<MarketplaceCatalogMutationResult> {
@@ -813,7 +857,7 @@ export async function deleteArchivedMarketplaceListing(
     const deleteResult = await client.$transaction(async (transaction) => {
       const listing = await transaction.marketplaceListing.findUnique({
         where: { id: parsed.data.listingId },
-        select: { id: true, imageUrl: true },
+        select: { id: true, imageUrl: true, status: true },
       });
 
       if (!listing) {
@@ -821,10 +865,7 @@ export async function deleteArchivedMarketplaceListing(
       }
 
       const deletedListing = await transaction.marketplaceListing.deleteMany({
-        where: {
-          id: parsed.data.listingId,
-          status: "ARCHIVED",
-        },
+        where: { id: parsed.data.listingId },
       });
 
       if (deletedListing.count !== 1) {
@@ -834,6 +875,10 @@ export async function deleteArchivedMarketplaceListing(
       return {
         kind: "deleted",
         entityId: listing.id,
+        // Removing a published listing must refresh the public catalog so it
+        // disappears; drafts and archived listings are never public.
+        revalidatePublicCatalog:
+          shouldRevalidatePublicCatalogForListingStatus(listing.status),
         imageKey: normalizeManagedMarketplaceListingImageKey(listing.imageUrl),
       } as const;
     });
@@ -857,7 +902,7 @@ export async function deleteArchivedMarketplaceListing(
     return {
       ok: true,
       entityId: deleteResult.entityId,
-      revalidatePublicCatalog: false,
+      revalidatePublicCatalog: deleteResult.revalidatePublicCatalog,
     };
   } catch (error) {
     if (isMissingRecordError(error)) {

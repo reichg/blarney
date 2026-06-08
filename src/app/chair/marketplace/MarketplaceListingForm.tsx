@@ -2,16 +2,33 @@
 
 import styles from "@/app/chair/chair.module.css";
 import { MarketplaceListingImageField } from "@/app/chair/marketplace/MarketplaceListingImageField";
+import {
+  useMarketplaceActionNavigation,
+  type MarketplaceFormAction,
+} from "@/app/chair/marketplace/useMarketplaceActionNavigation";
+import { usePreviewDetailCardClose } from "@/app/chair/PreviewDetailCardContext";
+import { DraftNotice } from "@/components/DraftNotice";
 import { uploadMarketplaceListingImage } from "@/lib/marketplaceListingImageClient";
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useUncontrolledFormDraft } from "@/lib/useFormDraft";
+import { useCallback, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 
+/** sessionStorage key for the chair create-listing draft. Stable across mounts. */
+const CREATE_LISTING_DRAFT_FORM_ID = "chairCreateListing";
+const CREATE_LISTING_DRAFT_VERSION = 1;
+/** S3 key input is type=hidden (auto-excluded); listed for clarity. */
+const CREATE_LISTING_DRAFT_EXCLUDE = ["imageUrl"] as const;
+
 type MarketplaceListingFormProps = {
-  action: (formData: FormData) => void | Promise<void>;
+  action: MarketplaceFormAction;
   children: ReactNode;
+  // Enables same-tab sessionStorage draft persistence. Create-form only: edit
+  // forms must not restore a stale draft over server-loaded listing data.
+  enableDraftPersistence?: boolean;
   fieldId: string;
   initialImageValue?: string | null;
   pendingSubmitLabel: string;
+  secondaryChildren?: ReactNode;
   submitLabel: string;
   uploadPendingLabel: string;
 };
@@ -60,12 +77,24 @@ function MarketplaceListingSubmitButton({
 export function MarketplaceListingForm({
   action,
   children,
+  enableDraftPersistence = false,
   fieldId,
   initialImageValue = null,
   pendingSubmitLabel,
+  secondaryChildren = null,
   submitLabel,
   uploadPendingLabel,
 }: MarketplaceListingFormProps) {
+  const runMarketplaceAction = useMarketplaceActionNavigation();
+  const closePreviewDetailCard = usePreviewDetailCardClose();
+  const formRef = useRef<HTMLFormElement>(null);
+  const { wasRestored, clearDraft, handleChange } = useUncontrolledFormDraft({
+    formId: CREATE_LISTING_DRAFT_FORM_ID,
+    formVersion: CREATE_LISTING_DRAFT_VERSION,
+    formRef,
+    excludeFields: CREATE_LISTING_DRAFT_EXCLUDE,
+    enabled: enableDraftPersistence,
+  });
   const hiddenImageInputRef = useRef<HTMLInputElement>(null);
   const skipSubmitInterceptionRef = useRef(false);
   const [currentImageValue, setCurrentImageValue] = useState(
@@ -75,8 +104,16 @@ export function MarketplaceListingForm({
   const [statusMessage, setStatusMessage] = useState(
     getDefaultStatusMessage(initialImageValue ?? ""),
   );
+  const [statusTone, setStatusTone] = useState<"info" | "warning">("info");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Fires only on a successful action (server returned a redirectTo). Clearing
+  // the draft here ensures a created listing is not re-restored on next visit.
+  const handleActionResult = useCallback(() => {
+    clearDraft();
+    closePreviewDetailCard();
+  }, [clearDraft, closePreviewDetailCard]);
 
   function setHiddenImageValue(nextValue: string) {
     if (hiddenImageInputRef.current) {
@@ -89,6 +126,7 @@ export function MarketplaceListingForm({
   function handleFileChange(file: File | null) {
     setSelectedFile(file);
     setErrorMessage(null);
+    setStatusTone("info");
     setStatusMessage(
       file
         ? getSelectedFileMessage(file.name, currentImageValue)
@@ -100,6 +138,7 @@ export function MarketplaceListingForm({
     setSelectedFile(null);
     setHiddenImageValue("");
     setErrorMessage(null);
+    setStatusTone("warning");
     setStatusMessage(
       "Listing image will be removed when you save the listing.",
     );
@@ -122,6 +161,7 @@ export function MarketplaceListingForm({
     const pendingFile = selectedFile;
 
     setErrorMessage(null);
+    setStatusTone("info");
     setIsUploading(true);
     setStatusMessage(`Uploading ${pendingFile.name} and saving the listing...`);
 
@@ -154,10 +194,19 @@ export function MarketplaceListingForm({
 
   return (
     <form
-      action={action}
+      action={runMarketplaceAction(action, { onResult: handleActionResult })}
       className={styles.compactForm}
+      onInput={handleChange}
       onSubmit={handleSubmit}
+      ref={formRef}
     >
+      <DraftNotice
+        onDiscard={() => {
+          clearDraft();
+          formRef.current?.reset();
+        }}
+        visible={wasRestored}
+      />
       {children}
       <input
         defaultValue={currentImageValue}
@@ -174,7 +223,9 @@ export function MarketplaceListingForm({
         onRemove={handleRemoveImage}
         selectedFile={selectedFile}
         statusMessage={statusMessage}
+        statusTone={statusTone}
       />
+      {secondaryChildren}
       <MarketplaceListingSubmitButton
         isUploading={isUploading}
         pendingSubmitLabel={pendingSubmitLabel}

@@ -5,7 +5,7 @@ import {
   archiveMarketplaceListing,
   createMarketplaceListing,
   createMarketplaceListingVariant,
-  deleteArchivedMarketplaceListing,
+  deleteMarketplaceListing,
   publishMarketplaceListing,
   restoreMarketplaceListing,
   saveMarketplaceListing,
@@ -22,6 +22,8 @@ import { z } from "zod";
 
 const chairMarketplacePath = "/chair/marketplace";
 const publicMarketplacePath = "/marketplace";
+
+export type MarketplaceActionResult = { redirectTo: string };
 
 const marketplaceFulfillmentActionSchema = z.object({
   orderId: z.string().trim().min(1),
@@ -64,6 +66,10 @@ function getMarketplaceCatalogFailureNotice(
     default:
       return "catalog-invalid";
   }
+}
+
+function marketplaceNoticeResult(notice: string): MarketplaceActionResult {
+  return { redirectTo: `${chairMarketplacePath}?marketplace=${notice}` };
 }
 
 function redirectToMarketplaceNotice(notice: string): never {
@@ -110,27 +116,60 @@ function getMarketplaceRemovedVariantIds(formData: FormData) {
   });
 }
 
-function getMarketplaceDraftVariantInput(formData: FormData) {
-  const newVariant = {
-    currency: formData.get("newVariantCurrency"),
-    inventoryQuantity: formData.get("newVariantInventoryQuantity"),
-    isActive: formData.get("newVariantIsActive"),
-    label: formData.get("newVariantLabel"),
-    sku: formData.get("newVariantSku"),
-    sortOrder: formData.get("newVariantSortOrder"),
-    unitAmount: formData.get("newVariantUnitAmount"),
-  };
+function getMarketplaceDraftVariantInputs(formData: FormData) {
+  const currencies = formData.getAll("newVariantCurrency");
+  const inventoryQuantities = formData.getAll("newVariantInventoryQuantity");
+  const isActiveValues = formData.getAll("newVariantIsActive");
+  const labels = formData.getAll("newVariantLabel");
+  const skus = formData.getAll("newVariantSku");
+  const sortOrders = formData.getAll("newVariantSortOrder");
+  const unitAmounts = formData.getAll("newVariantUnitAmount");
 
-  return Object.values(newVariant).some((value) =>
-    hasMarketplaceFormValue(value),
-  )
-    ? newVariant
-    : undefined;
+  const rowCount = Math.max(
+    currencies.length,
+    inventoryQuantities.length,
+    isActiveValues.length,
+    labels.length,
+    skus.length,
+    sortOrders.length,
+    unitAmounts.length,
+  );
+
+  const newVariants = [];
+
+  for (let index = 0; index < rowCount; index += 1) {
+    const newVariant = {
+      currency: currencies[index] ?? null,
+      inventoryQuantity: inventoryQuantities[index] ?? null,
+      isActive: isActiveValues[index] ?? null,
+      label: labels[index] ?? null,
+      sku: skus[index] ?? null,
+      sortOrder: sortOrders[index] ?? null,
+      unitAmount: unitAmounts[index] ?? null,
+    };
+
+    // Only user-entered fields count toward presence: isActive always emits
+    // a <select> value and currency carries a default, so they cannot drop
+    // an otherwise-blank row.
+    const isPresent = [
+      newVariant.label,
+      newVariant.sku,
+      newVariant.unitAmount,
+      newVariant.inventoryQuantity,
+      newVariant.sortOrder,
+    ].some((value) => hasMarketplaceFormValue(value));
+
+    if (isPresent) {
+      newVariants.push(newVariant);
+    }
+  }
+
+  return newVariants;
 }
 
 export async function updateMarketplaceFulfillmentStatusAction(
   formData: FormData,
-) {
+): Promise<MarketplaceActionResult> {
   await requireChairSession();
 
   const parsed = marketplaceFulfillmentActionSchema.safeParse({
@@ -139,31 +178,33 @@ export async function updateMarketplaceFulfillmentStatusAction(
   });
 
   if (!parsed.success) {
-    redirect(`${chairMarketplacePath}?marketplace=transition-error`);
+    return marketplaceNoticeResult("transition-error");
   }
 
-  let result;
+  let result: Awaited<
+    ReturnType<typeof updateMarketplaceOrderFulfillmentStatus>
+  >;
 
   try {
     result = await updateMarketplaceOrderFulfillmentStatus(parsed.data);
   } catch {
-    redirect(`${chairMarketplacePath}?marketplace=transition-error`);
+    return marketplaceNoticeResult("transition-error");
   }
 
   if (!result.ok) {
-    redirect(`${chairMarketplacePath}?marketplace=transition-error`);
+    return marketplaceNoticeResult("transition-error");
   }
 
   revalidatePath(chairMarketplacePath);
-  redirect(
-    `${chairMarketplacePath}?marketplace=${getMarketplaceTransitionNotice(result.status)}`,
-  );
+  return marketplaceNoticeResult(getMarketplaceTransitionNotice(result.status));
 }
 
-export async function createMarketplaceListingAction(formData: FormData) {
+export async function createMarketplaceListingAction(
+  formData: FormData,
+): Promise<MarketplaceActionResult> {
   await requireChairSession();
 
-  let result;
+  let result: Awaited<ReturnType<typeof createMarketplaceListing>>;
 
   try {
     result = await createMarketplaceListing({
@@ -173,19 +214,20 @@ export async function createMarketplaceListingAction(formData: FormData) {
       imageUrl: formData.get("imageUrl"),
       fulfillmentNote: formData.get("fulfillmentNote"),
       sortOrder: formData.get("sortOrder"),
+      variants: getMarketplaceDraftVariantInputs(formData),
     });
   } catch {
-    redirectToMarketplaceNotice("catalog-error");
+    return marketplaceNoticeResult("catalog-error");
   }
 
   if (!result.ok) {
-    redirectToMarketplaceNotice(
+    return marketplaceNoticeResult(
       getMarketplaceCatalogFailureNotice(result.reason),
     );
   }
 
   revalidateMarketplacePaths(result.revalidatePublicCatalog);
-  redirectToMarketplaceNotice("listing-created");
+  return marketplaceNoticeResult("listing-created");
 }
 
 export async function updateMarketplaceListingAction(formData: FormData) {
@@ -217,10 +259,12 @@ export async function updateMarketplaceListingAction(formData: FormData) {
   redirectToMarketplaceNotice("listing-updated");
 }
 
-export async function saveMarketplaceListingAction(formData: FormData) {
+export async function saveMarketplaceListingAction(
+  formData: FormData,
+): Promise<MarketplaceActionResult> {
   await requireChairSession();
 
-  let result;
+  let result: Awaited<ReturnType<typeof saveMarketplaceListing>>;
 
   try {
     result = await saveMarketplaceListing({
@@ -228,7 +272,7 @@ export async function saveMarketplaceListingAction(formData: FormData) {
       fulfillmentNote: formData.get("fulfillmentNote"),
       imageUrl: formData.get("imageUrl"),
       listingId: formData.get("listingId"),
-      newVariant: getMarketplaceDraftVariantInput(formData),
+      newVariants: getMarketplaceDraftVariantInputs(formData),
       removedVariantIds: getMarketplaceRemovedVariantIds(formData),
       slug: formData.get("slug"),
       sortOrder: formData.get("sortOrder"),
@@ -236,20 +280,22 @@ export async function saveMarketplaceListingAction(formData: FormData) {
       variants: getMarketplaceVariantFormEntries(formData),
     });
   } catch {
-    redirectToMarketplaceNotice("catalog-error");
+    return marketplaceNoticeResult("catalog-error");
   }
 
   if (!result.ok) {
-    redirectToMarketplaceNotice(
+    return marketplaceNoticeResult(
       getMarketplaceCatalogFailureNotice(result.reason),
     );
   }
 
   revalidateMarketplacePaths(result.revalidatePublicCatalog);
-  redirectToMarketplaceNotice("listing-updated");
+  return marketplaceNoticeResult("listing-updated");
 }
 
-export async function publishMarketplaceListingAction(formData: FormData) {
+export async function publishMarketplaceListingAction(
+  formData: FormData,
+): Promise<MarketplaceActionResult> {
   await requireChairSession();
 
   const parsed = marketplaceListingIdActionSchema.safeParse({
@@ -257,28 +303,30 @@ export async function publishMarketplaceListingAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirectToMarketplaceNotice("catalog-invalid");
+    return marketplaceNoticeResult("catalog-invalid");
   }
 
-  let result;
+  let result: Awaited<ReturnType<typeof publishMarketplaceListing>>;
 
   try {
     result = await publishMarketplaceListing(parsed.data);
   } catch {
-    redirectToMarketplaceNotice("catalog-error");
+    return marketplaceNoticeResult("catalog-error");
   }
 
   if (!result.ok) {
-    redirectToMarketplaceNotice(
+    return marketplaceNoticeResult(
       getMarketplaceCatalogFailureNotice(result.reason),
     );
   }
 
   revalidateMarketplacePaths(result.revalidatePublicCatalog);
-  redirectToMarketplaceNotice("listing-published");
+  return marketplaceNoticeResult("listing-published");
 }
 
-export async function unpublishMarketplaceListingAction(formData: FormData) {
+export async function unpublishMarketplaceListingAction(
+  formData: FormData,
+): Promise<MarketplaceActionResult> {
   await requireChairSession();
 
   const parsed = marketplaceListingIdActionSchema.safeParse({
@@ -286,28 +334,30 @@ export async function unpublishMarketplaceListingAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirectToMarketplaceNotice("catalog-invalid");
+    return marketplaceNoticeResult("catalog-invalid");
   }
 
-  let result;
+  let result: Awaited<ReturnType<typeof unpublishMarketplaceListing>>;
 
   try {
     result = await unpublishMarketplaceListing(parsed.data);
   } catch {
-    redirectToMarketplaceNotice("catalog-error");
+    return marketplaceNoticeResult("catalog-error");
   }
 
   if (!result.ok) {
-    redirectToMarketplaceNotice(
+    return marketplaceNoticeResult(
       getMarketplaceCatalogFailureNotice(result.reason),
     );
   }
 
   revalidateMarketplacePaths(result.revalidatePublicCatalog);
-  redirectToMarketplaceNotice("listing-unpublished");
+  return marketplaceNoticeResult("listing-unpublished");
 }
 
-export async function archiveMarketplaceListingAction(formData: FormData) {
+export async function archiveMarketplaceListingAction(
+  formData: FormData,
+): Promise<MarketplaceActionResult> {
   await requireChairSession();
 
   const parsed = marketplaceListingIdActionSchema.safeParse({
@@ -315,28 +365,30 @@ export async function archiveMarketplaceListingAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirectToMarketplaceNotice("catalog-invalid");
+    return marketplaceNoticeResult("catalog-invalid");
   }
 
-  let result;
+  let result: Awaited<ReturnType<typeof archiveMarketplaceListing>>;
 
   try {
     result = await archiveMarketplaceListing(parsed.data);
   } catch {
-    redirectToMarketplaceNotice("catalog-error");
+    return marketplaceNoticeResult("catalog-error");
   }
 
   if (!result.ok) {
-    redirectToMarketplaceNotice(
+    return marketplaceNoticeResult(
       getMarketplaceCatalogFailureNotice(result.reason),
     );
   }
 
   revalidateMarketplacePaths(result.revalidatePublicCatalog);
-  redirectToMarketplaceNotice("listing-archived");
+  return marketplaceNoticeResult("listing-archived");
 }
 
-export async function restoreMarketplaceListingAction(formData: FormData) {
+export async function restoreMarketplaceListingAction(
+  formData: FormData,
+): Promise<MarketplaceActionResult> {
   await requireChairSession();
 
   const parsed = marketplaceListingIdActionSchema.safeParse({
@@ -344,30 +396,30 @@ export async function restoreMarketplaceListingAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirectToMarketplaceNotice("catalog-invalid");
+    return marketplaceNoticeResult("catalog-invalid");
   }
 
-  let result;
+  let result: Awaited<ReturnType<typeof restoreMarketplaceListing>>;
 
   try {
     result = await restoreMarketplaceListing(parsed.data);
   } catch {
-    redirectToMarketplaceNotice("catalog-error");
+    return marketplaceNoticeResult("catalog-error");
   }
 
   if (!result.ok) {
-    redirectToMarketplaceNotice(
+    return marketplaceNoticeResult(
       getMarketplaceCatalogFailureNotice(result.reason),
     );
   }
 
   revalidateMarketplacePaths(result.revalidatePublicCatalog);
-  redirectToMarketplaceNotice("listing-restored");
+  return marketplaceNoticeResult("listing-restored");
 }
 
-export async function deleteArchivedMarketplaceListingAction(
+export async function deleteMarketplaceListingAction(
   formData: FormData,
-) {
+): Promise<MarketplaceActionResult> {
   await requireChairSession();
 
   const parsed = marketplaceListingIdActionSchema.safeParse({
@@ -375,25 +427,25 @@ export async function deleteArchivedMarketplaceListingAction(
   });
 
   if (!parsed.success) {
-    redirectToMarketplaceNotice("catalog-invalid");
+    return marketplaceNoticeResult("catalog-invalid");
   }
 
-  let result;
+  let result: Awaited<ReturnType<typeof deleteMarketplaceListing>>;
 
   try {
-    result = await deleteArchivedMarketplaceListing(parsed.data);
+    result = await deleteMarketplaceListing(parsed.data);
   } catch {
-    redirectToMarketplaceNotice("catalog-error");
+    return marketplaceNoticeResult("catalog-error");
   }
 
   if (!result.ok) {
-    redirectToMarketplaceNotice(
+    return marketplaceNoticeResult(
       getMarketplaceCatalogFailureNotice(result.reason),
     );
   }
 
   revalidateMarketplacePaths(result.revalidatePublicCatalog);
-  redirectToMarketplaceNotice("listing-deleted");
+  return marketplaceNoticeResult("listing-deleted");
 }
 
 export async function createMarketplaceListingVariantAction(

@@ -1,7 +1,7 @@
 import {
   archiveMarketplaceListingAction,
   createMarketplaceListingAction,
-  deleteArchivedMarketplaceListingAction,
+  deleteMarketplaceListingAction,
   publishMarketplaceListingAction,
   restoreMarketplaceListingAction,
   saveMarketplaceListingAction,
@@ -13,7 +13,7 @@ const {
   archiveMarketplaceListing,
   createMarketplaceListing,
   createMarketplaceListingVariant,
-  deleteArchivedMarketplaceListing,
+  deleteMarketplaceListing,
   verifyChairToken,
   cookies,
   publishMarketplaceListing,
@@ -29,7 +29,7 @@ const {
   archiveMarketplaceListing: vi.fn(),
   createMarketplaceListing: vi.fn(),
   createMarketplaceListingVariant: vi.fn(),
-  deleteArchivedMarketplaceListing: vi.fn(),
+  deleteMarketplaceListing: vi.fn(),
   verifyChairToken: vi.fn(),
   cookies: vi.fn(),
   publishMarketplaceListing: vi.fn(),
@@ -58,7 +58,7 @@ vi.mock("@/lib/marketplaceCatalogAdmin", () => ({
   archiveMarketplaceListing,
   createMarketplaceListing,
   createMarketplaceListingVariant,
-  deleteArchivedMarketplaceListing,
+  deleteMarketplaceListing,
   publishMarketplaceListing,
   restoreMarketplaceListing,
   saveMarketplaceListing,
@@ -97,6 +97,29 @@ function buildMarketplaceListingFormData() {
   formData.set("fulfillmentNote", "Pickup at check-in");
   formData.set("sortOrder", "1");
   return formData;
+}
+
+function appendNewVariantPanel(
+  formData: FormData,
+  panel: {
+    label?: string;
+    sku?: string;
+    unitAmount?: string;
+    currency?: string;
+    inventoryQuantity?: string;
+    isActive?: string;
+    sortOrder?: string;
+  },
+) {
+  // The chair UI always submits a select-driven default for isActive/currency
+  // even on otherwise-blank rows, so mirror that here.
+  formData.append("newVariantLabel", panel.label ?? "");
+  formData.append("newVariantSku", panel.sku ?? "");
+  formData.append("newVariantUnitAmount", panel.unitAmount ?? "");
+  formData.append("newVariantCurrency", panel.currency ?? "USD");
+  formData.append("newVariantInventoryQuantity", panel.inventoryQuantity ?? "");
+  formData.append("newVariantIsActive", panel.isActive ?? "true");
+  formData.append("newVariantSortOrder", panel.sortOrder ?? "");
 }
 
 function buildMarketplaceListingIdFormData() {
@@ -144,20 +167,20 @@ describe("marketplace chair actions", () => {
     expect(updateMarketplaceOrderFulfillmentStatus).not.toHaveBeenCalled();
   });
 
-  it("redirects back with an error notice when the submitted fulfillment form is invalid", async () => {
+  it("returns an error notice url when the submitted fulfillment form is invalid", async () => {
     const formData = new FormData();
     formData.set("orderId", "order-1");
 
     await expect(
       updateMarketplaceFulfillmentStatusAction(formData),
-    ).rejects.toThrow(
-      "REDIRECT:/chair/marketplace?marketplace=transition-error",
-    );
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=transition-error",
+    });
 
     expect(updateMarketplaceOrderFulfillmentStatus).not.toHaveBeenCalled();
   });
 
-  it("revalidates the marketplace chair page and redirects with a fulfillment success notice", async () => {
+  it("revalidates the marketplace chair page and returns a fulfillment success notice url", async () => {
     updateMarketplaceOrderFulfillmentStatus.mockResolvedValue({
       ok: true,
       orderId: "order-1",
@@ -168,7 +191,9 @@ describe("marketplace chair actions", () => {
       updateMarketplaceFulfillmentStatusAction(
         buildMarketplaceFulfillmentFormData("READY"),
       ),
-    ).rejects.toThrow("REDIRECT:/chair/marketplace?marketplace=ready");
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=ready",
+    });
 
     expect(updateMarketplaceOrderFulfillmentStatus).toHaveBeenCalledWith({
       orderId: "order-1",
@@ -177,7 +202,7 @@ describe("marketplace chair actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/chair/marketplace");
   });
 
-  it("redirects back with an error notice when the fulfillment transition is rejected", async () => {
+  it("returns an error notice url when the fulfillment transition is rejected", async () => {
     updateMarketplaceOrderFulfillmentStatus.mockResolvedValue({
       ok: false,
       reason: "invalid_transition",
@@ -187,14 +212,14 @@ describe("marketplace chair actions", () => {
       updateMarketplaceFulfillmentStatusAction(
         buildMarketplaceFulfillmentFormData("FULFILLED"),
       ),
-    ).rejects.toThrow(
-      "REDIRECT:/chair/marketplace?marketplace=transition-error",
-    );
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=transition-error",
+    });
 
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("redirects with a safe duplicate-slug notice when listing creation is rejected", async () => {
+  it("returns a safe duplicate-slug notice url when listing creation is rejected", async () => {
     createMarketplaceListing.mockResolvedValue({
       ok: false,
       reason: "duplicate_slug",
@@ -202,9 +227,9 @@ describe("marketplace chair actions", () => {
 
     await expect(
       createMarketplaceListingAction(buildMarketplaceListingFormData()),
-    ).rejects.toThrow(
-      "REDIRECT:/chair/marketplace?marketplace=catalog-duplicate-slug",
-    );
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=catalog-duplicate-slug",
+    });
 
     expect(createMarketplaceListing).toHaveBeenCalledWith({
       slug: "hoodie-drop",
@@ -213,8 +238,69 @@ describe("marketplace chair actions", () => {
       imageUrl: "/images/hoodie.jpg",
       fulfillmentNote: "Pickup at check-in",
       sortOrder: "1",
+      variants: [],
     });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("forwards parsed draft variants from the create form to the service", async () => {
+    const formData = buildMarketplaceListingFormData();
+    // A fully blank panel must be dropped, mirroring the save action behavior.
+    appendNewVariantPanel(formData, {});
+    appendNewVariantPanel(formData, {
+      label: "Small",
+      sku: "HOODIE-S",
+      unitAmount: "4500",
+      currency: "USD",
+      inventoryQuantity: "3",
+      isActive: "true",
+      sortOrder: "1",
+    });
+    appendNewVariantPanel(formData, {
+      label: "Medium",
+      sku: "HOODIE-M",
+      unitAmount: "4500",
+      currency: "USD",
+      inventoryQuantity: "6",
+      isActive: "false",
+      sortOrder: "2",
+    });
+
+    createMarketplaceListing.mockResolvedValue({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    await expect(createMarketplaceListingAction(formData)).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-created",
+    });
+
+    expect(createMarketplaceListing).toHaveBeenCalledWith(
+      expect.objectContaining({
+        slug: "hoodie-drop",
+        variants: [
+          {
+            currency: "USD",
+            inventoryQuantity: "3",
+            isActive: "true",
+            label: "Small",
+            sku: "HOODIE-S",
+            sortOrder: "1",
+            unitAmount: "4500",
+          },
+          {
+            currency: "USD",
+            inventoryQuantity: "6",
+            isActive: "false",
+            label: "Medium",
+            sku: "HOODIE-M",
+            sortOrder: "2",
+            unitAmount: "4500",
+          },
+        ],
+      }),
+    );
   });
 
   it("saves listing details and variant edits together with one chair action", async () => {
@@ -226,16 +312,16 @@ describe("marketplace chair actions", () => {
 
     await expect(
       saveMarketplaceListingAction(buildMarketplaceListingSaveFormData()),
-    ).rejects.toThrow(
-      "REDIRECT:/chair/marketplace?marketplace=listing-updated",
-    );
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-updated",
+    });
 
     expect(saveMarketplaceListing).toHaveBeenCalledWith({
       description: "Heavy fleece",
       fulfillmentNote: "Pickup at check-in",
       imageUrl: "/images/hoodie.jpg",
       listingId: "listing-1",
-      newVariant: undefined,
+      newVariants: [],
       removedVariantIds: [],
       slug: "hoodie-drop",
       sortOrder: "1",
@@ -265,16 +351,16 @@ describe("marketplace chair actions", () => {
       revalidatePublicCatalog: false,
     });
 
-    await expect(saveMarketplaceListingAction(formData)).rejects.toThrow(
-      "REDIRECT:/chair/marketplace?marketplace=listing-updated",
-    );
+    await expect(saveMarketplaceListingAction(formData)).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-updated",
+    });
 
     expect(saveMarketplaceListing).toHaveBeenCalledWith({
       description: "Heavy fleece",
       fulfillmentNote: "Pickup at check-in",
       imageUrl: "/images/hoodie.jpg",
       listingId: "listing-1",
-      newVariant: undefined,
+      newVariants: [],
       removedVariantIds: ["variant-2"],
       slug: "hoodie-drop",
       sortOrder: "1",
@@ -294,7 +380,124 @@ describe("marketplace chair actions", () => {
     });
   });
 
-  it("revalidates the chair and public marketplace when a listing is published", async () => {
+  it("zips repeated new-variant panel fields into the newVariants array passed to the service", async () => {
+    const formData = buildMarketplaceListingSaveFormData();
+    appendNewVariantPanel(formData, {
+      label: "Large",
+      sku: "HOODIE-L",
+      unitAmount: "4500",
+      currency: "USD",
+      inventoryQuantity: "6",
+      isActive: "true",
+      sortOrder: "2",
+    });
+    appendNewVariantPanel(formData, {
+      label: "Extra Large",
+      sku: "HOODIE-XL",
+      unitAmount: "4800",
+      currency: "USD",
+      inventoryQuantity: "4",
+      isActive: "false",
+      sortOrder: "3",
+    });
+
+    saveMarketplaceListing.mockResolvedValue({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    await expect(saveMarketplaceListingAction(formData)).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-updated",
+    });
+
+    expect(saveMarketplaceListing).toHaveBeenCalledWith(
+      expect.objectContaining({
+        newVariants: [
+          {
+            currency: "USD",
+            inventoryQuantity: "6",
+            isActive: "true",
+            label: "Large",
+            sku: "HOODIE-L",
+            sortOrder: "2",
+            unitAmount: "4500",
+          },
+          {
+            currency: "USD",
+            inventoryQuantity: "4",
+            isActive: "false",
+            label: "Extra Large",
+            sku: "HOODIE-XL",
+            sortOrder: "3",
+            unitAmount: "4800",
+          },
+        ],
+      }),
+    );
+  });
+
+  it("drops fully blank new-variant panels while keeping filled ones", async () => {
+    const formData = buildMarketplaceListingSaveFormData();
+    // A blank panel only carries the select defaults and must not produce an entry.
+    appendNewVariantPanel(formData, {});
+    appendNewVariantPanel(formData, {
+      label: "Large",
+      sku: "HOODIE-L",
+      unitAmount: "4500",
+      currency: "USD",
+      inventoryQuantity: "6",
+      isActive: "true",
+      sortOrder: "2",
+    });
+
+    saveMarketplaceListing.mockResolvedValue({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    await expect(saveMarketplaceListingAction(formData)).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-updated",
+    });
+
+    expect(saveMarketplaceListing).toHaveBeenCalledWith(
+      expect.objectContaining({
+        newVariants: [
+          {
+            currency: "USD",
+            inventoryQuantity: "6",
+            isActive: "true",
+            label: "Large",
+            sku: "HOODIE-L",
+            sortOrder: "2",
+            unitAmount: "4500",
+          },
+        ],
+      }),
+    );
+  });
+
+  it("passes an empty newVariants array when every submitted panel is blank", async () => {
+    const formData = buildMarketplaceListingSaveFormData();
+    appendNewVariantPanel(formData, {});
+
+    saveMarketplaceListing.mockResolvedValue({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    await expect(saveMarketplaceListingAction(formData)).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-updated",
+    });
+
+    expect(saveMarketplaceListing).toHaveBeenCalledWith(
+      expect.objectContaining({ newVariants: [] }),
+    );
+  });
+
+  it("revalidates the chair and public marketplace and returns the published notice url", async () => {
     publishMarketplaceListing.mockResolvedValue({
       ok: true,
       entityId: "listing-1",
@@ -304,9 +507,9 @@ describe("marketplace chair actions", () => {
 
     await expect(
       publishMarketplaceListingAction(buildMarketplaceListingIdFormData()),
-    ).rejects.toThrow(
-      "REDIRECT:/chair/marketplace?marketplace=listing-published",
-    );
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-published",
+    });
 
     expect(publishMarketplaceListing).toHaveBeenCalledWith({
       listingId: "listing-1",
@@ -315,7 +518,7 @@ describe("marketplace chair actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/marketplace");
   });
 
-  it("revalidates the chair and public marketplace when an active listing is archived", async () => {
+  it("revalidates the chair and public marketplace and returns the archived notice url", async () => {
     archiveMarketplaceListing.mockResolvedValue({
       ok: true,
       entityId: "listing-1",
@@ -325,9 +528,9 @@ describe("marketplace chair actions", () => {
 
     await expect(
       archiveMarketplaceListingAction(buildMarketplaceListingIdFormData()),
-    ).rejects.toThrow(
-      "REDIRECT:/chair/marketplace?marketplace=listing-archived",
-    );
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-archived",
+    });
 
     expect(archiveMarketplaceListing).toHaveBeenCalledWith({
       listingId: "listing-1",
@@ -336,7 +539,7 @@ describe("marketplace chair actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/marketplace");
   });
 
-  it("revalidates only the chair marketplace when an archived listing is restored to draft", async () => {
+  it("revalidates only the chair marketplace and returns the restored notice url", async () => {
     restoreMarketplaceListing.mockResolvedValue({
       ok: true,
       entityId: "listing-1",
@@ -346,9 +549,9 @@ describe("marketplace chair actions", () => {
 
     await expect(
       restoreMarketplaceListingAction(buildMarketplaceListingIdFormData()),
-    ).rejects.toThrow(
-      "REDIRECT:/chair/marketplace?marketplace=listing-restored",
-    );
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-restored",
+    });
 
     expect(restoreMarketplaceListing).toHaveBeenCalledWith({
       listingId: "listing-1",
@@ -357,25 +560,43 @@ describe("marketplace chair actions", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/chair/marketplace");
   });
 
-  it("revalidates only the chair marketplace when an archived listing is deleted", async () => {
-    deleteArchivedMarketplaceListing.mockResolvedValue({
+  it("revalidates only the chair marketplace and returns the deleted notice url for a non-public listing", async () => {
+    deleteMarketplaceListing.mockResolvedValue({
       ok: true,
       entityId: "listing-1",
       revalidatePublicCatalog: false,
     });
 
     await expect(
-      deleteArchivedMarketplaceListingAction(
-        buildMarketplaceListingIdFormData(),
-      ),
-    ).rejects.toThrow(
-      "REDIRECT:/chair/marketplace?marketplace=listing-deleted",
-    );
+      deleteMarketplaceListingAction(buildMarketplaceListingIdFormData()),
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-deleted",
+    });
 
-    expect(deleteArchivedMarketplaceListing).toHaveBeenCalledWith({
+    expect(deleteMarketplaceListing).toHaveBeenCalledWith({
       listingId: "listing-1",
     });
     expect(revalidatePath).toHaveBeenCalledTimes(1);
     expect(revalidatePath).toHaveBeenCalledWith("/chair/marketplace");
+  });
+
+  it("revalidates the chair and public marketplace and returns the deleted notice url for a published listing", async () => {
+    deleteMarketplaceListing.mockResolvedValue({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: true,
+    });
+
+    await expect(
+      deleteMarketplaceListingAction(buildMarketplaceListingIdFormData()),
+    ).resolves.toEqual({
+      redirectTo: "/chair/marketplace?marketplace=listing-deleted",
+    });
+
+    expect(deleteMarketplaceListing).toHaveBeenCalledWith({
+      listingId: "listing-1",
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/chair/marketplace");
+    expect(revalidatePath).toHaveBeenCalledWith("/marketplace");
   });
 });

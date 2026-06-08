@@ -1,7 +1,7 @@
 import {
   archiveMarketplaceListingAction,
   createMarketplaceListingAction,
-  deleteArchivedMarketplaceListingAction,
+  deleteMarketplaceListingAction,
   publishMarketplaceListingAction,
   restoreMarketplaceListingAction,
   saveMarketplaceListingAction,
@@ -10,6 +10,9 @@ import {
 } from "@/app/actions/marketplace";
 import styles from "@/app/chair/chair.module.css";
 import { displayValue } from "@/app/chair/display";
+import { ConfirmSubmitButton } from "@/app/chair/marketplace/ConfirmSubmitButton";
+import { MarketplaceCreateListingPanel } from "@/app/chair/marketplace/MarketplaceCreateListingPanel";
+import { MarketplaceListingActionForm } from "@/app/chair/marketplace/MarketplaceListingActionForm";
 import { MarketplaceListingForm } from "@/app/chair/marketplace/MarketplaceListingForm";
 import { MarketplaceListingVariantsEditor } from "@/app/chair/marketplace/MarketplaceListingVariantsEditor";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
@@ -25,10 +28,7 @@ import {
   type ChairMarketplaceOrderEntry,
   type ChairMarketplaceReviewEntry,
 } from "@/lib/marketplaceChair";
-import {
-  isMarketplaceListingImageKey,
-  resolveMarketplaceListingImageUrl,
-} from "@/lib/marketplaceListingImage";
+import { resolveMarketplaceListingImageUrl } from "@/lib/marketplaceListingImage";
 
 export const dynamic = "force-dynamic";
 
@@ -131,7 +131,7 @@ function getMarketplaceNotice(
       return {
         tone: "success",
         title: "Marketplace listing deleted.",
-        body: "The archived listing, its saved variants, and any uploaded listing image were removed from the chair catalog.",
+        body: "The listing, its saved variants, and any uploaded listing image were removed from the chair catalog.",
       };
     case "variant-created":
       return {
@@ -363,13 +363,15 @@ function renderFulfillmentAction(order: ChairMarketplaceOrderEntry) {
   if (order.fulfillmentStatus === "UNFULFILLED") {
     return (
       <div className={styles.detailStack}>
-        <form action={updateMarketplaceFulfillmentStatusAction}>
+        <MarketplaceListingActionForm
+          action={updateMarketplaceFulfillmentStatusAction}
+        >
           <input name="orderId" type="hidden" value={order.id} />
           <input name="nextStatus" type="hidden" value="READY" />
           <button className={styles.secondaryActionButton} type="submit">
             Mark ready
           </button>
-        </form>
+        </MarketplaceListingActionForm>
       </div>
     );
   }
@@ -377,13 +379,15 @@ function renderFulfillmentAction(order: ChairMarketplaceOrderEntry) {
   if (order.fulfillmentStatus === "READY") {
     return (
       <div className={styles.detailStack}>
-        <form action={updateMarketplaceFulfillmentStatusAction}>
+        <MarketplaceListingActionForm
+          action={updateMarketplaceFulfillmentStatusAction}
+        >
           <input name="orderId" type="hidden" value={order.id} />
           <input name="nextStatus" type="hidden" value="FULFILLED" />
           <button className={styles.secondaryActionButton} type="submit">
             Mark fulfilled
           </button>
-        </form>
+        </MarketplaceListingActionForm>
       </div>
     );
   }
@@ -393,59 +397,98 @@ function renderFulfillmentAction(order: ChairMarketplaceOrderEntry) {
 
 function renderCatalogStatusActions(listing: ChairMarketplaceCatalogListing) {
   return (
-    <div className={styles.detailStack}>
-      {listing.status === "ACTIVE" ? (
-        <>
-          <form action={unpublishMarketplaceListingAction}>
-            <input name="listingId" type="hidden" value={listing.id} />
-            <button className={styles.secondaryActionButton} type="submit">
-              Unpublish to draft
-            </button>
-          </form>
-          <form action={archiveMarketplaceListingAction}>
-            <input name="listingId" type="hidden" value={listing.id} />
-            <button className={styles.secondaryActionButton} type="submit">
-              Archive listing
-            </button>
-          </form>
-        </>
-      ) : null}
-      {listing.status === "DRAFT" ? (
-        <>
-          <form action={publishMarketplaceListingAction}>
-            <input name="listingId" type="hidden" value={listing.id} />
-            <button className={styles.secondaryActionButton} type="submit">
-              Publish draft
-            </button>
-          </form>
-          <form action={archiveMarketplaceListingAction}>
-            <input name="listingId" type="hidden" value={listing.id} />
-            <button className={styles.secondaryActionButton} type="submit">
-              Archive listing
-            </button>
-          </form>
-        </>
-      ) : null}
-      {listing.status === "ARCHIVED" ? (
-        <>
-          <form action={restoreMarketplaceListingAction}>
-            <input name="listingId" type="hidden" value={listing.id} />
-            <button className={styles.secondaryActionButton} type="submit">
-              Restore to draft
-            </button>
-          </form>
-          <form action={deleteArchivedMarketplaceListingAction}>
-            <input name="listingId" type="hidden" value={listing.id} />
-            <button
-              aria-label={`Delete archived listing ${listing.title} permanently`}
-              className={styles.dangerButton}
-              type="submit"
+    <div className={styles.marketplaceListingActions}>
+      <p className={styles.marketplaceListingActionsLabel}>Manage listing</p>
+      <div className={styles.detailStack}>
+        {listing.status === "ACTIVE" ? (
+          <>
+            <MarketplaceListingActionForm
+              action={unpublishMarketplaceListingAction}
             >
-              Delete permanently
-            </button>
-          </form>
-        </>
-      ) : null}
+              <input name="listingId" type="hidden" value={listing.id} />
+              <button className={styles.secondaryActionButton} type="submit">
+                Unpublish to draft
+              </button>
+            </MarketplaceListingActionForm>
+            <MarketplaceListingActionForm
+              action={archiveMarketplaceListingAction}
+            >
+              <input name="listingId" type="hidden" value={listing.id} />
+              <button className={styles.secondaryActionButton} type="submit">
+                Archive listing
+              </button>
+            </MarketplaceListingActionForm>
+            <MarketplaceListingActionForm
+              action={deleteMarketplaceListingAction}
+            >
+              <input name="listingId" type="hidden" value={listing.id} />
+              <ConfirmSubmitButton
+                ariaLabel={`Delete published listing ${listing.title}`}
+                className={styles.dangerButton}
+                confirmMessage="Delete this published listing? It will be removed from the public marketplace. This cannot be undone."
+              >
+                Delete listing
+              </ConfirmSubmitButton>
+            </MarketplaceListingActionForm>
+          </>
+        ) : null}
+        {listing.status === "DRAFT" ? (
+          <>
+            <MarketplaceListingActionForm
+              action={publishMarketplaceListingAction}
+            >
+              <input name="listingId" type="hidden" value={listing.id} />
+              <button className={styles.secondaryActionButton} type="submit">
+                Publish draft
+              </button>
+            </MarketplaceListingActionForm>
+            <MarketplaceListingActionForm
+              action={archiveMarketplaceListingAction}
+            >
+              <input name="listingId" type="hidden" value={listing.id} />
+              <button className={styles.secondaryActionButton} type="submit">
+                Archive listing
+              </button>
+            </MarketplaceListingActionForm>
+            <MarketplaceListingActionForm
+              action={deleteMarketplaceListingAction}
+            >
+              <input name="listingId" type="hidden" value={listing.id} />
+              <ConfirmSubmitButton
+                ariaLabel={`Delete draft listing ${listing.title}`}
+                className={styles.dangerButton}
+                confirmMessage="Delete this draft listing? This cannot be undone."
+              >
+                Delete listing
+              </ConfirmSubmitButton>
+            </MarketplaceListingActionForm>
+          </>
+        ) : null}
+        {listing.status === "ARCHIVED" ? (
+          <>
+            <MarketplaceListingActionForm
+              action={restoreMarketplaceListingAction}
+            >
+              <input name="listingId" type="hidden" value={listing.id} />
+              <button className={styles.secondaryActionButton} type="submit">
+                Restore to draft
+              </button>
+            </MarketplaceListingActionForm>
+            <MarketplaceListingActionForm
+              action={deleteMarketplaceListingAction}
+            >
+              <input name="listingId" type="hidden" value={listing.id} />
+              <ConfirmSubmitButton
+                ariaLabel={`Delete archived listing ${listing.title} permanently`}
+                className={styles.dangerButton}
+                confirmMessage="Permanently delete this archived listing? This cannot be undone."
+              >
+                Delete permanently
+              </ConfirmSubmitButton>
+            </MarketplaceListingActionForm>
+          </>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -460,8 +503,6 @@ function CatalogListingCard({
   const nextVariantSortOrder = getNextVariantSortOrder(listing);
   const previewImageUrl = getPreviewableMarketplaceImageUrl(listing.imageUrl);
   const imageAlt = `Preview of ${listing.title}`;
-  const usesManagedImage =
-    listing.imageUrl !== null && isMarketplaceListingImageKey(listing.imageUrl);
 
   return (
     <PreviewDetailCard
@@ -529,81 +570,56 @@ function CatalogListingCard({
       title={listing.title}
     >
       <div className={styles.detailStack}>
-        <div className={styles.detailGrid}>
-          <div className={styles.detailItem}>
-            <span>Status</span>
-            <p>{getListingStatusLabel(listing.status)}</p>
-          </div>
-          <div className={styles.detailItem}>
-            <span>Slug</span>
-            <p>{listing.slug}</p>
-          </div>
-          <div className={styles.detailItem}>
-            <span>Sort order</span>
-            <p>{listing.sortOrder}</p>
-          </div>
-          <div className={styles.detailItem}>
-            <span>Active variants</span>
-            <p>{activeVariantCount}</p>
-          </div>
-          <div className={styles.detailItem}>
-            <span>Total variants</span>
-            <p>{listing.variants.length}</p>
-          </div>
-          <div className={styles.detailItem}>
-            <span>Fulfillment note</span>
-            <p>{displayValue(listing.fulfillmentNote)}</p>
-          </div>
-          <div className={styles.detailItem}>
-            <span>Last update</span>
-            <p>{formatDateTime(listing.updatedAt)}</p>
-          </div>
-        </div>
-
-        <div className={styles.detailStack}>
-          <div className={styles.detailSectionHeader}>
-            <h3 className={styles.detailSectionTitle}>Image review</h3>
-            <p className={styles.detailSectionIntro}>
-              Confirm the listing art and crop before the merch drop goes live.
+        <section className={styles.marketplaceCompartment}>
+          <div className={styles.marketplaceCompartmentHeader}>
+            <h3 className={styles.marketplaceCompartmentTitle}>Manage listing</h3>
+            <p className={styles.marketplaceCompartmentIntro}>
+              Change this listing&apos;s status or remove it from the chair
+              catalog.
             </p>
           </div>
-          {previewImageUrl ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                alt={imageAlt}
-                className={styles.detailImage}
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                src={previewImageUrl}
-              />
-              <div className={styles.detailNotePanel}>
-                <p>
-                  <strong>
-                    {usesManagedImage
-                      ? "Managed S3 image"
-                      : "Saved listing image"}
-                  </strong>
-                </p>
-                <p>
-                  {usesManagedImage
-                    ? "This listing image is stored in S3 and served through the marketplace image route."
-                    : "This listing is still using a previously saved image reference."}
-                </p>
-              </div>
-            </>
-          ) : (
-            <div className={styles.detailNotePanel}>
-              <p>
-                <strong>No listing image is saved yet.</strong>
-              </p>
-              <p>
-                Upload a listing image below to review the saved card art here
-                before publishing.
-              </p>
+          {renderCatalogStatusActions(listing)}
+        </section>
+
+        <section className={styles.marketplaceCompartment}>
+          <div className={styles.marketplaceCompartmentHeader}>
+            <h3 className={styles.marketplaceCompartmentTitle}>Overview</h3>
+            <p className={styles.marketplaceCompartmentIntro}>
+              Read-only snapshot of how this listing currently sits in the
+              catalog.
+            </p>
+          </div>
+          <div className={styles.detailGrid}>
+            <div className={styles.detailItem}>
+              <span>Status</span>
+              <p>{getListingStatusLabel(listing.status)}</p>
             </div>
-          )}
-        </div>
+            <div className={styles.detailItem}>
+              <span>Slug</span>
+              <p>{listing.slug}</p>
+            </div>
+            <div className={styles.detailItem}>
+              <span>Sort order</span>
+              <p>{listing.sortOrder}</p>
+            </div>
+            <div className={styles.detailItem}>
+              <span>Active variants</span>
+              <p>{activeVariantCount}</p>
+            </div>
+            <div className={styles.detailItem}>
+              <span>Total variants</span>
+              <p>{listing.variants.length}</p>
+            </div>
+            <div className={styles.detailItem}>
+              <span>Fulfillment note</span>
+              <p>{displayValue(listing.fulfillmentNote)}</p>
+            </div>
+            <div className={styles.detailItem}>
+              <span>Last update</span>
+              <p>{formatDateTime(listing.updatedAt)}</p>
+            </div>
+          </div>
+        </section>
 
         {archived ? (
           <>
@@ -617,9 +633,9 @@ function CatalogListingCard({
               </p>
             </div>
 
-            <div className={styles.detailStack}>
-              <div className={styles.detailSectionHeader}>
-                <h3 className={styles.detailSectionTitle}>Variants</h3>
+            <section className={styles.marketplaceCompartment}>
+              <div className={styles.marketplaceCompartmentHeader}>
+                <h3 className={styles.marketplaceCompartmentTitle}>Variants</h3>
               </div>
               {listing.variants.length ? (
                 <div className={styles.detailStack}>
@@ -642,71 +658,23 @@ function CatalogListingCard({
                   No variants are saved on this archived listing.
                 </p>
               )}
-            </div>
+            </section>
           </>
         ) : (
-          <>
-            <div className={styles.detailStack}>
-              <div className={styles.detailSectionHeader}>
-                <h3 className={styles.detailSectionTitle}>Listing details</h3>
-              </div>
-              <MarketplaceListingForm
-                action={saveMarketplaceListingAction}
-                fieldId={`listing-image-${listing.id}`}
-                initialImageValue={listing.imageUrl}
-                pendingSubmitLabel="Saving listing..."
-                submitLabel="Save listing"
-                uploadPendingLabel="Uploading image and saving listing..."
-              >
-                <input name="listingId" type="hidden" value={listing.id} />
-                <label className={styles.listControlField}>
-                  <span>Title</span>
-                  <input
-                    defaultValue={listing.title}
-                    name="title"
-                    required={true}
-                    type="text"
-                  />
-                </label>
-                <label className={styles.listControlField}>
-                  <span>Slug</span>
-                  <input
-                    defaultValue={listing.slug}
-                    name="slug"
-                    required={true}
-                    type="text"
-                  />
-                </label>
-                <label className={styles.listControlField}>
-                  <span>Sort order</span>
-                  <input
-                    defaultValue={listing.sortOrder}
-                    min={0}
-                    name="sortOrder"
-                    type="number"
-                  />
-                </label>
-                <label className={styles.listControlField}>
-                  <span>Description</span>
-                  <textarea
-                    defaultValue={listing.description ?? ""}
-                    name="description"
-                    rows={4}
-                  />
-                </label>
-                <label className={styles.listControlField}>
-                  <span>Fulfillment note</span>
-                  <textarea
-                    defaultValue={listing.fulfillmentNote ?? ""}
-                    name="fulfillmentNote"
-                    rows={3}
-                  />
-                </label>
-                <div className={styles.detailSectionHeader}>
-                  <h3 className={styles.detailSectionTitle}>Variants</h3>
-                  <p className={styles.detailSectionIntro}>
-                    Existing variant edits and one optional new variant save
-                    with this listing.
+          <MarketplaceListingForm
+            action={saveMarketplaceListingAction}
+            fieldId={`listing-image-${listing.id}`}
+            initialImageValue={listing.imageUrl}
+            pendingSubmitLabel="Saving listing..."
+            secondaryChildren={
+              <section className={styles.marketplaceCompartment}>
+                <div className={styles.marketplaceCompartmentHeader}>
+                  <h3 className={styles.marketplaceCompartmentTitle}>
+                    Variants
+                  </h3>
+                  <p className={styles.marketplaceCompartmentIntro}>
+                    Existing variant edits and any new variants below save
+                    together with this listing.
                   </p>
                 </div>
                 <MarketplaceListingVariantsEditor
@@ -714,9 +682,66 @@ function CatalogListingCard({
                   nextVariantSortOrder={nextVariantSortOrder}
                   variants={listing.variants}
                 />
-              </MarketplaceListingForm>
-            </div>
-          </>
+              </section>
+            }
+            submitLabel="Save listing"
+            uploadPendingLabel="Uploading image and saving listing..."
+          >
+            <input name="listingId" type="hidden" value={listing.id} />
+            <section className={styles.marketplaceCompartment}>
+              <div className={styles.marketplaceCompartmentHeader}>
+                <h3 className={styles.marketplaceCompartmentTitle}>
+                  Listing details
+                </h3>
+                <p className={styles.marketplaceCompartmentIntro}>
+                  Edit the shopper-facing copy and the listing image.
+                </p>
+              </div>
+              <label className={styles.listControlField}>
+                <span>Title</span>
+                <input
+                  defaultValue={listing.title}
+                  name="title"
+                  required={true}
+                  type="text"
+                />
+              </label>
+              <label className={styles.listControlField}>
+                <span>Slug</span>
+                <input
+                  defaultValue={listing.slug}
+                  name="slug"
+                  required={true}
+                  type="text"
+                />
+              </label>
+              <label className={styles.listControlField}>
+                <span>Sort order</span>
+                <input
+                  defaultValue={listing.sortOrder}
+                  min={0}
+                  name="sortOrder"
+                  type="number"
+                />
+              </label>
+              <label className={styles.listControlField}>
+                <span>Description</span>
+                <textarea
+                  defaultValue={listing.description ?? ""}
+                  name="description"
+                  rows={4}
+                />
+              </label>
+              <label className={styles.listControlField}>
+                <span>Fulfillment note</span>
+                <textarea
+                  defaultValue={listing.fulfillmentNote ?? ""}
+                  name="fulfillmentNote"
+                  rows={3}
+                />
+              </label>
+            </section>
+          </MarketplaceListingForm>
         )}
       </div>
     </PreviewDetailCard>
@@ -1239,50 +1264,71 @@ export default async function ChairMarketplacePage({
                   public marketplace.
                 </p>
               </div>
-              <MarketplaceListingForm
-                action={createMarketplaceListingAction}
-                fieldId="create-listing-image"
-                initialImageValue={null}
-                pendingSubmitLabel="Creating draft listing..."
-                submitLabel="Create draft listing"
-                uploadPendingLabel="Uploading image and creating draft listing..."
-              >
-                <label className={styles.listControlField}>
-                  <span>Title</span>
-                  <input
-                    name="title"
-                    placeholder="Blarney Hoodie"
-                    required={true}
-                    type="text"
-                  />
-                </label>
-                <label className={styles.listControlField}>
-                  <span>Slug</span>
-                  <input
-                    name="slug"
-                    placeholder="blarney-hoodie"
-                    required={true}
-                    type="text"
-                  />
-                </label>
-                <label className={styles.listControlField}>
-                  <span>Sort order</span>
-                  <input
-                    defaultValue={nextListingSortOrder}
-                    min={0}
-                    name="sortOrder"
-                    type="number"
-                  />
-                </label>
-                <label className={styles.listControlField}>
-                  <span>Description</span>
-                  <textarea name="description" rows={4} />
-                </label>
-                <label className={styles.listControlField}>
-                  <span>Fulfillment note</span>
-                  <textarea name="fulfillmentNote" rows={3} />
-                </label>
-              </MarketplaceListingForm>
+              <MarketplaceCreateListingPanel>
+                <MarketplaceListingForm
+                  action={createMarketplaceListingAction}
+                  enableDraftPersistence
+                  fieldId="create-listing-image"
+                  initialImageValue={null}
+                  pendingSubmitLabel="Creating draft listing..."
+                  secondaryChildren={
+                    <section className={styles.marketplaceCompartment}>
+                      <div className={styles.marketplaceCompartmentHeader}>
+                        <h3 className={styles.marketplaceCompartmentTitle}>
+                          Variants
+                        </h3>
+                        <p className={styles.marketplaceCompartmentIntro}>
+                          Add up to 8 sizes or options now, or after creating the
+                          draft.
+                        </p>
+                      </div>
+                      <MarketplaceListingVariantsEditor
+                        defaultCurrency="USD"
+                        nextVariantSortOrder={1}
+                        variants={[]}
+                      />
+                    </section>
+                  }
+                  submitLabel="Create draft listing"
+                  uploadPendingLabel="Uploading image and creating draft listing..."
+                >
+                  <label className={styles.listControlField}>
+                    <span>Title</span>
+                    <input
+                      name="title"
+                      placeholder="Blarney Hoodie"
+                      required={true}
+                      type="text"
+                    />
+                  </label>
+                  <label className={styles.listControlField}>
+                    <span>Slug</span>
+                    <input
+                      name="slug"
+                      placeholder="blarney-hoodie"
+                      required={true}
+                      type="text"
+                    />
+                  </label>
+                  <label className={styles.listControlField}>
+                    <span>Sort order</span>
+                    <input
+                      defaultValue={nextListingSortOrder}
+                      min={0}
+                      name="sortOrder"
+                      type="number"
+                    />
+                  </label>
+                  <label className={styles.listControlField}>
+                    <span>Description</span>
+                    <textarea name="description" rows={4} />
+                  </label>
+                  <label className={styles.listControlField}>
+                    <span>Fulfillment note</span>
+                    <textarea name="fulfillmentNote" rows={3} />
+                  </label>
+                </MarketplaceListingForm>
+              </MarketplaceCreateListingPanel>
             </div>
           </article>
 

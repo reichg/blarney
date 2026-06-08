@@ -12,8 +12,10 @@ import {
   photoUploadLimitLabel,
 } from "@/lib/photoUpload";
 import { uploadPhotoWithPresign } from "@/lib/photoUploadClient";
+import { useUncontrolledFormDraft } from "@/lib/useFormDraft";
+import { DraftNotice } from "@/components/DraftNotice";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 
 const acceptedPhotoTypeLabel = "JPEG, PNG, WebP, or GIF";
 
@@ -26,6 +28,12 @@ export function RemembranceForm() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { wasRestored, clearDraft, handleChange } = useUncontrolledFormDraft({
+    formId: "remembrance",
+    formVersion: 1,
+    formRef,
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -111,6 +119,7 @@ export function RemembranceForm() {
         });
       }
 
+      clearDraft();
       router.push("/remembrance/thanks");
     } catch (submissionError) {
       setError(
@@ -124,7 +133,19 @@ export function RemembranceForm() {
   }
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
+    <form
+      className={styles.form}
+      onInput={handleChange}
+      onSubmit={handleSubmit}
+      ref={formRef}
+    >
+      <DraftNotice
+        onDiscard={() => {
+          clearDraft();
+          formRef.current?.reset();
+        }}
+        visible={wasRestored}
+      />
       <label className={`${formStyles.field} ${styles.messageField}`}>
         <span className={formStyles.requiredLabel}>Remembrance message</span>
         <textarea

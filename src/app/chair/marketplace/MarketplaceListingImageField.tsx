@@ -16,6 +16,7 @@ type MarketplaceListingImageFieldProps = {
   onRemove: () => void;
   selectedFile: File | null;
   statusMessage: string;
+  statusTone: "info" | "warning";
 };
 
 export function MarketplaceListingImageField({
@@ -27,6 +28,7 @@ export function MarketplaceListingImageField({
   onRemove,
   selectedFile,
   statusMessage,
+  statusTone,
 }: MarketplaceListingImageFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,7 +81,15 @@ export function MarketplaceListingImageField({
       </p>
       <p
         aria-live="polite"
-        className={`${styles.toolbarStatus} ${errorMessage ? styles.toolbarStatusError : ""}`}
+        className={[
+          styles.toolbarStatus,
+          errorMessage ? styles.toolbarStatusError : "",
+          !errorMessage && statusTone === "warning"
+            ? styles.marketplaceImageRemovalNotice
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
       >
         {errorMessage ?? statusMessage}
       </p>

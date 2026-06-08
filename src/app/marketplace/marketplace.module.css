@@ -74,9 +74,16 @@
 }
 
 .listingCard {
+  /*
+   * Card height is content-driven, not a magic number: every interior region is
+   * reserved at a constant size (title clamped to 2 lines, description to 3
+   * lines, help text to 2 lines, picker a fixed 13.5rem), so the natural height
+   * is already identical across cards. Width is uniform automatically because
+   * cards are full-width children of the single-column `.catalogGrid`.
+   */
   display: grid;
   grid-template-columns: minmax(12rem, 19rem) minmax(0, 1fr);
-  min-height: clamp(19rem, 22vw, 24rem);
+  box-shadow: none;
 }
 
 .listingMedia {
@@ -99,7 +106,7 @@
   display: block;
   height: 100%;
   max-width: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
@@ -112,85 +119,160 @@
 }
 
 .listingBody {
+  /*
+   * Two fixed-size rows: a reserved copy region on top and the variant picker
+   * below. Both rows are content-independent (title/description/help are all
+   * line-clamped), so the picker starts at the same offset and is the same size
+   * on every card — making every picker section uniform.
+   */
   display: grid;
-  justify-content: center;
   gap: 1rem;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: start;
+  min-height: 0;
   min-width: 0;
   padding: 1.2rem;
 }
 
 .listingCopy {
-  justify-content: center;
+  /*
+   * Reserve a constant copy region: two lines of title + three lines of
+   * description + the 0.45rem gap. Reserving (not capping) lets a 1-line title
+   * card occupy the same space as a 2-line title card, so the picker below
+   * always begins at the same vertical offset.
+   */
   display: grid;
   gap: 0.45rem;
-}
-
-.listingCopy h3 {
-  font-size: 2.5rem;
-  color: var(--pine);
-  font-family: Georgia, "Times New Roman", serif;
-  margin: 0;
-}
-
-.listingCopy p {
-  color: var(--muted);
-  line-height: 1.6;
-  margin: 0;
-}
-
-.variantList {
-  align-self: end;
-  display: grid;
-  gap: 0.85rem;
+  grid-template-rows: auto auto;
+  align-content: start;
   min-width: 0;
 }
 
-.variantRow {
-  align-items: center;
+.listingCopy h3 {
+  /*
+   * Fluid size keeps realistic titles ("Blarney Hoodie/Hat/Shirt") on a single
+   * line; the clamp reserves up to two lines (line-height 1.15 × 2) and caps
+   * longer titles at two lines so they can never grow the card. Text stays in
+   * the DOM — truncation is visual only.
+   */
+  font-size: clamp(1.5rem, 1.05rem + 1.6vw, 2.5rem);
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  hyphens: auto;
+  line-height: 1.15;
+  margin: 0;
+  min-height: calc(1.15em * 2);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.listingCopy p {
+  /* Description capped at three lines; reserves a constant three-line block. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 0;
+  min-height: calc(1.6em * 3);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.variantPicker {
+  /*
+   * Single-column picker with three fixed-height rows (select field, two-line
+   * help text, quantity control). Giving the select its own full-width row keeps
+   * the longest "label — price" value fully visible. A fixed `height` (not a
+   * floor) plus the capped help text makes every picker box pixel-identical
+   * across cards; `align-content: start` keeps identical content laid out
+   * identically. 13.5rem = the worst-case content height of the three rows.
+   */
+  align-self: end;
   background: rgb(255 253 247 / 88%);
   border: 1px solid rgb(24 64 49 / 10%);
   border-radius: calc(var(--radius) - 4px);
   display: grid;
   gap: 0.85rem;
-  grid-template-columns: minmax(0, 1fr) minmax(8.75rem, auto);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  height: 13.5rem;
   min-width: 0;
   padding: 0.95rem;
 }
 
-.variantMeta {
+.variantSelectField {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
   min-width: 0;
 }
 
-.variantMeta label {
-  align-items: baseline;
+.variantSelectField span {
   color: var(--pine);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
-.variantMeta label span {
-  color: var(--muted);
-  font-size: 0.92rem;
+
+.variantSelect {
+  background: rgb(255 252 247 / 94%);
+  border: 1px solid rgb(24 64 49 / 14%);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 74%);
+  color: var(--ink);
   font-weight: 700;
+  min-height: 2.75rem;
+  min-width: 0;
+  /* Extra right padding leaves room for the native dropdown arrow so the
+     selected "label — price" value is never clipped. */
+  padding: 0.55rem 1.85rem 0.55rem 0.65rem;
+  width: 100%;
+}
+
+.variantSelect:focus-visible {
+  border-color: rgb(179 134 63 / 72%);
+  box-shadow:
+    var(--focus-ring),
+    inset 0 1px 0 rgb(255 255 255 / 82%);
+  outline: none;
 }
 
 .variantHelp {
+  /*
+   * Exactly two lines: reserved (min-height ≈ 0.88rem × 1.5 × 2 = 2.64rem) AND
+   * capped (line-clamp: 2) so neither a 1-line nor a 3+-line fulfillment note
+   * can change the picker box height. Text remains in the DOM — visual-only
+   * truncation.
+   */
   color: var(--muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: 0.88rem;
   line-height: 1.5;
   margin: 0;
+  min-height: 2.64rem;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .quantityControl {
+  /* Own full-width row beneath the select so the select keeps the full width. */
   align-items: center;
+  align-self: end;
   display: grid;
   gap: 0.45rem;
   grid-template-columns: 2.35rem minmax(3rem, 1fr) 2.35rem;
-  justify-self: end;
-  width: clamp(8.75rem, 18vw, 9.65rem);
+  justify-self: stretch;
+  width: 100%;
 }
 
 .quantityInput {
@@ -306,12 +388,26 @@
   .storefront {
     grid-template-columns: minmax(0, 1fr) clamp(19rem, 26vw, 24rem);
   }
-}
 
-@media (min-width: 1120px) {
+  /*
+   * From the two-column breakpoint up, the catalog scrolls within its own
+   * region while the checkout column stays sticky/visible. Both activate at the
+   * same breakpoint so there is never a viewport where one scrolls but the
+   * other does not. The offset mirrors the sticky `top: 6rem` plus 1.5rem of
+   * bottom breathing room. The region is keyboard-reachable and does not trap
+   * focus; inner padding keeps focus rings from being clipped.
+   */
   .checkoutColumn {
     position: sticky;
     top: 6rem;
+  }
+
+  .catalogGrid {
+    max-height: calc(100vh - 7.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2rem;
+    scrollbar-gutter: stable;
   }
 }
 
@@ -319,14 +415,22 @@
   .listingCard {
     grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
   }
+}
 
-  .variantRow {
-    grid-template-columns: 1fr;
+/*
+ * 900–1099px is the narrow range: the storefront is two columns (catalog +
+ * sticky checkout sidebar), so the catalog column is tight. The card stays
+ * HORIZONTAL here; to avoid cramping we shrink the media column and trim the
+ * body padding so the title, description, and variant picker still read cleanly
+ * side-by-side.
+ */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .listingCard {
+    grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr);
   }
 
-  .quantityControl {
-    justify-self: center;
-    width: min(100%, 9.65rem);
+  .listingBody {
+    padding: 1.1rem;
   }
 }
 
@@ -334,19 +438,6 @@
   .infoPanels,
   .storefront {
     grid-template-columns: 1fr;
-  }
-
-  .variantList {
-    justify-content: center;
-  }
-
-  .variantRow {
-    grid-template-columns: minmax(0, 1fr) minmax(8.75rem, auto);
-    width: min(100%, 28rem);
-  }
-
-  .quantityControl {
-    justify-self: end;
   }
 }
 
@@ -357,12 +448,52 @@
 
   .listingCard {
     grid-template-columns: 1fr;
-    min-height: 0;
   }
 
   .listingMedia {
+    /*
+     * Stacked on phones: a tall, prominent fixed media band above the body. An
+     * explicit `height` (never `min-height: 100%`) keeps the media from
+     * overlapping the title; the content-reserved body below it makes every
+     * card the same total height. The band is uniform across cards because the
+     * height is a single clamp, not content-driven.
+     */
     border-bottom: 1px solid rgb(24 64 49 / 10%);
     border-right: 0;
-    min-height: clamp(12rem, 48vw, 16rem);
+    height: clamp(15rem, 62vw, 21rem);
+    min-height: 0;
+  }
+
+  .variantPicker {
+    /*
+     * One-row picker on the full-width stacked card: the select field shares a
+     * row with the quantity control, and the help text spans both columns below.
+     * `height: auto` replaces the horizontal layout's fixed 13.5rem so the
+     * two-row (select+qty / help) layout sizes naturally; every card uses the
+     * same reservations (clamped help, fixed-size quantity control), so picker
+     * boxes stay uniform across cards at this breakpoint.
+     */
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: end;
+    height: auto;
+  }
+
+  .variantSelectField {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .variantHelp {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .quantityControl {
+    /* Sits beside the select in the same row; sized to its content, not stretched. */
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    width: auto;
   }
 }

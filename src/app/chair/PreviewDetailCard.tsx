@@ -1,8 +1,9 @@
 "use client";
 
 import styles from "@/app/chair/chair.module.css";
+import { PreviewDetailCardCloseProvider } from "@/app/chair/PreviewDetailCardContext";
 import type { PreviewDetailCardProps } from "@/app/chair/type";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 export function PreviewDetailCard({
   title,
@@ -19,6 +20,7 @@ export function PreviewDetailCard({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogPanelRef = useRef<HTMLDivElement>(null);
+  const closeDialog = useCallback(() => setIsOpen(false), []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -109,7 +111,7 @@ export function PreviewDetailCard({
                 <p className={styles.detailDialogEyebrow}>{eyebrow}</p>
                 <button
                   className={`${styles.secondaryActionButton} ${styles.detailDialogClose}`}
-                  onClick={() => setIsOpen(false)}
+                  onClick={closeDialog}
                   ref={closeButtonRef}
                   type="button"
                 >
@@ -135,7 +137,9 @@ export function PreviewDetailCard({
                     Full details
                   </p>
                   <div className={styles.detailDialogContentPanel}>
-                    {children}
+                    <PreviewDetailCardCloseProvider value={closeDialog}>
+                      {children}
+                    </PreviewDetailCardCloseProvider>
                   </div>
                 </div>
               </div>

@@ -58,7 +58,7 @@ import {
   archiveMarketplaceListing,
   createMarketplaceListing,
   createMarketplaceListingVariant,
-  deleteArchivedMarketplaceListing,
+  deleteMarketplaceListing,
   getChairMarketplaceCatalog,
   publishMarketplaceListing,
   restoreMarketplaceListing,
@@ -72,6 +72,7 @@ beforeEach(() => {
     if (typeof input === "function") {
       return input({
         marketplaceListing: {
+          create: listingCreate,
           deleteMany: listingDeleteMany,
           findUnique: listingFindUnique,
           update: listingUpdate,
@@ -235,6 +236,199 @@ describe("marketplace catalog admin service", () => {
     expect(listingCreate).not.toHaveBeenCalled();
   });
 
+  it("creates a draft listing with no variants when none are submitted", async () => {
+    await expect(
+      createMarketplaceListing({
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    expect(listingCreate).toHaveBeenCalledTimes(1);
+    expect(variantCreate).not.toHaveBeenCalled();
+  });
+
+  it("creates a draft listing together with every submitted variant", async () => {
+    await expect(
+      createMarketplaceListing({
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: [
+          {
+            label: "Small",
+            sku: "HOODIE-S",
+            unitAmount: "4500",
+            currency: "usd",
+            inventoryQuantity: "3",
+            isActive: "true",
+            sortOrder: "1",
+          },
+          {
+            label: "Medium",
+            sku: "HOODIE-M",
+            unitAmount: "4500",
+            currency: "usd",
+            inventoryQuantity: "6",
+            isActive: "true",
+            sortOrder: "2",
+          },
+          {
+            label: "Large",
+            sku: "HOODIE-L",
+            unitAmount: "4800",
+            currency: "usd",
+            inventoryQuantity: "4",
+            isActive: "false",
+            sortOrder: "3",
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    expect(listingCreate).toHaveBeenCalledTimes(1);
+    expect(variantCreate).toHaveBeenCalledTimes(3);
+    expect(variantCreate).toHaveBeenNthCalledWith(1, {
+      data: {
+        listingId: "listing-1",
+        label: "Small",
+        sku: "HOODIE-S",
+        unitAmount: 4500,
+        currency: "USD",
+        inventoryQuantity: 3,
+        isActive: true,
+        sortOrder: 1,
+      },
+    });
+    expect(variantCreate).toHaveBeenNthCalledWith(3, {
+      data: {
+        listingId: "listing-1",
+        label: "Large",
+        sku: "HOODIE-L",
+        unitAmount: 4800,
+        currency: "USD",
+        inventoryQuantity: 4,
+        isActive: false,
+        sortOrder: 3,
+      },
+    });
+  });
+
+  it("creates a draft listing with the maximum allowed number of variants", async () => {
+    const maxVariants = Array.from({ length: 8 }, (_, index) => ({
+      label: `Variant ${index}`,
+      sku: `HOODIE-${index}`,
+      unitAmount: "4500",
+      currency: "usd",
+      inventoryQuantity: "1",
+      isActive: "true",
+      sortOrder: String(index),
+    }));
+
+    await expect(
+      createMarketplaceListing({
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: maxVariants,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    expect(listingCreate).toHaveBeenCalledTimes(1);
+    expect(variantCreate).toHaveBeenCalledTimes(8);
+  });
+
+  it("rejects creation when more variants than the allowed limit are submitted", async () => {
+    const tooManyVariants = Array.from({ length: 9 }, (_, index) => ({
+      label: `Variant ${index}`,
+      sku: `HOODIE-${index}`,
+      unitAmount: "4500",
+      currency: "usd",
+      inventoryQuantity: "1",
+      isActive: "true",
+      sortOrder: String(index),
+    }));
+
+    await expect(
+      createMarketplaceListing({
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: tooManyVariants,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+
+    expect(listingCreate).not.toHaveBeenCalled();
+    expect(variantCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects creation when any single submitted variant fails validation", async () => {
+    await expect(
+      createMarketplaceListing({
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: [
+          {
+            label: "Small",
+            sku: "HOODIE-S",
+            unitAmount: "4500",
+            currency: "usd",
+            inventoryQuantity: "3",
+            isActive: "true",
+            sortOrder: "1",
+          },
+          {
+            // Missing required label makes this element invalid.
+            sku: "HOODIE-M",
+            unitAmount: "4500",
+            currency: "usd",
+            inventoryQuantity: "6",
+            isActive: "true",
+            sortOrder: "2",
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+
+    expect(listingCreate).not.toHaveBeenCalled();
+    expect(variantCreate).not.toHaveBeenCalled();
+  });
+
   it("blocks publishing listings that do not have any active variants", async () => {
     variantCount.mockResolvedValue(0);
 
@@ -293,7 +487,7 @@ describe("marketplace catalog admin service", () => {
     });
   });
 
-  it("deletes archived listings and their managed S3 image", async () => {
+  it("deletes archived listings and their managed S3 image without a status filter", async () => {
     listingFindUnique.mockResolvedValue({
       id: "listing-1",
       imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
@@ -301,7 +495,36 @@ describe("marketplace catalog admin service", () => {
     });
 
     await expect(
-      deleteArchivedMarketplaceListing({
+      deleteMarketplaceListing({
+        listingId: "listing-1",
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    // Deletion is bounded to a single id with no status filter: any status can
+    // be deleted, but never more than the targeted row.
+    expect(listingDeleteMany).toHaveBeenCalledWith({
+      where: {
+        id: "listing-1",
+      },
+    });
+    expect(deletePhotoObject).toHaveBeenCalledWith(
+      "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+    );
+  });
+
+  it("deletes draft listings without flagging the public catalog for revalidation", async () => {
+    listingFindUnique.mockResolvedValue({
+      id: "listing-1",
+      imageUrl: null,
+      status: "DRAFT",
+    });
+
+    await expect(
+      deleteMarketplaceListing({
         listingId: "listing-1",
       }),
     ).resolves.toEqual({
@@ -313,31 +536,48 @@ describe("marketplace catalog admin service", () => {
     expect(listingDeleteMany).toHaveBeenCalledWith({
       where: {
         id: "listing-1",
-        status: "ARCHIVED",
       },
     });
-    expect(deletePhotoObject).toHaveBeenCalledWith(
-      "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
-    );
+    expect(deletePhotoObject).not.toHaveBeenCalled();
   });
 
-  it("rejects deletion for listings that are not archived", async () => {
+  it("deletes active listings and flags the public catalog for revalidation", async () => {
     listingFindUnique.mockResolvedValue({
       id: "listing-1",
-      imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-cap.png",
-      status: "DRAFT",
+      imageUrl: null,
+      status: "ACTIVE",
     });
-    listingDeleteMany.mockResolvedValue({ count: 0 });
 
     await expect(
-      deleteArchivedMarketplaceListing({
+      deleteMarketplaceListing({
+        listingId: "listing-1",
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: true,
+    });
+
+    expect(listingDeleteMany).toHaveBeenCalledWith({
+      where: {
+        id: "listing-1",
+      },
+    });
+  });
+
+  it("returns not_found when the listing to delete no longer exists", async () => {
+    listingFindUnique.mockResolvedValue(null);
+
+    await expect(
+      deleteMarketplaceListing({
         listingId: "listing-1",
       }),
     ).resolves.toEqual({
       ok: false,
-      reason: "invalid",
+      reason: "not_found",
     });
 
+    expect(listingDeleteMany).not.toHaveBeenCalled();
     expect(deletePhotoObject).not.toHaveBeenCalled();
   });
 
@@ -354,7 +594,7 @@ describe("marketplace catalog admin service", () => {
     deletePhotoObject.mockRejectedValueOnce(new Error("s3 unavailable"));
 
     await expect(
-      deleteArchivedMarketplaceListing({
+      deleteMarketplaceListing({
         listingId: "listing-1",
       }),
     ).resolves.toEqual({
@@ -680,10 +920,12 @@ describe("marketplace catalog admin service", () => {
         fulfillmentNote: "Pickup at check-in",
         sortOrder: "4",
         variants: [],
-        newVariant: {
-          label: "Large",
-          currency: "USD",
-        },
+        newVariants: [
+          {
+            label: "Large",
+            currency: "USD",
+          },
+        ],
       }),
     ).resolves.toEqual({
       ok: false,
@@ -693,6 +935,335 @@ describe("marketplace catalog admin service", () => {
     expect(listingFindUnique).not.toHaveBeenCalled();
     expect(listingUpdate).not.toHaveBeenCalled();
     expect(variantCreate).not.toHaveBeenCalled();
+  });
+
+  it("saves the listing without creating any variants when no new variants are submitted", async () => {
+    listingFindUnique.mockResolvedValue({
+      id: "listing-1",
+      imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+      status: "DRAFT",
+    });
+    listingUpdate.mockResolvedValue({ id: "listing-1", status: "DRAFT" });
+
+    await expect(
+      saveMarketplaceListing({
+        listingId: "listing-1",
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: [],
+        newVariants: [],
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    expect(listingUpdate).toHaveBeenCalledTimes(1);
+    expect(variantCreate).not.toHaveBeenCalled();
+  });
+
+  it("creates every submitted new variant in the combined save transaction", async () => {
+    listingFindUnique.mockResolvedValue({
+      id: "listing-1",
+      imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+      status: "DRAFT",
+    });
+    listingUpdate.mockResolvedValue({ id: "listing-1", status: "DRAFT" });
+
+    await expect(
+      saveMarketplaceListing({
+        listingId: "listing-1",
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: [],
+        newVariants: [
+          {
+            label: "Large",
+            sku: "HOODIE-L",
+            unitAmount: "4500",
+            currency: "usd",
+            inventoryQuantity: "6",
+            isActive: "true",
+            sortOrder: "2",
+          },
+          {
+            label: "Extra Large",
+            sku: "HOODIE-XL",
+            unitAmount: "4800",
+            currency: "usd",
+            inventoryQuantity: "4",
+            isActive: "false",
+            sortOrder: "3",
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    expect(variantCreate).toHaveBeenCalledTimes(2);
+    expect(variantCreate).toHaveBeenNthCalledWith(1, {
+      data: {
+        listingId: "listing-1",
+        label: "Large",
+        sku: "HOODIE-L",
+        unitAmount: 4500,
+        currency: "USD",
+        inventoryQuantity: 6,
+        isActive: true,
+        sortOrder: 2,
+      },
+    });
+    expect(variantCreate).toHaveBeenNthCalledWith(2, {
+      data: {
+        listingId: "listing-1",
+        label: "Extra Large",
+        sku: "HOODIE-XL",
+        unitAmount: 4800,
+        currency: "USD",
+        inventoryQuantity: 4,
+        isActive: false,
+        sortOrder: 3,
+      },
+    });
+  });
+
+  it("rejects the combined save when more new variants than the allowed limit are submitted", async () => {
+    const tooManyNewVariants = Array.from({ length: 21 }, (_, index) => ({
+      label: `Variant ${index}`,
+      sku: `HOODIE-${index}`,
+      unitAmount: "4500",
+      currency: "usd",
+      inventoryQuantity: "1",
+      isActive: "true",
+      sortOrder: String(index),
+    }));
+
+    await expect(
+      saveMarketplaceListing({
+        listingId: "listing-1",
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: [],
+        newVariants: tooManyNewVariants,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+
+    expect(listingFindUnique).not.toHaveBeenCalled();
+    expect(listingUpdate).not.toHaveBeenCalled();
+    expect(variantCreate).not.toHaveBeenCalled();
+  });
+
+  it("saves when retained plus new variants exactly reach the allowed limit", async () => {
+    listingFindUnique.mockResolvedValue({
+      id: "listing-1",
+      imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+      status: "DRAFT",
+    });
+    listingUpdate.mockResolvedValue({ id: "listing-1", status: "DRAFT" });
+
+    const retainedVariants = Array.from({ length: 6 }, (_, index) => ({
+      variantId: `variant-${index}`,
+      label: `Existing ${index}`,
+      sku: `HOODIE-E${index}`,
+      unitAmount: "4500",
+      currency: "usd",
+      inventoryQuantity: "1",
+      isActive: "true",
+      sortOrder: String(index),
+    }));
+
+    for (const variant of retainedVariants) {
+      variantFindUnique.mockResolvedValueOnce({
+        id: variant.variantId,
+        listingId: "listing-1",
+      });
+    }
+
+    await expect(
+      saveMarketplaceListing({
+        listingId: "listing-1",
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: retainedVariants,
+        newVariants: [
+          {
+            label: "New A",
+            sku: "HOODIE-NA",
+            unitAmount: "4500",
+            currency: "usd",
+            inventoryQuantity: "1",
+            isActive: "true",
+            sortOrder: "6",
+          },
+          {
+            label: "New B",
+            sku: "HOODIE-NB",
+            unitAmount: "4500",
+            currency: "usd",
+            inventoryQuantity: "1",
+            isActive: "true",
+            sortOrder: "7",
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      entityId: "listing-1",
+      revalidatePublicCatalog: false,
+    });
+
+    expect(variantUpdate).toHaveBeenCalledTimes(6);
+    expect(variantCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects the combined save when retained plus new variants exceed the allowed limit", async () => {
+    const retainedVariants = Array.from({ length: 6 }, (_, index) => ({
+      variantId: `variant-${index}`,
+      label: `Existing ${index}`,
+      sku: `HOODIE-E${index}`,
+      unitAmount: "4500",
+      currency: "usd",
+      inventoryQuantity: "1",
+      isActive: "true",
+      sortOrder: String(index),
+    }));
+
+    const newVariants = Array.from({ length: 3 }, (_, index) => ({
+      label: `New ${index}`,
+      sku: `HOODIE-N${index}`,
+      unitAmount: "4500",
+      currency: "usd",
+      inventoryQuantity: "1",
+      isActive: "true",
+      sortOrder: String(index + 6),
+    }));
+
+    await expect(
+      saveMarketplaceListing({
+        listingId: "listing-1",
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: retainedVariants,
+        newVariants,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+
+    expect(listingFindUnique).not.toHaveBeenCalled();
+    expect(listingUpdate).not.toHaveBeenCalled();
+    expect(variantUpdate).not.toHaveBeenCalled();
+    expect(variantCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects the combined save when any single new variant fails validation", async () => {
+    await expect(
+      saveMarketplaceListing({
+        listingId: "listing-1",
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: [],
+        newVariants: [
+          {
+            label: "Large",
+            sku: "HOODIE-L",
+            unitAmount: "4500",
+            currency: "usd",
+            inventoryQuantity: "6",
+            isActive: "true",
+            sortOrder: "2",
+          },
+          {
+            // Missing required label makes this element invalid.
+            sku: "HOODIE-XL",
+            unitAmount: "4800",
+            currency: "usd",
+            inventoryQuantity: "4",
+            isActive: "true",
+            sortOrder: "3",
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+
+    expect(listingFindUnique).not.toHaveBeenCalled();
+    expect(listingUpdate).not.toHaveBeenCalled();
+    expect(variantCreate).not.toHaveBeenCalled();
+  });
+
+  it("maps a duplicate variant label conflict from a new variant to a safe result", async () => {
+    listingFindUnique.mockResolvedValue({
+      id: "listing-1",
+      imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+      status: "DRAFT",
+    });
+    listingUpdate.mockResolvedValue({ id: "listing-1", status: "DRAFT" });
+    variantCreate.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["label"] },
+    });
+
+    await expect(
+      saveMarketplaceListing({
+        listingId: "listing-1",
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl: "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+        variants: [],
+        newVariants: [
+          {
+            label: "Medium",
+            sku: "HOODIE-M-DUP",
+            unitAmount: "4500",
+            currency: "usd",
+            inventoryQuantity: "6",
+            isActive: "true",
+            sortOrder: "2",
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      reason: "duplicate_variant_label",
+    });
   });
 
   it("rejects variant creation for archived listings", async () => {

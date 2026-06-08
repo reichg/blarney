@@ -12,9 +12,11 @@ import {
   photoUploadLimitLabel,
 } from "@/lib/photoUpload";
 import { uploadPhotoWithPresign } from "@/lib/photoUploadClient";
+import { useUncontrolledFormDraft } from "@/lib/useFormDraft";
+import { DraftNotice } from "@/components/DraftNotice";
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 
 const acceptedPhotoTypeLabel = "JPEG, PNG, WebP, or GIF";
 
@@ -27,6 +29,12 @@ export function PhotoUploadForm() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { wasRestored, clearDraft, handleChange } = useUncontrolledFormDraft({
+    formId: "photoUpload",
+    formVersion: 1,
+    formRef,
+  });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,6 +93,7 @@ export function PhotoUploadForm() {
         await uploadPhotoWithPresign(photo, metadata);
       }
 
+      clearDraft();
       router.push("/photos/thanks");
     } catch (uploadError) {
       setError(
@@ -98,7 +107,19 @@ export function PhotoUploadForm() {
   }
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit}>
+    <form
+      className={styles.form}
+      onInput={handleChange}
+      onSubmit={handleSubmit}
+      ref={formRef}
+    >
+      <DraftNotice
+        onDiscard={() => {
+          clearDraft();
+          formRef.current?.reset();
+        }}
+        visible={wasRestored}
+      />
       <p className={styles.formIntro}>
         Add your contact info, an optional caption for the selected set, and the
         photos you want reviewed.

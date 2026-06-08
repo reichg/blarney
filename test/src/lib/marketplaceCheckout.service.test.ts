@@ -7,6 +7,7 @@ const {
   hasSquareCheckoutConfiguration,
   readOrderFindUnique,
   txVariantFindMany,
+  txListingVariantUpdateMany,
   txCheckoutFindFirst,
   txCheckoutFindUnique,
   txCheckoutUpdateMany,
@@ -25,6 +26,7 @@ const {
   hasSquareCheckoutConfiguration: vi.fn(),
   readOrderFindUnique: vi.fn(),
   txVariantFindMany: vi.fn(),
+  txListingVariantUpdateMany: vi.fn(),
   txCheckoutFindFirst: vi.fn(),
   txCheckoutFindUnique: vi.fn(),
   txCheckoutUpdateMany: vi.fn(),
@@ -42,6 +44,8 @@ vi.mock("@/lib/payment", () => ({
   createMarketplacePaymentLink,
   getSquarePaymentLinkState,
   hasSquareCheckoutConfiguration,
+  getMarketplaceCheckoutConfirmationUrl: (checkoutId: string) =>
+    `https://blarney.test/marketplace/checkout/${checkoutId}`,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -132,7 +136,7 @@ function buildPaymentAttempt(overrides: Record<string, unknown> = {}) {
     providerOrderId: null,
     providerPaymentId: null,
     paymentUrl: null,
-    expiresAt: new Date("2026-05-20T12:00:00.000Z"),
+    expiresAt: new Date("2027-05-20T12:00:00.000Z"),
     completedAt: null,
     lastReconciledAt: null,
     createdAt: new Date("2026-05-19T12:00:00.000Z"),
@@ -165,7 +169,7 @@ function buildCheckoutState(overrides: Record<string, unknown> = {}) {
       name: "Pat Buyer",
       phone: "555-0100",
     },
-    expiresAt: new Date("2026-05-20T12:00:00.000Z"),
+    expiresAt: new Date("2027-05-20T12:00:00.000Z"),
     confirmedAt: null,
     canceledAt: null,
     expiredAt: null,
@@ -226,6 +230,7 @@ beforeEach(() => {
       return input({
         marketplaceListingVariant: {
           findMany: txVariantFindMany,
+          updateMany: txListingVariantUpdateMany,
         },
         marketplaceCheckout: {
           findFirst: txCheckoutFindFirst,
@@ -256,6 +261,7 @@ beforeEach(() => {
   });
   getSquarePaymentLinkState.mockResolvedValue(null);
   txVariantFindMany.mockResolvedValue([]);
+  txListingVariantUpdateMany.mockResolvedValue({ count: 1 });
   txCheckoutFindFirst.mockResolvedValue(null);
   txCheckoutFindUnique.mockResolvedValue(null);
   txCheckoutUpdateMany.mockResolvedValue({ count: 1 });
@@ -984,5 +990,153 @@ describe("marketplace checkout service", () => {
       ok: false,
       reason: "unavailable",
     });
+  });
+
+  it("decrements inventory for each checkout item with a variantId when an order is confirmed", async () => {
+    txPaymentAttemptFindUnique.mockResolvedValue(
+      buildPaymentAttempt({
+        id: "attempt-paid",
+        status: "COMPLETED",
+        providerLinkId: "marketplace-payment-link-id",
+        providerOrderId: "marketplace-order-123",
+        completedAt: new Date("2026-05-19T12:30:00.000Z"),
+      }),
+    );
+    txCheckoutFindUnique.mockResolvedValue(
+      buildCheckoutState({
+        paymentAttempts: [
+          buildPaymentAttempt({
+            id: "attempt-paid",
+            status: "COMPLETED",
+            providerLinkId: "marketplace-payment-link-id",
+            providerOrderId: "marketplace-order-123",
+            completedAt: new Date("2026-05-19T12:30:00.000Z"),
+          }),
+        ],
+      }),
+    );
+
+    await expect(
+      confirmMarketplaceCheckoutPaymentByOrderId("marketplace-order-123"),
+    ).resolves.toEqual({
+      ok: true,
+      status: "confirmed",
+      checkoutId: "checkout-1",
+      orderId: "order-1",
+      paymentUrl: null,
+    });
+
+    expect(txListingVariantUpdateMany).toHaveBeenCalledTimes(2);
+    expect(txListingVariantUpdateMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        id: "variant-hoodie-m",
+        inventoryQuantity: { not: null, gte: 2 },
+      },
+      data: { inventoryQuantity: { decrement: 2 } },
+    });
+    expect(txListingVariantUpdateMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "variant-polo-l",
+        inventoryQuantity: { not: null, gte: 1 },
+      },
+      data: { inventoryQuantity: { decrement: 1 } },
+    });
+  });
+
+  it("skips inventory decrement for checkout items where variantId is null", async () => {
+    txPaymentAttemptFindUnique.mockResolvedValue(
+      buildPaymentAttempt({
+        id: "attempt-paid",
+        status: "COMPLETED",
+        providerLinkId: "marketplace-payment-link-id",
+        providerOrderId: "marketplace-order-123",
+        completedAt: new Date("2026-05-19T12:30:00.000Z"),
+      }),
+    );
+    txCheckoutFindUnique.mockResolvedValue(
+      buildCheckoutState({
+        items: [
+          {
+            id: "item-no-variant",
+            checkoutId: "checkout-1",
+            listingId: "listing-hoodie",
+            variantId: null,
+            lineNumber: 1,
+            title: "Blarney Hoodie",
+            variantLabel: "One Size",
+            sku: "HOODIE-OS",
+            quantity: 1,
+            currency: "USD",
+            unitAmount: 4500,
+            totalAmount: 4500,
+            detailSnapshot: {
+              slug: "hoodie",
+              description: "Warm layer",
+              imageUrl: "/images/hoodie.jpg",
+              fulfillmentNote: null,
+            },
+            createdAt: new Date("2026-05-19T12:00:00.000Z"),
+          },
+        ],
+        paymentAttempts: [
+          buildPaymentAttempt({
+            id: "attempt-paid",
+            status: "COMPLETED",
+            providerLinkId: "marketplace-payment-link-id",
+            providerOrderId: "marketplace-order-123",
+            expectedTotalAmount: 4500,
+            completedAt: new Date("2026-05-19T12:30:00.000Z"),
+          }),
+        ],
+        subtotalAmount: 4500,
+        totalAmount: 4500,
+      }),
+    );
+    txOrderCreate.mockResolvedValue(buildOrder({ totalAmount: 4500 }));
+
+    await confirmMarketplaceCheckoutPaymentByOrderId("marketplace-order-123");
+
+    expect(txListingVariantUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("does not call inventory decrement when the checkout already has an order (idempotency early-return path)", async () => {
+    txPaymentAttemptFindUnique.mockResolvedValue(
+      buildPaymentAttempt({
+        id: "attempt-paid",
+        status: "COMPLETED",
+        providerLinkId: "marketplace-payment-link-id",
+        providerOrderId: "marketplace-order-123",
+        completedAt: new Date("2026-05-19T12:30:00.000Z"),
+      }),
+    );
+    txCheckoutFindUnique.mockResolvedValue(
+      buildCheckoutState({
+        status: "CONFIRMED",
+        confirmedAt: new Date("2026-05-19T12:30:00.000Z"),
+        order: buildOrder(),
+        paymentAttempts: [
+          buildPaymentAttempt({
+            id: "attempt-paid",
+            status: "COMPLETED",
+            providerLinkId: "marketplace-payment-link-id",
+            providerOrderId: "marketplace-order-123",
+            completedAt: new Date("2026-05-19T12:30:00.000Z"),
+          }),
+        ],
+      }),
+    );
+
+    await expect(
+      confirmMarketplaceCheckoutPaymentByOrderId("marketplace-order-123"),
+    ).resolves.toEqual({
+      ok: true,
+      status: "confirmed",
+      checkoutId: "checkout-1",
+      orderId: "order-1",
+      paymentUrl: null,
+    });
+
+    expect(txListingVariantUpdateMany).not.toHaveBeenCalled();
+    expect(txOrderCreate).not.toHaveBeenCalled();
   });
 });

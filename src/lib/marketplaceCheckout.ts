@@ -528,6 +528,19 @@ async function finalizeMarketplaceCompletedCheckout(
         },
       });
 
+      for (const item of checkout.items) {
+        if (!item.variantId) continue;
+        await transaction.marketplaceListingVariant.updateMany({
+          where: {
+            id: item.variantId,
+            inventoryQuantity: { not: null, gte: item.quantity },
+          },
+          data: {
+            inventoryQuantity: { decrement: item.quantity },
+          },
+        });
+      }
+
       await transaction.marketplaceCheckout.updateMany({
         where: {
           id: checkout.id,
