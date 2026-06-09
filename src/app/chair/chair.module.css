@@ -534,6 +534,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.cardMetaGridSingle {
+  grid-template-columns: 1fr;
+}
+
 .metric {
   background: var(--surface-strong);
   border-radius: var(--radius);
@@ -981,6 +985,187 @@
   color: var(--pine);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 2.4rem;
+}
+
+/* Dashboard "Action needed" row: prioritized items linking to their page. */
+.actionRow {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.actionItem {
+  align-content: start;
+  border-radius: var(--radius);
+  color: inherit;
+  display: grid;
+  gap: 0.35rem;
+  min-height: 8rem;
+  padding: 1rem;
+  text-decoration: none;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.actionItem:hover,
+.actionItem:focus-visible {
+  border-color: rgb(24 64 49 / 22%);
+  box-shadow: 0 1.2rem 2.6rem rgb(24 64 49 / 10%);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+/* Active = has work waiting: brass-tinged, raised emphasis. */
+.actionItemActive {
+  background: linear-gradient(
+    180deg,
+    rgb(205 173 114 / 0.16),
+    rgb(255 255 255 / 0.96)
+  );
+  border: 1px solid rgb(205 173 114 / 0.55);
+  box-shadow: var(--shadow);
+}
+
+/* Calm = zero count: quieter so it recedes until work arrives. */
+.actionItemCalm {
+  background: rgb(255 255 255 / 0.6);
+  border: 1px dashed var(--line);
+}
+
+.actionItemLabel {
+  color: var(--pine);
+  font-weight: 800;
+}
+
+.actionItemCount {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.actionItemCalm .actionItemCount {
+  color: var(--muted);
+}
+
+.actionItemHint {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* Dashboard "At a glance" insight cards, organized into labeled groups
+   (Registration & Attendance, Marketplace, Community). Each group is a
+   row-based grid so cards read left-to-right under a clear section title. */
+.insightGroups {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.insightGroup {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.insightGroupTitle {
+  color: var(--pine);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.insightGroupGrid {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+.insightCard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: inherit;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  text-decoration: none;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.insightCard:hover,
+.insightCard:focus-visible {
+  border-color: rgb(24 64 49 / 22%);
+  box-shadow: 0 1.2rem 2.6rem rgb(24 64 49 / 10%);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.insightCardHead {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.insightCardTitle {
+  color: var(--pine);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.insightCardHint {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Dashboard insight tiles flow to fill width regardless of metric count. */
+.insightCard .cardMetaGrid {
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+}
+
+.insightCard .metric {
+  align-content: center;
+  gap: 0.2rem;
+  min-height: 4.4rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.insightCard .metric strong {
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.insightCard .metric span {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actionItem,
+  .insightCard {
+    transition: none;
+  }
+
+  .actionItem:hover,
+  .actionItem:focus-visible,
+  .insightCard:hover,
+  .insightCard:focus-visible {
+    transform: none;
+  }
 }
 
 .tableWrap {

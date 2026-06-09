@@ -1,17 +1,7 @@
+import { formatEventDateTime } from "@/lib/eventTime";
+
 export function formatDateTime(value: Date | string | null | undefined) {
-  if (!value) {
-    return "TBD";
-  }
-
-  const date = typeof value === "string" ? new Date(value) : value;
-
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return formatEventDateTime(value);
 }
 
 export function formatCurrency(cents: number, currency = "USD") {
@@ -19,6 +9,10 @@ export function formatCurrency(cents: number, currency = "USD") {
     style: "currency",
     currency,
   }).format(cents / 100);
+}
+
+export function formatBbqGuestSummary(adultCount: number, childCount: number) {
+  return `BBQ adults: ${adultCount}\nBBQ kids: ${childCount}`;
 }
 
 export function initials(firstName: string, lastName: string) {

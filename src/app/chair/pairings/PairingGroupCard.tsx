@@ -5,17 +5,9 @@ import {
 } from "@/app/actions/pairings";
 import styles from "@/app/chair/chair.module.css";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
+import { toEventDateTimeLocalValue } from "@/lib/eventTime";
 import { formatDateTime } from "@/lib/format";
 import type { PairingGroupCardProps, PairingGroupMember } from "./type";
-
-function datetimeLocalValue(value: Date | null) {
-  if (!value) {
-    return "";
-  }
-
-  const offsetMs = value.getTimezoneOffset() * 60 * 1000;
-  return new Date(value.getTime() - offsetMs).toISOString().slice(0, 16);
-}
 
 function formatMemberMeta(member: PairingGroupMember) {
   return `Age ${member.snapshotAge} | Score ${member.snapshotScore}`;
@@ -103,7 +95,7 @@ export function PairingGroupCard({ group, isDraft }: PairingGroupCardProps) {
               <label>
                 Tee time (optional)
                 <input
-                  defaultValue={datetimeLocalValue(group.teeTime)}
+                  defaultValue={toEventDateTimeLocalValue(group.teeTime)}
                   name="teeTime"
                   type="datetime-local"
                 />

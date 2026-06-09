@@ -1,8 +1,11 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { buildPairingGroups } from "../src/lib/pairings";
 import { REMEMBRANCE_FEEDBACK_CATEGORY } from "../src/lib/remembrance";
 import {
+  classifyPairingLifecycle,
+  computePairingTeeTime,
   createSeededRandom,
   generateFeedback,
   generateGalleryPhoto,
@@ -10,6 +13,8 @@ import {
   generateRemembrance,
   generateStandaloneRsvp,
   getRegistrationPartyCounts,
+  type PairingLifecycle,
+  toPairingApplicants,
 } from "./sampleDataHelpers";
 import { seedEventSettings } from "./seedSettings.js";
 
@@ -29,6 +34,7 @@ const galleryPhotoCount = 30;
 const remembranceCount = 30;
 const sampleDomain = "@example.com";
 const baseDate = new Date("2026-05-05T18:00:00.000Z");
+const pairableRegistrationPaymentStatuses = ["CONFIRMED", "WAIVED"] as const;
 
 function isS3Configured() {
   return Boolean(process.env.AWS_S3_BUCKET);
@@ -144,12 +150,42 @@ async function clearSampleData() {
     },
   });
 
+  await clearSamplePairings();
+
   await prisma.participant.deleteMany({
     where: {
       email: {
         contains: sampleDomain,
       },
     },
+  });
+}
+
+// Remove only pairings tied to sample participants so re-runs stay clean while
+// real chair-authored pairings are never touched. Deleting the scoped groups
+// cascades their members (PairingMember.group onDelete: Cascade).
+async function clearSamplePairings() {
+  const sampleMemberships = await prisma.pairingMember.findMany({
+    where: {
+      participant: {
+        email: {
+          contains: sampleDomain,
+        },
+      },
+    },
+    select: { groupId: true },
+  });
+
+  const sampleGroupIds = [
+    ...new Set(sampleMemberships.map((membership) => membership.groupId)),
+  ];
+
+  if (sampleGroupIds.length === 0) {
+    return;
+  }
+
+  await prisma.pairingGroup.deleteMany({
+    where: { id: { in: sampleGroupIds } },
   });
 }
 
@@ -406,19 +442,80 @@ async function seedRemembrance() {
   }
 }
 
+async function seedPairings() {
+  const participants = await prisma.participant.findMany({
+    where: {
+      email: { contains: sampleDomain },
+      registrations: {
+        some: {
+          paymentStatus: { in: [...pairableRegistrationPaymentStatuses] },
+        },
+      },
+    },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      gender: true,
+      age: true,
+      averageScore: true,
+    },
+  });
+
+  const applicants = toPairingApplicants(participants);
+  const groups = buildPairingGroups(applicants);
+  const lifecycleCounts: Record<PairingLifecycle, number> = {
+    PUBLISHED: 0,
+    DRAFT: 0,
+    ARCHIVED: 0,
+  };
+
+  for (const group of groups) {
+    const lifecycle = classifyPairingLifecycle(group.sortOrder, groups.length);
+    const teeTime = computePairingTeeTime(baseDate, group.sortOrder, lifecycle);
+    // DRAFT groups are the chair working state and carry no publish timestamp.
+    const publishedAt = lifecycle === "DRAFT" ? null : teeTime;
+
+    lifecycleCounts[lifecycle] += 1;
+
+    await prisma.pairingGroup.create({
+      data: {
+        name: group.name,
+        sortOrder: group.sortOrder,
+        status: lifecycle,
+        teeTime,
+        publishedAt,
+        members: {
+          create: group.members.map((member) => ({
+            participantId: member.applicant.id,
+            slot: member.slot,
+            snapshotAge: member.applicant.age,
+            snapshotGender: member.applicant.gender,
+            snapshotScore: member.applicant.averageScore,
+          })),
+        },
+      },
+    });
+  }
+
+  return lifecycleCounts;
+}
+
 async function main() {
   console.log("Seeding Blarney 42 sample data...");
 
   await seedEventSettings(prisma);
   await clearSampleData();
   await seedRegistrations();
+  const pairingCounts = await seedPairings();
   await seedStandaloneRsvps();
   const feedbackIds = await seedFeedback();
   await seedGalleryPhotos(feedbackIds);
   await seedRemembrance();
 
   console.log(
-    `Sample data complete: ${registrationCount} registrations, ${standaloneRsvpCount} standalone RSVPs, ${feedbackCount} feedback rows, ${galleryPhotoCount} gallery photos, and ${remembranceCount} remembrance entries.`,
+    `Sample data complete: ${registrationCount} registrations, ${standaloneRsvpCount} standalone RSVPs, ${feedbackCount} feedback rows, ${galleryPhotoCount} gallery photos, ${remembranceCount} remembrance entries, and pairings (${pairingCounts.PUBLISHED} published, ${pairingCounts.DRAFT} draft, ${pairingCounts.ARCHIVED} archived groups).`,
   );
 }
 

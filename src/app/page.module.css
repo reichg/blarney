@@ -51,27 +51,6 @@
   max-width: 42rem;
 }
 
-.heroFacts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.heroFact {
-  backdrop-filter: blur(10px);
-  background: linear-gradient(
-    180deg,
-    rgb(255 255 255 / 16%),
-    rgb(255 255 255 / 8%)
-  );
-  border: 1px solid rgb(255 255 255 / 22%);
-  border-radius: var(--radius);
-  box-shadow: 0 14px 28px rgb(0 0 0 / 12%);
-  color: var(--white);
-  font-weight: 800;
-  padding: 0.85rem 1rem;
-}
-
 .heroPanel {
   backdrop-filter: blur(16px);
   background: linear-gradient(
@@ -191,16 +170,22 @@
   display: grid;
   gap: 0.9rem;
   padding: 1.35rem;
+  position: relative;
   transition:
     box-shadow var(--duration-base) var(--ease-emphasis),
     transform var(--duration-base) var(--ease-emphasis),
     border-color var(--duration-base) var(--ease-emphasis);
 }
 
-.overviewItem:hover,
-.overviewItem:focus-within {
+.overviewItem:hover {
   border-color: rgb(24 64 49 / 16%);
   box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+
+.overviewItem:focus-within {
+  border-color: rgb(24 64 49 / 16%);
+  box-shadow: var(--focus-ring), var(--shadow);
   transform: translateY(-2px);
 }
 
@@ -234,6 +219,14 @@
   font-weight: 800;
   margin-top: auto;
   width: fit-content;
+}
+
+/* Stretches the single card link's hit area over the whole card so the
+   entire card is clickable while keeping exactly one focusable link. */
+.overviewLink::after {
+  content: "";
+  inset: 0;
+  position: absolute;
 }
 
 .overviewLink:hover,

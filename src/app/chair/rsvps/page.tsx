@@ -17,7 +17,7 @@ import {
   sumChairRsvpPartyCounts,
 } from "@/lib/chairRsvps";
 import { db } from "@/lib/db";
-import { formatDateTime } from "@/lib/format";
+import { formatBbqGuestSummary, formatDateTime } from "@/lib/format";
 import {
   buildPaginationState,
   parsePaginationParams,
@@ -164,22 +164,12 @@ function formatRsvpSource(source: RsvpSource): string {
   return source === "FORM" ? "RSVP form" : "Registration";
 }
 
-function formatGuestSummary(adultGuestCount: number, childGuestCount: number) {
-  return (
-    `BBQ adults: ${adultGuestCount}` + `\n` + `BBQ kids: ${childGuestCount}`
-  );
-}
-
 function formatAttendeeTotal(attendeeCount: number) {
   if (attendeeCount === 0) {
     return "No BBQ attendees";
   }
 
   return `${attendeeCount} total BBQ attendee${attendeeCount === 1 ? "" : "s"}`;
-}
-
-function formatRsvpStatus() {
-  return "BBQ RSVP";
 }
 
 function formatHeaderMetaCount(
@@ -203,7 +193,7 @@ function formatPartySummary(
 
   if (partyCounts) {
     return {
-      primary: formatGuestSummary(
+      primary: formatBbqGuestSummary(
         partyCounts.adultAttendeeCount,
         partyCounts.childAttendeeCount,
       ),
@@ -218,7 +208,7 @@ function formatPartySummary(
 
   if (rsvp.source === "REGISTRATION" && registration) {
     return {
-      primary: `${formatGuestSummary(registration.adultGuestCount, registration.childGuestCount)}, plus registrant`,
+      primary: `${formatBbqGuestSummary(registration.adultGuestCount, registration.childGuestCount)}, plus registrant`,
       secondary: formatAttendeeTotal(rsvp.attendeeCount),
     };
   }
@@ -258,7 +248,6 @@ export default async function ChairRsvpsPage({
         rsvp.firstName,
         rsvp.lastName,
         rsvp.email,
-        formatRsvpStatus(),
         formatRsvpSource(rsvp.source),
         partySummary.primary,
         partySummary.secondary,
@@ -340,7 +329,6 @@ export default async function ChairRsvpsPage({
             {rsvps.map((rsvp) => {
               const partySummary = formatPartySummary(rsvp);
               const fullName = `${rsvp.firstName} ${rsvp.lastName}`;
-              const statusLabel = formatRsvpStatus();
               const sourceLabel = formatRsvpSource(rsvp.source);
 
               return (
@@ -357,10 +345,6 @@ export default async function ChairRsvpsPage({
                       </p>
                       <div className={styles.cardMetaGrid}>
                         <span className={styles.metric}>
-                          <span>Status</span>
-                          <strong>{statusLabel}</strong>
-                        </span>
-                        <span className={styles.metric}>
                           <span>Party</span>
                           <strong>{partySummary.primary}</strong>
                         </span>
@@ -376,10 +360,6 @@ export default async function ChairRsvpsPage({
                     <div className={styles.detailItem}>
                       <span>Email</span>
                       <p>{displayValue(rsvp.email)}</p>
-                    </div>
-                    <div className={styles.detailItem}>
-                      <span>Status</span>
-                      <p>{statusLabel}</p>
                     </div>
                     <div className={styles.detailItem}>
                       <span>Source</span>

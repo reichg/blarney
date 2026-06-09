@@ -1,6 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
+import { parseEventDateTimeLocal } from "@/lib/eventTime";
+
 function normalizeRequiredFormValue(value: unknown) {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -126,17 +128,40 @@ export type SubmitRsvpResult =
 
 export type PairingTransaction = Prisma.TransactionClient;
 
+// Chair edits tee times as event-local (Pacific) wall-clock strings; parse them
+// into a UTC Date rather than letting z.coerce.date() interpret them in the
+// server timezone. Empty/absent values normalize to undefined.
+const eventTeeTimeSchema = z.preprocess(
+  normalizeRequiredFormValue,
+  z
+    .string()
+    .min(1)
+    .transform((value, ctx) => {
+      try {
+        return parseEventDateTimeLocal(value);
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Invalid tee time",
+        });
+
+        return z.NEVER;
+      }
+    })
+    .optional(),
+);
+
 export const createGroupSchema = z.object({
   name: z.string().trim().min(1),
   sortOrder: z.coerce.number().int().min(1),
-  teeTime: z.preprocess(normalizeRequiredFormValue, z.coerce.date().optional()),
+  teeTime: eventTeeTimeSchema,
 });
 
 export const updateGroupSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1),
   sortOrder: z.coerce.number().int().min(1),
-  teeTime: z.preprocess(normalizeRequiredFormValue, z.coerce.date().optional()),
+  teeTime: eventTeeTimeSchema,
 });
 
 export const deleteGroupSchema = z.object({

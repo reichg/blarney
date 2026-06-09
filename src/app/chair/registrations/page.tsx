@@ -18,7 +18,7 @@ import {
 import { PaginationNav } from "@/components/PaginationNav";
 import { requireChairPageAuth } from "@/lib/chairAuth.server";
 import { db } from "@/lib/db";
-import { formatDateTime } from "@/lib/format";
+import { formatBbqGuestSummary, formatDateTime } from "@/lib/format";
 import {
   buildPaginationState,
   parsePaginationParams,
@@ -112,26 +112,6 @@ function buildRegistrationWhere(
       ) as (typeof registrationGenders)[number],
     },
   };
-}
-
-function formatGuestSummary(adultGuestCount: number, childGuestCount: number) {
-  if (adultGuestCount === 0 && childGuestCount === 0) {
-    return "None";
-  }
-
-  const parts = [];
-
-  if (adultGuestCount > 0) {
-    parts.push(
-      `${adultGuestCount} BBQ adult${adultGuestCount === 1 ? "" : "s"}`,
-    );
-  }
-
-  if (childGuestCount > 0) {
-    parts.push(`${childGuestCount} BBQ kid${childGuestCount === 1 ? "" : "s"}`);
-  }
-
-  return parts.join(", ");
 }
 
 function formatPaymentStatus(paymentStatus: string) {
@@ -476,9 +456,8 @@ export default async function ChairRegistrationsPage({
           <div className={styles.sectionHeading}>
             <h2 className={styles.sectionTitle}>Current registrations</h2>
             <p className={styles.sectionIntro}>
-              Package choice, golfer details, guest counts, and payment state.
-              CSV exports always include the full dataset, not just the current
-              page.
+              Golfer details, guest counts, and payment state. CSV exports
+              always include the full dataset, not just the current page.
             </p>
           </div>
         </div>
@@ -515,7 +494,7 @@ export default async function ChairRegistrationsPage({
               );
               const contactEmail =
                 registration.checkout?.email ?? participant.email;
-              const guestSummary = formatGuestSummary(
+              const guestSummary = formatBbqGuestSummary(
                 registration.adultGuestCount,
                 registration.childGuestCount,
               );
@@ -534,11 +513,7 @@ export default async function ChairRegistrationsPage({
                         <br />
                         {displayValue(participant.phone)}
                       </p>
-                      <div className={styles.cardMetaGrid}>
-                        <span className={styles.metric}>
-                          <span>Package</span>
-                          <strong>{registration.packageSelection}</strong>
-                        </span>
+                      <div className={`${styles.cardMetaGrid} ${styles.cardMetaGridSingle}`}>
                         <span className={styles.metric}>
                           <span>Guests</span>
                           <strong>{guestSummary}</strong>
@@ -599,16 +574,10 @@ export default async function ChairRegistrationsPage({
                           Registration
                         </h3>
                         <p className={styles.detailSectionIntro}>
-                          Package selection and guest counts tied to this entry.
+                          Guest counts tied to this entry.
                         </p>
                       </div>
                       <dl className={styles.detailRows}>
-                        <div className={styles.detailRow}>
-                          <dt className={styles.detailRowLabel}>Package</dt>
-                          <dd className={styles.detailRowValue}>
-                            {registration.packageSelection}
-                          </dd>
-                        </div>
                         <div className={styles.detailRow}>
                           <dt className={styles.detailRowLabel}>
                             Guest summary

@@ -5,6 +5,8 @@ import {
 } from "@/lib/formContracts";
 import { describe, expect, it } from "vitest";
 import {
+  classifyPairingLifecycle,
+  computePairingTeeTime,
   createSeededRandom,
   generateFeedback,
   generateGalleryPhoto,
@@ -13,6 +15,8 @@ import {
   generateRemembrance,
   generateStandaloneRsvp,
   getRegistrationPartyCounts,
+  toPairingApplicants,
+  type SamplePairingParticipant,
 } from "../../prisma/sampleDataHelpers";
 
 describe("sampleDataHelpers", () => {
@@ -174,5 +178,153 @@ describe("sampleDataHelpers", () => {
         expect(photo.caption?.trim().length ?? 0).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+describe("toPairingApplicants", () => {
+  const buildParticipant = (
+    overrides: Partial<SamplePairingParticipant> = {},
+  ): SamplePairingParticipant => ({
+    id: "participant-1",
+    firstName: "Sample",
+    lastName: "Golfer",
+    gender: "MALE",
+    age: 42,
+    averageScore: 50,
+    ...overrides,
+  });
+
+  it("maps every field onto the applicant shape", () => {
+    const participant = buildParticipant({
+      id: "abc-123",
+      firstName: "Jordan",
+      lastName: "Rivera",
+      gender: "FEMALE",
+      age: 27,
+      averageScore: 38,
+    });
+
+    expect(toPairingApplicants([participant])).toEqual([
+      {
+        id: "abc-123",
+        firstName: "Jordan",
+        lastName: "Rivera",
+        gender: "FEMALE",
+        age: 27,
+        averageScore: 38,
+      },
+    ]);
+  });
+
+  it("preserves order and count across the mapping", () => {
+    const participants = [
+      buildParticipant({ id: "a" }),
+      buildParticipant({ id: "b" }),
+      buildParticipant({ id: "c" }),
+    ];
+
+    const applicants = toPairingApplicants(participants);
+
+    expect(applicants).toHaveLength(3);
+    expect(applicants.map((applicant) => applicant.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+
+  it("returns an empty array for empty input", () => {
+    expect(toPairingApplicants([])).toEqual([]);
+  });
+});
+
+describe("classifyPairingLifecycle", () => {
+  it("keeps the only group published when there is a single group", () => {
+    expect(classifyPairingLifecycle(1, 1)).toBe("PUBLISHED");
+  });
+
+  it("never archives when there are fewer than four groups", () => {
+    // totalGroups = 3 -> draftCount = 2, draft threshold = 1.
+    expect(classifyPairingLifecycle(1, 3)).toBe("PUBLISHED");
+    expect(classifyPairingLifecycle(2, 3)).toBe("DRAFT");
+    expect(classifyPairingLifecycle(3, 3)).toBe("DRAFT");
+  });
+
+  it("drafts only the trailing group when there are exactly two groups", () => {
+    // totalGroups = 2 -> draftCount = 1, draft threshold = 1.
+    expect(classifyPairingLifecycle(1, 2)).toBe("PUBLISHED");
+    expect(classifyPairingLifecycle(2, 2)).toBe("DRAFT");
+  });
+
+  it("archives the first group once the total reaches four", () => {
+    // totalGroups = 4 -> draftCount = 2, draft threshold = 2.
+    expect(classifyPairingLifecycle(1, 4)).toBe("ARCHIVED");
+    expect(classifyPairingLifecycle(2, 4)).toBe("PUBLISHED");
+    expect(classifyPairingLifecycle(3, 4)).toBe("DRAFT");
+    expect(classifyPairingLifecycle(4, 4)).toBe("DRAFT");
+  });
+
+  it("classifies a larger batch as archived, published, then trailing drafts", () => {
+    // totalGroups = 5 -> draftCount = 2, draft threshold = 3.
+    expect(classifyPairingLifecycle(1, 5)).toBe("ARCHIVED");
+    expect(classifyPairingLifecycle(2, 5)).toBe("PUBLISHED");
+    expect(classifyPairingLifecycle(3, 5)).toBe("PUBLISHED");
+    expect(classifyPairingLifecycle(4, 5)).toBe("DRAFT");
+    expect(classifyPairingLifecycle(5, 5)).toBe("DRAFT");
+  });
+
+  it("limits drafts to at most the final two groups regardless of total", () => {
+    const total = 8;
+    const lifecycles = Array.from({ length: total }, (_, index) =>
+      classifyPairingLifecycle(index + 1, total),
+    );
+
+    expect(lifecycles.filter((value) => value === "DRAFT")).toHaveLength(2);
+    expect(lifecycles.filter((value) => value === "ARCHIVED")).toHaveLength(1);
+    // Last two sortOrders are the drafts.
+    expect(lifecycles[total - 1]).toBe("DRAFT");
+    expect(lifecycles[total - 2]).toBe("DRAFT");
+  });
+});
+
+describe("computePairingTeeTime", () => {
+  // baseDate's calendar day drives the result; the time-of-day is overwritten.
+  const baseDate = new Date(Date.UTC(2026, 6, 15, 9, 30, 0));
+
+  it("anchors the first published group at 15:00 UTC (8:00am Pacific)", () => {
+    const teeTime = computePairingTeeTime(baseDate, 1, "PUBLISHED");
+
+    expect(teeTime.getTime()).toBe(Date.UTC(2026, 6, 15, 15, 0, 0));
+  });
+
+  it("staggers each later group by ten minutes", () => {
+    const first = computePairingTeeTime(baseDate, 1, "PUBLISHED");
+    const fourth = computePairingTeeTime(baseDate, 4, "PUBLISHED");
+
+    expect(fourth.getTime() - first.getTime()).toBe(3 * 10 * 60 * 1000);
+    expect(fourth.getTime()).toBe(Date.UTC(2026, 6, 15, 15, 30, 0));
+  });
+
+  it("places archived batches one day earlier than the same sort order", () => {
+    const published = computePairingTeeTime(baseDate, 1, "PUBLISHED");
+    const archived = computePairingTeeTime(baseDate, 1, "ARCHIVED");
+
+    expect(archived.getTime()).toBe(Date.UTC(2026, 6, 14, 15, 0, 0));
+    expect(published.getTime() - archived.getTime()).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("does not mutate the provided baseDate", () => {
+    const originalTime = baseDate.getTime();
+
+    computePairingTeeTime(baseDate, 3, "ARCHIVED");
+
+    expect(baseDate.getTime()).toBe(originalTime);
+  });
+
+  it("is deterministic for identical inputs", () => {
+    const left = computePairingTeeTime(baseDate, 6, "DRAFT");
+    const right = computePairingTeeTime(baseDate, 6, "DRAFT");
+
+    expect(left.getTime()).toBe(right.getTime());
   });
 });
