@@ -272,7 +272,10 @@ describe("pairing actions", () => {
           name: "Custom Group 1",
           sortOrder: 1,
           status: "DRAFT",
-          teeTime: new Date("2026-05-05T09:30"),
+          // 2026-05-05 is PDT (UTC-7), so 09:30 Pacific is 16:30 UTC. Compare
+          // against an explicit UTC instant so the assertion is independent of
+          // the test runner's timezone.
+          teeTime: new Date(Date.UTC(2026, 4, 5, 16, 30, 0)),
         },
       });
       expect(revalidatePath).toHaveBeenCalledWith("/chair/pairings");
@@ -315,7 +318,8 @@ describe("pairing actions", () => {
         data: {
           name: "Group 1",
           sortOrder: 1,
-          teeTime: new Date("2026-05-05T10:00"),
+          // 2026-05-05 is PDT (UTC-7), so 10:00 Pacific is 17:00 UTC.
+          teeTime: new Date(Date.UTC(2026, 4, 5, 17, 0, 0)),
         },
       });
       expect(revalidatePath).toHaveBeenCalledWith("/chair/pairings");

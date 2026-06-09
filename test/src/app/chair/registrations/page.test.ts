@@ -102,6 +102,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/format", () => ({
   formatDateTime: (value: Date) => value.toISOString(),
+  formatBbqGuestSummary: (adultCount: number, childCount: number) =>
+    `BBQ adults: ${adultCount}\nBBQ kids: ${childCount}`,
 }));
 
 describe("chair registrations page", () => {
@@ -201,7 +203,7 @@ describe("chair registrations page", () => {
 
     expect(html).toContain("120 registrations overall (51 in selected filter)");
     expect(html).toContain(
-      "Adult golfers overall: 1 male, 0 female, 1 other/unspecified (selected filter: 1 male, 0 female)",
+      "Adult golfers overall: 1 male, 1 female (selected filter: 1 male, 0 female)",
     );
     expect(html).toContain(
       "Kid golfers overall: 0 male, 1 female (selected filter: 0 male, 0 female)",
@@ -209,6 +211,18 @@ describe("chair registrations page", () => {
     expect(html).toContain(
       "Guests overall: 3 total, 1 adult, 2 kids (selected filter: 0 total, 0 adults, 0 kids)",
     );
+
+    // The registration card "Guests" metric now mirrors the BBQ RSVPs card:
+    // BBQ adult and kid counts render on separate newline-joined lines (the
+    // zero-guest row shows the explicit "BBQ adults: 0 / BBQ kids: 0" parity
+    // form rather than the old "None" placeholder).
+    expect(html).toContain("BBQ adults: 0\nBBQ kids: 0");
+    expect(html).not.toContain("None");
+
+    // Package is no longer surfaced in the chair UI (preview metric label or
+    // detail row label), even though packageSelection still feeds search text.
+    expect(html).not.toContain("<span>Package</span>");
+    expect(html).not.toContain("Package selection");
 
     expect(requireChairPageAuth).toHaveBeenCalledWith("/chair/registrations");
     expect(registrationFindMany).toHaveBeenCalledWith(

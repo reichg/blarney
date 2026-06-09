@@ -101,6 +101,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/format", () => ({
   formatDateTime: (value: Date) => value.toISOString(),
+  formatBbqGuestSummary: (adultCount: number, childCount: number) =>
+    `BBQ adults: ${adultCount}\nBBQ kids: ${childCount}`,
 }));
 
 describe("chair RSVPs page", () => {
@@ -174,6 +176,15 @@ describe("chair RSVPs page", () => {
 
     expect(html).toContain("3 adult attendees overall (2 in selected filter)");
     expect(html).toContain("2 kid attendees overall (1 in selected filter)");
+
+    // The RSVP card "Party" metric renders BBQ adult/kid counts on separate
+    // newline-joined lines; the registrations card was brought to this parity.
+    expect(html).toContain("BBQ adults: 2\nBBQ kids: 1");
+
+    // Status display (preview metric + detail item label) and the "BBQ RSVP"
+    // text were removed from the chair RSVP card.
+    expect(html).not.toContain("<span>Status</span>");
+    expect(html).not.toContain("BBQ RSVP");
 
     expect(requireChairPageAuth).toHaveBeenCalledWith("/chair/rsvps");
     expect(rsvpFindMany).toHaveBeenCalledWith(

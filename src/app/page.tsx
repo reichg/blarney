@@ -70,11 +70,6 @@ export default async function Home({ searchParams }: HomePageProps) {
             <p className="eyebrow">{settings.eventLocation}</p>
             <h1>{settings.eventTitle}</h1>
             <p>{settings.logisticsSummary}</p>
-            <div className={styles.heroFacts}>
-              <span className={styles.heroFact}>{settings.eventDates}</span>
-              <span className={styles.heroFact}>{settings.eventTime}</span>
-              <span className={styles.heroFact}>{settings.courseName}</span>
-            </div>
             <div className="button-row">
               <Link className="primary-button" href="/register">
                 <Flag aria-hidden="true" size={18} />

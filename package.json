@@ -16,7 +16,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "prisma:seed:merch": "tsx prisma/seedMarketplace.ts",
-    "prisma:seed:sample": "tsx prisma/sampleData.ts"
+    "prisma:seed:sample": "tsx prisma/sampleData.ts",
+    "prisma:seed:all": "pnpm prisma:seed:sample && pnpm prisma:seed:merch"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "latest",

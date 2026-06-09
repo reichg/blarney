@@ -5,6 +5,7 @@ import {
   type FeedbackCategory,
   type RegistrationPackageSelection,
 } from "../src/lib/formContracts";
+import type { PairingApplicant } from "../src/lib/type";
 
 export type RandomSource = () => number;
 
@@ -461,4 +462,83 @@ export function generateRemembrance(
       s3Key: `remembrance/sample-remembrance-${sampleId}-${String(photoIndex + 1).padStart(2, "0")}.png`,
     })),
   };
+}
+
+export interface SamplePairingParticipant {
+  id: string;
+  firstName: string;
+  lastName: string;
+  gender: Gender;
+  age: number;
+  averageScore: number;
+}
+
+export type PairingLifecycle = "PUBLISHED" | "DRAFT" | "ARCHIVED";
+
+// Sample tee-time layout: groups go off the first tee at 8:00am Pacific
+// (15:00 UTC) and are staggered in 10-minute increments by sortOrder.
+const pairingFirstTeeHourUtc = 15;
+const pairingTeeStaggerMinutes = 10;
+
+// How many trailing groups become chair DRAFT working state, and the minimum
+// total groups required before the first group is shown as an ARCHIVED batch.
+const pairingDraftGroupCount = 2;
+const pairingArchiveMinimumGroups = 4;
+
+export function toPairingApplicants(
+  participants: SamplePairingParticipant[],
+): PairingApplicant[] {
+  return participants.map((participant) => ({
+    id: participant.id,
+    firstName: participant.firstName,
+    lastName: participant.lastName,
+    gender: participant.gender,
+    age: participant.age,
+    averageScore: participant.averageScore,
+  }));
+}
+
+// Deterministically spread generated groups across all three lifecycle states so
+// every pairings surface (public home page, chair working drafts, archived batch)
+// is inspectable locally. Most groups stay PUBLISHED to populate the home page.
+export function classifyPairingLifecycle(
+  sortOrder: number,
+  totalGroups: number,
+): PairingLifecycle {
+  if (totalGroups <= 1) {
+    return "PUBLISHED";
+  }
+
+  const draftCount = Math.min(pairingDraftGroupCount, totalGroups - 1);
+
+  if (sortOrder > totalGroups - draftCount) {
+    return "DRAFT";
+  }
+
+  if (totalGroups >= pairingArchiveMinimumGroups && sortOrder === 1) {
+    return "ARCHIVED";
+  }
+
+  return "PUBLISHED";
+}
+
+// Anchor tee times off the deterministic sample baseDate so reseeding is stable.
+// Archived batches are placed a day earlier than the live first-tee schedule.
+export function computePairingTeeTime(
+  baseDate: Date,
+  sortOrder: number,
+  lifecycle: PairingLifecycle,
+): Date {
+  const teeTime = new Date(baseDate);
+
+  teeTime.setUTCHours(pairingFirstTeeHourUtc, 0, 0, 0);
+  teeTime.setUTCMinutes(
+    teeTime.getUTCMinutes() + (sortOrder - 1) * pairingTeeStaggerMinutes,
+  );
+
+  if (lifecycle === "ARCHIVED") {
+    teeTime.setUTCDate(teeTime.getUTCDate() - 1);
+  }
+
+  return teeTime;
 }
