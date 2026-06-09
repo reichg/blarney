@@ -1,1 +1,0 @@
-- `runTests` can return `0 passed / 0 failed` for a single-file Vitest slice in this repo; prefer a focused multi-file slice for reliable validation.
