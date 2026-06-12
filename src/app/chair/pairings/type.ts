@@ -26,12 +26,6 @@ export type ChairPairingsPageProps = {
   searchParams?: Promise<SearchParamsRecord>;
 };
 
-export type PairingNotice = {
-  tone: "success" | "error";
-  title: string;
-  body: string;
-};
-
 export type PairingGroupMember = {
   id: string;
   slot: number;
@@ -53,6 +47,8 @@ export type PairingGroupCardProps = {
     members: PairingGroupMember[];
   };
   isDraft: boolean;
+  /** Same-page relative URL that pairing actions redirect back to. */
+  returnTo?: string;
 };
 
 export type PairingOption = {
@@ -76,4 +72,6 @@ export type PairingGolferCardProps = {
     } | null;
   };
   groupOptions: PairingOption[];
+  /** Same-page relative URL that pairing actions redirect back to. */
+  returnTo?: string;
 };

@@ -377,6 +377,7 @@ model PhotoSubmission {
   caption        String?
   purpose        PhotoPurpose @default(GALLERY)
   feedbackId     String?
+  contentHash    String?
   s3Key          String       @unique
   approvedS3Key  String?
   status         PhotoStatus  @default(PENDING)
@@ -388,6 +389,7 @@ model PhotoSubmission {
 
   @@index([status, createdAt])
   @@index([feedbackId])
+  @@index([purpose, contentHash])
 }
 
 model PairingGroup {

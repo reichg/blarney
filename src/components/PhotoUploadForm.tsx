@@ -11,14 +11,16 @@ import {
   isAllowedPhotoSize,
   photoUploadLimitLabel,
 } from "@/lib/photoUpload";
-import { uploadPhotoWithPresign } from "@/lib/photoUploadClient";
+import {
+  acceptedPhotoTypeLabel,
+  uploadPhotoWithPresign,
+} from "@/lib/photoUploadClient";
 import { useUncontrolledFormDraft } from "@/lib/useFormDraft";
 import { DraftNotice } from "@/components/DraftNotice";
+import { useActionToast } from "@/components/notices/ActionToast";
 import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useRef, useState } from "react";
-
-const acceptedPhotoTypeLabel = "JPEG, PNG, WebP, or GIF";
 
 function getString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
@@ -26,8 +28,8 @@ function getString(value: FormDataEntryValue | null) {
 
 export function PhotoUploadForm() {
   const router = useRouter();
+  const { showToast } = useActionToast();
   const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const { wasRestored, clearDraft, handleChange } = useUncontrolledFormDraft({
@@ -36,9 +38,16 @@ export function PhotoUploadForm() {
     formRef,
   });
 
+  // Toast copy stays static developer-authored text; nothing user- or
+  // server-provided is interpolated into it.
+  function failSubmit(title: string, body?: string) {
+    showToast({ tone: "error", title, body });
+    setStatus("");
+    setIsSubmitting(false);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
     setStatus("Preparing upload...");
     setIsSubmitting(true);
 
@@ -46,35 +55,23 @@ export function PhotoUploadForm() {
     const photos = getSelectedPhotoFiles(formData);
 
     if (photos.length === 0) {
-      setError("Choose at least one photo to submit.");
-      setStatus("");
-      setIsSubmitting(false);
+      failSubmit("Choose at least one photo to submit.");
       return;
     }
 
-    const unsupportedPhoto = photos.find(
-      (photo) => !isAllowedImageType(photo.type),
-    );
-
-    if (unsupportedPhoto) {
-      setError(
-        `${unsupportedPhoto.name} is not a supported image. Use ${acceptedPhotoTypeLabel}.`,
+    if (photos.some((photo) => !isAllowedImageType(photo.type))) {
+      failSubmit(
+        "One of the selected files is not a supported image.",
+        `Use ${acceptedPhotoTypeLabel}, then try again.`,
       );
-      setStatus("");
-      setIsSubmitting(false);
       return;
     }
 
-    const oversizedPhoto = photos.find(
-      (photo) => !isAllowedPhotoSize(photo.size),
-    );
-
-    if (oversizedPhoto) {
-      setError(
-        `${oversizedPhoto.name} is too large. Photos must be ${photoUploadLimitLabel} or smaller.`,
+    if (photos.some((photo) => !isAllowedPhotoSize(photo.size))) {
+      failSubmit(
+        "One of the selected photos is too large.",
+        `Photos must be ${photoUploadLimitLabel} or smaller.`,
       );
-      setStatus("");
-      setIsSubmitting(false);
       return;
     }
 
@@ -96,13 +93,12 @@ export function PhotoUploadForm() {
       clearDraft();
       router.push("/photos/thanks");
     } catch (uploadError) {
-      setError(
-        uploadError instanceof Error
-          ? uploadError.message
-          : "Photo upload failed.",
+      // Error detail goes to the console only; the toast copy stays static.
+      console.error("photo upload failed", uploadError);
+      failSubmit(
+        "Photo upload did not finish.",
+        "Your entries are still in the form. Check your connection and try again.",
       );
-      setStatus("");
-      setIsSubmitting(false);
     }
   }
 
@@ -161,11 +157,8 @@ export function PhotoUploadForm() {
         </fieldset>
       </div>
       <div className={styles.formFooter}>
-        <div
-          aria-live="polite"
-          className={`${styles.status} ${error ? styles.error : ""}`}
-        >
-          {error || status}
+        <div aria-live="polite" className={styles.status}>
+          {status}
         </div>
         <button
           className={styles.uploadButton}

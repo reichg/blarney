@@ -10,6 +10,13 @@ import {
   parseChairListFilterParam,
   pickSearchParams,
 } from "@/app/chair/listFiltering";
+import { ChairActionForm } from "@/app/chair/notices/ChairActionForm";
+import { PendingSubmitButton } from "@/app/chair/notices/PendingSubmitButton";
+import { buildReturnTo } from "@/app/chair/notices/returnTo";
+import {
+  PHOTO_NOTICES,
+  PHOTOS_NOTICE_PARAM,
+} from "@/app/chair/photos/photoNotices";
 import { type ChairPhotosPageProps } from "@/app/chair/photos/type";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { PaginationNav } from "@/components/PaginationNav";
@@ -27,6 +34,7 @@ import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
+const chairPhotosPath = "/chair/photos";
 const pendingFilterParamKey = "pendingFilter";
 const reviewedFilterParamKey = "reviewedFilter";
 
@@ -115,7 +123,7 @@ function buildReviewedPhotoWhere(
 export default async function ChairPhotosPage({
   searchParams,
 }: ChairPhotosPageProps) {
-  await requireChairPageAuth("/chair/photos");
+  await requireChairPageAuth(chairPhotosPath);
 
   const params = await searchParams;
   const pendingPaginationParams = parsePaginationParams(params, {
@@ -142,6 +150,8 @@ export default async function ChairPhotosPage({
   if (reviewedFilter) {
     photoSearchParams[reviewedFilterParamKey] = reviewedFilter;
   }
+
+  const returnTo = buildReturnTo(chairPhotosPath, photoSearchParams);
 
   const [pendingResult, reviewedResult] = await Promise.all([
     listPendingChairGalleryPhotosPage(
@@ -251,26 +261,41 @@ export default async function ChairPhotosPage({
                   className={styles.photoReviewCard}
                   actions={
                     <div className={styles.moderationActions}>
-                      <form
+                      <ChairActionForm
                         action={approvePhoto}
                         className={styles.compactForm}
+                        notices={PHOTO_NOTICES}
+                        param={PHOTOS_NOTICE_PARAM}
                       >
                         <input name="id" type="hidden" value={photo.id} />
+                        <input name="returnTo" type="hidden" value={returnTo} />
                         <textarea
                           name="reviewNotes"
                           placeholder="Review notes"
                           rows={2}
                         />
-                        <button className={styles.actionButton} type="submit">
+                        <PendingSubmitButton
+                          className={styles.actionButton}
+                          pendingLabel="Approving…"
+                        >
                           Approve
-                        </button>
-                      </form>
-                      <form action={rejectPhoto} className={styles.compactForm}>
+                        </PendingSubmitButton>
+                      </ChairActionForm>
+                      <ChairActionForm
+                        action={rejectPhoto}
+                        className={styles.compactForm}
+                        notices={PHOTO_NOTICES}
+                        param={PHOTOS_NOTICE_PARAM}
+                      >
                         <input name="id" type="hidden" value={photo.id} />
-                        <button className={styles.dangerButton} type="submit">
+                        <input name="returnTo" type="hidden" value={returnTo} />
+                        <PendingSubmitButton
+                          className={styles.dangerButton}
+                          pendingLabel="Rejecting…"
+                        >
                           Reject and delete
-                        </button>
-                      </form>
+                        </PendingSubmitButton>
+                      </ChairActionForm>
                     </div>
                   }
                   eyebrow="Pending photo"
@@ -380,23 +405,26 @@ export default async function ChairPhotosPage({
               return (
                 <PreviewDetailCard
                   actions={
-                    <form
+                    <ChairActionForm
                       action={returnApprovedPhotoToPending}
                       className={styles.compactForm}
+                      notices={PHOTO_NOTICES}
+                      param={PHOTOS_NOTICE_PARAM}
                     >
                       <input name="id" type="hidden" value={photo.id} />
+                      <input name="returnTo" type="hidden" value={returnTo} />
                       <textarea
                         name="reviewNotes"
                         placeholder="Optional return notes"
                         rows={2}
                       />
-                      <button
+                      <PendingSubmitButton
                         className={styles.secondaryActionButton}
-                        type="submit"
+                        pendingLabel="Returning…"
                       >
                         Return to pending
-                      </button>
-                    </form>
+                      </PendingSubmitButton>
+                    </ChairActionForm>
                   }
                   className={styles.photoReviewCard}
                   eyebrow="Approved photo"

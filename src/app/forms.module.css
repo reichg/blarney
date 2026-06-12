@@ -60,6 +60,28 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.equalShell {
+  align-items: stretch;
+}
+
+.equalShell .panelStack {
+  align-content: stretch;
+}
+
+/* When panelStack is the panel itself (logistics), give surplus height to the trailing feature grid. */
+.equalShell .panel.panelStack {
+  display: flex;
+  flex-direction: column;
+}
+
+.equalShell .panel.panelStack > :last-child {
+  flex: 1;
+}
+
+.equalShell .panel.panelStack .featureCard {
+  align-content: start;
+}
+
 .panel {
   background: linear-gradient(
     180deg,
@@ -544,15 +566,6 @@
     0 14px 28px rgb(24 34 29 / 12%);
   outline: none;
   transform: translateY(-1px);
-}
-
-.errorNotice {
-  background: rgb(191 65 65 / 10%);
-  border: 1px solid rgb(191 65 65 / 28%);
-  border-radius: var(--radius);
-  color: #8c2d2d;
-  line-height: 1.5;
-  padding: 0.9rem 1rem;
 }
 
 .supportText {

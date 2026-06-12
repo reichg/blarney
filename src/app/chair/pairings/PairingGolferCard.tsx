@@ -1,11 +1,18 @@
 import { assignPairingMember } from "@/app/actions/pairings";
+import { ChairActionForm } from "@/app/chair/notices/ChairActionForm";
+import { PendingSubmitButton } from "@/app/chair/notices/PendingSubmitButton";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import styles from "@/app/chair/chair.module.css";
+import {
+  PAIRING_NOTICES,
+  PAIRINGS_NOTICE_PARAM,
+} from "./pairingNotices";
 import type { PairingGolferCardProps } from "./type";
 
 export function PairingGolferCard({
   golfer,
   groupOptions,
+  returnTo,
 }: PairingGolferCardProps) {
   const fullName = `${golfer.firstName} ${golfer.lastName}`;
   const assignmentLabel = golfer.draftAssignment?.groupName ?? "Available";
@@ -81,8 +88,16 @@ export function PairingGolferCard({
           ) : null}
         </div>
         {groupOptions.length > 0 ? (
-          <form action={assignPairingMember} className={styles.compactForm}>
+          <ChairActionForm
+            action={assignPairingMember}
+            className={styles.compactForm}
+            notices={PAIRING_NOTICES}
+            param={PAIRINGS_NOTICE_PARAM}
+          >
             <input name="participantId" type="hidden" value={golfer.id} />
+            {returnTo ? (
+              <input name="returnTo" type="hidden" value={returnTo} />
+            ) : null}
             <label>
               {golfer.draftAssignment
                 ? "Move to another draft group"
@@ -104,10 +119,13 @@ export function PairingGolferCard({
                 ))}
               </select>
             </label>
-            <button className={styles.actionButton} type="submit">
+            <PendingSubmitButton
+              className={styles.actionButton}
+              pendingLabel={golfer.draftAssignment ? "Moving…" : "Assigning…"}
+            >
               {golfer.draftAssignment ? "Move" : "Assign"}
-            </button>
-          </form>
+            </PendingSubmitButton>
+          </ChairActionForm>
         ) : (
           <span className={styles.muted}>No draft groups</span>
         )}

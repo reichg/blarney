@@ -1,4 +1,5 @@
 import { Navigation } from "@/components/Navigation";
+import { ActionToastProvider } from "@/components/notices/ActionToast";
 import { getEventSettings } from "@/lib/content";
 import type { Metadata } from "next";
 import "./globals.css";
@@ -65,21 +66,23 @@ export default async function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
-        <div className="page-shell">
-          <Navigation />
-          <main className="main-content">{children}</main>
-          <footer className="site-footer">
-            <div className="site-footer-inner">
-              <div className="event-location">
-                <span>
-                  <strong>Blarney 42</strong>
-                </span>
-                <span>{settings.eventLocation}</span>
+        <ActionToastProvider>
+          <div className="page-shell">
+            <Navigation />
+            <main className="main-content">{children}</main>
+            <footer className="site-footer">
+              <div className="site-footer-inner">
+                <div className="event-location">
+                  <span>
+                    <strong>Blarney 42</strong>
+                  </span>
+                  <span>{settings.eventLocation}</span>
+                </div>
+                <span>{settings.chairContact}</span>
               </div>
-              <span>{settings.chairContact}</span>
-            </div>
-          </footer>
-        </div>
+            </footer>
+          </div>
+        </ActionToastProvider>
       </body>
     </html>
   );

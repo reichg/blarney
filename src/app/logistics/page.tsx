@@ -15,8 +15,10 @@ export default async function LogisticsPage() {
         </div>
       </header>
       <section className={styles.formSection}>
-        <div className={`${styles.formShell} ${styles.balancedShell}`}>
-          <article className={styles.panel}>
+        <div
+          className={`${styles.formShell} ${styles.balancedShell} ${styles.equalShell}`}
+        >
+          <article className={`${styles.panel} ${styles.panelStack}`}>
             <div className={styles.panelHeader}>
               <span className={styles.panelBadge}>
                 <MapPin aria-hidden="true" size={22} />

@@ -4,7 +4,15 @@ import {
   rejectPhoto,
   returnApprovedPhotoToPending,
 } from "@/app/actions/chairPhotos";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 
 const {
   photoDelete,
@@ -26,6 +34,8 @@ const {
   deletePhotoObject: vi.fn(),
   verifyChairToken: vi.fn(),
   cookies: vi.fn(),
+  // Mirrors next/navigation: redirect() throws, which is how the auth guard
+  // bails out before the action body runs.
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
   }),
@@ -69,10 +79,13 @@ vi.mock("next/navigation", () => ({
   redirect,
 }));
 
-function buildReviewFormData() {
+function buildReviewFormData(returnTo?: string) {
   const formData = new FormData();
   formData.set("id", "photo-1");
   formData.set("reviewNotes", "Chair review notes");
+  if (returnTo !== undefined) {
+    formData.set("returnTo", returnTo);
+  }
   return formData;
 }
 
@@ -88,7 +101,18 @@ function buildIdFormData() {
   return formData;
 }
 
+function mockPendingPhoto() {
+  photoFindUniqueOrThrow.mockResolvedValue({
+    id: "photo-1",
+    s3Key: "pending/photo-1.jpg",
+    status: "PENDING",
+  });
+}
+
+let consoleErrorSpy: MockInstance;
+
 beforeEach(() => {
+  consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   cookies.mockResolvedValue({
     get: vi.fn().mockReturnValue({ value: "chair-token" }),
   });
@@ -96,20 +120,22 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  consoleErrorSpy.mockRestore();
   vi.clearAllMocks();
 });
 
 describe("chair photo actions", () => {
   it("approves a pending photo by moving it into the approved prefix", async () => {
-    photoFindUniqueOrThrow.mockResolvedValue({
-      id: "photo-1",
-      s3Key: "pending/photo-1.jpg",
-      status: "PENDING",
-    });
+    mockPendingPhoto();
     movePendingPhotoToApproved.mockResolvedValue("approved/photo-1.jpg");
 
-    await expect(approvePhoto(buildReviewFormData())).resolves.toBeUndefined();
+    // Resolving (never throwing) is the scroll-preservation contract: the
+    // client hook navigates from the returned URL instead of a thrown redirect.
+    await expect(approvePhoto(buildReviewFormData())).resolves.toEqual({
+      redirectTo: "/chair/photos?photos=approved",
+    });
 
+    expect(redirect).not.toHaveBeenCalled();
     expect(movePendingPhotoToApproved).toHaveBeenCalledWith(
       "pending/photo-1.jpg",
     );
@@ -128,16 +154,12 @@ describe("chair photo actions", () => {
   });
 
   it("allows approving a pending photo without review notes", async () => {
-    photoFindUniqueOrThrow.mockResolvedValue({
-      id: "photo-1",
-      s3Key: "pending/photo-1.jpg",
-      status: "PENDING",
-    });
+    mockPendingPhoto();
     movePendingPhotoToApproved.mockResolvedValue("approved/photo-1.jpg");
 
-    await expect(
-      approvePhoto(buildReviewFormDataWithoutNotes()),
-    ).resolves.toBeUndefined();
+    await expect(approvePhoto(buildReviewFormDataWithoutNotes())).resolves.toEqual(
+      { redirectTo: "/chair/photos?photos=approved" },
+    );
 
     expect(photoUpdate).toHaveBeenCalledWith({
       where: { id: "photo-1" },
@@ -161,7 +183,7 @@ describe("chair photo actions", () => {
 
     await expect(
       returnApprovedPhotoToPending(buildReviewFormData()),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ redirectTo: "/chair/photos?photos=returned" });
 
     expect(moveApprovedPhotoToPending).toHaveBeenCalledWith(
       "approved/photo-1.jpg",
@@ -182,13 +204,11 @@ describe("chair photo actions", () => {
   });
 
   it("rejects a pending photo by deleting it from S3 and removing the database row", async () => {
-    photoFindUniqueOrThrow.mockResolvedValue({
-      id: "photo-1",
-      s3Key: "pending/photo-1.jpg",
-      status: "PENDING",
-    });
+    mockPendingPhoto();
 
-    await expect(rejectPhoto(buildReviewFormData())).resolves.toBeUndefined();
+    await expect(rejectPhoto(buildReviewFormData())).resolves.toEqual({
+      redirectTo: "/chair/photos?photos=rejected",
+    });
 
     expect(deletePhotoObject).toHaveBeenCalledWith("pending/photo-1.jpg");
     expect(photoDelete).toHaveBeenCalledWith({
@@ -200,15 +220,11 @@ describe("chair photo actions", () => {
   });
 
   it("deletes a pending photo from S3 and then removes the database row", async () => {
-    photoFindUniqueOrThrow.mockResolvedValue({
-      id: "photo-1",
-      s3Key: "pending/photo-1.jpg",
-      status: "PENDING",
-    });
+    mockPendingPhoto();
 
-    await expect(
-      deletePendingPhoto(buildIdFormData()),
-    ).resolves.toBeUndefined();
+    await expect(deletePendingPhoto(buildIdFormData())).resolves.toEqual({
+      redirectTo: "/chair/photos?photos=deleted",
+    });
 
     expect(deletePhotoObject).toHaveBeenCalledWith("pending/photo-1.jpg");
     expect(photoDelete).toHaveBeenCalledWith({
@@ -227,5 +243,68 @@ describe("chair photo actions", () => {
 
     expect(redirect).toHaveBeenCalledWith("/chair/login");
     expect(photoFindUniqueOrThrow).not.toHaveBeenCalled();
+  });
+
+  describe("failure outcomes", () => {
+    it("resolves with action-failed when approving a photo that is not pending", async () => {
+      photoFindUniqueOrThrow.mockResolvedValue({
+        id: "photo-1",
+        s3Key: "pending/photo-1.jpg",
+        status: "APPROVED",
+      });
+
+      await expect(approvePhoto(buildReviewFormData())).resolves.toEqual({
+        redirectTo: "/chair/photos?photos=action-failed",
+      });
+
+      expect(movePendingPhotoToApproved).not.toHaveBeenCalled();
+      expect(photoUpdate).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    it("resolves with action-failed and keeps the row when the S3 delete fails", async () => {
+      mockPendingPhoto();
+      // Once: vi.clearAllMocks() does not remove persistent implementations.
+      deletePhotoObject.mockRejectedValueOnce(new Error("s3 unavailable"));
+
+      await expect(rejectPhoto(buildReviewFormData())).resolves.toEqual({
+        redirectTo: "/chair/photos?photos=action-failed",
+      });
+
+      expect(photoDelete).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("returnTo sanitization", () => {
+    it("preserves a relative /chair/photos return path and appends the notice code", async () => {
+      mockPendingPhoto();
+
+      await expect(
+        rejectPhoto(buildReviewFormData("/chair/photos?status=pending&page=2")),
+      ).resolves.toEqual({
+        redirectTo: "/chair/photos?status=pending&page=2&photos=rejected",
+      });
+
+      expect(redirect).not.toHaveBeenCalled();
+      expect(deletePhotoObject).toHaveBeenCalledWith("pending/photo-1.jpg");
+    });
+
+    it.each([
+      "https://evil.test/x",
+      "//evil.test",
+      "/chair/photos\\..",
+      "/chair/registrations",
+    ])("falls back to /chair/photos for unsafe returnTo %s", async (returnTo) => {
+      mockPendingPhoto();
+
+      await expect(rejectPhoto(buildReviewFormData(returnTo))).resolves.toEqual(
+        { redirectTo: "/chair/photos?photos=rejected" },
+      );
+
+      expect(redirect).not.toHaveBeenCalled();
+    });
   });
 });

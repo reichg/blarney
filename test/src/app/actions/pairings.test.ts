@@ -8,7 +8,15 @@ import {
   unpublishPairings,
   updatePairingGroup,
 } from "@/app/actions/pairings";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 
 const {
   participantFindMany,
@@ -48,6 +56,8 @@ const {
   pairingMemberUpdate: vi.fn(),
   verifyChairToken: vi.fn(),
   cookies: vi.fn(),
+  // Mirrors next/navigation: redirect() throws, which is how the auth guard
+  // bails out before the action body runs.
   redirect: vi.fn((path: string) => {
     throw new Error(`REDIRECT:${path}`);
   }),
@@ -128,11 +138,14 @@ vi.mock("next/navigation", () => ({
   redirect,
 }));
 
-function buildCreateGroupFormData() {
+function buildCreateGroupFormData(returnTo?: string) {
   const formData = new FormData();
   formData.set("name", "Custom Group 1");
   formData.set("sortOrder", "1");
   formData.set("teeTime", "2026-05-05T09:30");
+  if (returnTo !== undefined) {
+    formData.set("returnTo", returnTo);
+  }
   return formData;
 }
 
@@ -164,7 +177,10 @@ function buildRemoveMemberFormData() {
   return formData;
 }
 
+let consoleErrorSpy: MockInstance;
+
 beforeEach(() => {
+  consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   cookies.mockResolvedValue({
     get: vi.fn().mockReturnValue({ value: "chair-token" }),
   });
@@ -173,6 +189,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  consoleErrorSpy.mockRestore();
   vi.clearAllMocks();
 });
 
@@ -263,9 +280,36 @@ describe("pairing actions", () => {
     });
   });
 
+  describe("generatePairings", () => {
+    it("replaces existing draft groups and resolves with the generated notice", async () => {
+      participantFindMany.mockResolvedValue([]);
+      pairingGroupFindMany.mockResolvedValue([{ id: "draft-1" }]);
+
+      // Resolving (never throwing) is the scroll-preservation contract: the
+      // client hook navigates from the returned URL instead of a thrown
+      // redirect.
+      await expect(generatePairings()).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=generated",
+      });
+
+      expect(redirect).not.toHaveBeenCalled();
+      expect(pairingMemberDeleteMany).toHaveBeenCalledWith({
+        where: { groupId: { in: ["draft-1"] } },
+      });
+      expect(pairingGroupDeleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ["draft-1"] } },
+      });
+      expect(revalidatePath).toHaveBeenCalledWith("/chair/pairings");
+    });
+  });
+
   describe("createPairingGroup", () => {
     it("creates a new draft pairing group", async () => {
-      await createPairingGroup(buildCreateGroupFormData());
+      await expect(
+        createPairingGroup(buildCreateGroupFormData()),
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=group-created",
+      });
 
       expect(pairingGroupCreate).toHaveBeenCalledWith({
         data: {
@@ -285,7 +329,9 @@ describe("pairing actions", () => {
       const formData = buildCreateGroupFormData();
       formData.set("teeTime", "");
 
-      await createPairingGroup(formData);
+      await expect(createPairingGroup(formData)).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=group-created",
+      });
 
       expect(pairingGroupCreate).toHaveBeenCalledWith({
         data: {
@@ -296,11 +342,29 @@ describe("pairing actions", () => {
         },
       });
     });
+
+    it("resolves with action-failed and logs when the create fails", async () => {
+      // Once: vi.clearAllMocks() does not remove persistent implementations.
+      pairingGroupCreate.mockRejectedValueOnce(new Error("db down"));
+
+      await expect(
+        createPairingGroup(buildCreateGroupFormData()),
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=action-failed",
+      });
+
+      expect(revalidatePath).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalled();
+    });
   });
 
   describe("deletePairingGroup", () => {
     it("deletes only draft pairing groups", async () => {
-      await deletePairingGroup(buildDeleteGroupFormData());
+      await expect(
+        deletePairingGroup(buildDeleteGroupFormData()),
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=group-deleted",
+      });
 
       expect(pairingGroupDelete).toHaveBeenCalledWith({
         where: { id: "group-1", status: "DRAFT" },
@@ -311,7 +375,11 @@ describe("pairing actions", () => {
 
   describe("updatePairingGroup", () => {
     it("updates only draft pairing groups", async () => {
-      await updatePairingGroup(buildUpdateGroupFormData());
+      await expect(
+        updatePairingGroup(buildUpdateGroupFormData()),
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=group-updated",
+      });
 
       expect(pairingGroupUpdate).toHaveBeenCalledWith({
         where: { id: "group-1", status: "DRAFT" },
@@ -349,7 +417,11 @@ describe("pairing actions", () => {
         .mockResolvedValueOnce([{ id: "old-member-1", groupId: "group-2" }])
         .mockResolvedValueOnce([{ id: "member-5", slot: 2 }]);
 
-      await assignPairingMember(buildAssignMemberFormData());
+      await expect(
+        assignPairingMember(buildAssignMemberFormData()),
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=member-assigned",
+      });
 
       expect(pairingMemberDeleteMany).toHaveBeenCalledWith({
         where: {
@@ -392,7 +464,11 @@ describe("pairing actions", () => {
         { id: "member-1", groupId: "group-1" },
       ]);
 
-      await assignPairingMember(buildAssignMemberFormData());
+      await expect(
+        assignPairingMember(buildAssignMemberFormData()),
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=member-assigned",
+      });
 
       expect(pairingMemberDeleteMany).not.toHaveBeenCalled();
       expect(pairingMemberCreate).not.toHaveBeenCalled();
@@ -421,7 +497,11 @@ describe("pairing actions", () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
-      await assignPairingMember(buildAssignMemberFormData());
+      await expect(
+        assignPairingMember(buildAssignMemberFormData()),
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=member-assigned",
+      });
 
       expect(pairingMemberDeleteMany).toHaveBeenCalledWith({
         where: {
@@ -443,7 +523,7 @@ describe("pairing actions", () => {
       expect(revalidatePath).toHaveBeenCalledWith("/chair/pairings");
     });
 
-    it("prevents assigning to a group that is full", async () => {
+    it("resolves with action-failed when assigning to a group that is full", async () => {
       pairingGroupFindUnique.mockResolvedValue({
         id: "group-1",
         status: "DRAFT",
@@ -457,12 +537,16 @@ describe("pairing actions", () => {
 
       await expect(
         assignPairingMember(buildAssignMemberFormData()),
-      ).rejects.toThrow("Group is full (max 4 members)");
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=action-failed",
+      });
 
       expect(pairingMemberCreate).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
-    it("prevents assigning to a published group", async () => {
+    it("resolves with action-failed when assigning to a published group", async () => {
       pairingGroupFindUnique.mockResolvedValue({
         id: "group-1",
         status: "PUBLISHED",
@@ -471,9 +555,12 @@ describe("pairing actions", () => {
 
       await expect(
         assignPairingMember(buildAssignMemberFormData()),
-      ).rejects.toThrow("Can only assign members to draft groups");
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=action-failed",
+      });
 
       expect(pairingMemberCreate).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
     });
   });
 
@@ -493,7 +580,11 @@ describe("pairing actions", () => {
         { id: "member-4", slot: 4 },
       ]);
 
-      await removePairingMember(buildRemoveMemberFormData());
+      await expect(
+        removePairingMember(buildRemoveMemberFormData()),
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=member-removed",
+      });
 
       expect(pairingMemberDelete).toHaveBeenCalledWith({
         where: { id: "member-1" },
@@ -512,7 +603,7 @@ describe("pairing actions", () => {
       expect(revalidatePath).toHaveBeenCalledWith("/chair/pairings");
     });
 
-    it("prevents removing from a published group", async () => {
+    it("resolves with action-failed when removing from a published group", async () => {
       pairingMemberFindUnique.mockResolvedValue({
         id: "member-1",
         groupId: "group-1",
@@ -523,9 +614,12 @@ describe("pairing actions", () => {
 
       await expect(
         removePairingMember(buildRemoveMemberFormData()),
-      ).rejects.toThrow("Can only remove members from draft groups");
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=action-failed",
+      });
 
       expect(pairingMemberDelete).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
     });
   });
 
@@ -533,7 +627,9 @@ describe("pairing actions", () => {
     it("is idempotent when no draft groups exist", async () => {
       pairingGroupUpdateMany.mockResolvedValueOnce({ count: 0 });
 
-      await publishPairings();
+      await expect(publishPairings()).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=published",
+      });
 
       expect(pairingGroupUpdateMany).toHaveBeenCalledTimes(1);
       expect(pairingGroupUpdateMany).toHaveBeenCalledWith({
@@ -551,7 +647,9 @@ describe("pairing actions", () => {
         .mockResolvedValueOnce({ count: 2 })
         .mockResolvedValueOnce({ count: 1 });
 
-      await publishPairings();
+      await expect(publishPairings()).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=published",
+      });
 
       expect(pairingGroupUpdateMany).toHaveBeenCalledWith({
         where: { status: "DRAFT" },
@@ -577,20 +675,35 @@ describe("pairing actions", () => {
   });
 
   describe("unpublishPairings", () => {
-    it("fails safely when draft groups already exist", async () => {
+    it("resolves with unpublish-conflict when draft groups already exist", async () => {
       pairingGroupFindMany.mockResolvedValueOnce([{ id: "draft-1" }]);
 
-      await expect(unpublishPairings()).rejects.toThrow(
-        "Cannot unpublish published pairings while draft pairings already exist",
-      );
+      await expect(unpublishPairings()).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=unpublish-conflict",
+      });
 
       expect(pairingGroupUpdateMany).not.toHaveBeenCalled();
+      // Conflicts are an expected user-facing outcome, not a server fault.
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it("resolves with unpublish-error when the transaction fails unexpectedly", async () => {
+      pairingGroupFindMany.mockRejectedValueOnce(new Error("db down"));
+
+      await expect(unpublishPairings()).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=unpublish-error",
+      });
+
+      expect(pairingGroupUpdateMany).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
     it("is idempotent when there are no published groups", async () => {
       pairingGroupFindMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
-      await unpublishPairings();
+      await expect(unpublishPairings()).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=unpublished",
+      });
 
       expect(pairingGroupUpdateMany).not.toHaveBeenCalled();
       expect(revalidatePath).toHaveBeenCalledWith("/chair/pairings");
@@ -602,7 +715,9 @@ describe("pairing actions", () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ id: "published-1" }, { id: "published-2" }]);
 
-      await unpublishPairings();
+      await expect(unpublishPairings()).resolves.toEqual({
+        redirectTo: "/chair/pairings?pairings=unpublished",
+      });
 
       expect(pairingGroupUpdateMany).toHaveBeenCalledWith({
         where: { status: "PUBLISHED" },
@@ -611,5 +726,38 @@ describe("pairing actions", () => {
       expect(revalidatePath).toHaveBeenCalledWith("/chair/pairings");
       expect(revalidatePath).toHaveBeenCalledWith("/");
     });
+  });
+
+  describe("returnTo sanitization", () => {
+    it("preserves a relative /chair/pairings return path and appends the notice code", async () => {
+      await expect(
+        createPairingGroup(
+          buildCreateGroupFormData("/chair/pairings?focus=group-2"),
+        ),
+      ).resolves.toEqual({
+        redirectTo: "/chair/pairings?focus=group-2&pairings=group-created",
+      });
+
+      expect(redirect).not.toHaveBeenCalled();
+      expect(pairingGroupCreate).toHaveBeenCalled();
+    });
+
+    it.each([
+      "https://evil.test/x",
+      "//evil.test",
+      "/chair/pairings\\..",
+      "/chair/registrations",
+    ])(
+      "falls back to /chair/pairings for unsafe returnTo %s",
+      async (returnTo) => {
+        await expect(
+          createPairingGroup(buildCreateGroupFormData(returnTo)),
+        ).resolves.toEqual({
+          redirectTo: "/chair/pairings?pairings=group-created",
+        });
+
+        expect(redirect).not.toHaveBeenCalled();
+      },
+    );
   });
 });

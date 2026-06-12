@@ -15,7 +15,7 @@
 }
 
 .heroContent {
-  align-items: end;
+  align-items: center;
   color: var(--white);
   display: grid;
   gap: clamp(1.5rem, 3vw, 2.5rem);

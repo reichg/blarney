@@ -13,13 +13,19 @@ import {
   pickSearchParams,
   type ChairListSearchItem,
 } from "@/app/chair/listFiltering";
+import { ChairActionForm } from "@/app/chair/notices/ChairActionForm";
+import { PendingSubmitButton } from "@/app/chair/notices/PendingSubmitButton";
+import { buildReturnTo } from "@/app/chair/notices/returnTo";
 import { PairingGolferCard } from "@/app/chair/pairings/PairingGolferCard";
 import { PairingGroupCard } from "@/app/chair/pairings/PairingGroupCard";
+import {
+  PAIRING_NOTICES,
+  PAIRINGS_NOTICE_PARAM,
+} from "@/app/chair/pairings/pairingNotices";
 import {
   type ChairPairingsPageProps,
   type GolferAssignment,
   type PairingGroupWithMembers,
-  type PairingNotice,
 } from "@/app/chair/pairings/type";
 import { PaginationNav } from "@/components/PaginationNav";
 import { requireChairPageAuth } from "@/lib/chairAuth.server";
@@ -33,11 +39,11 @@ import {
 } from "@/lib/pagination";
 import { sortPairingGolfers } from "@/lib/pairings";
 import { completeRegistrationPaymentStatuses } from "@/lib/payment";
-import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 const chairPairingsPath = "/chair/pairings";
+const maxPairingGroupMembers = 4;
 const unassignedFilterParamKey = "unassignedFilter";
 const draftFilterParamKey = "draftFilter";
 const publishedFilterParamKey = "publishedFilter";
@@ -51,10 +57,6 @@ const groupFilters = [
   { value: "capacity:full", label: "Full groups" },
   { value: "capacity:open", label: "Open groups" },
 ] as const;
-
-function getParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
 
 function parseAllowlistedPairingsFilter(
   searchParams: SearchParamsRecord | undefined,
@@ -73,50 +75,6 @@ function parseAllowlistedPairingsFilter(
         allowedValue.toLowerCase() === filterValue.toLowerCase(),
     ) ?? ""
   );
-}
-
-function getPairingNotice(
-  value: string | string[] | undefined,
-): PairingNotice | null {
-  switch (getParam(value)) {
-    case "unpublished":
-      return {
-        tone: "success",
-        title: "Published groups moved back to draft.",
-        body: "You can edit group names, tee times, sort order, and golfer assignments again before publishing a new live set.",
-      };
-    case "unpublish-conflict":
-      return {
-        tone: "error",
-        title: "Unpublish blocked while a draft set already exists.",
-        body: "Publish or clear the current draft groups before moving the live groups back to draft.",
-      };
-    case "unpublish-error":
-      return {
-        tone: "error",
-        title: "Unpublish did not finish.",
-        body: "Reload and try again. If another draft was created in the meantime, clear or publish it first.",
-      };
-    default:
-      return null;
-  }
-}
-
-async function submitUnpublishPairings() {
-  "use server";
-
-  try {
-    await unpublishPairings();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    const notice = message.includes("draft pairings already exist")
-      ? "unpublish-conflict"
-      : "unpublish-error";
-
-    redirect(`${chairPairingsPath}?pairings=${notice}`);
-  }
-
-  redirect(`${chairPairingsPath}?pairings=unpublished`);
 }
 
 function buildGroupSearchText(group: PairingGroupWithMembers) {
@@ -139,7 +97,9 @@ function buildGroupFilters(group: PairingGroupWithMembers) {
   return [
     `status:${group.status}`,
     group.teeTime ? "tee:yes" : "tee:no",
-    group.members.length >= 4 ? "capacity:full" : "capacity:open",
+    group.members.length >= maxPairingGroupMembers
+      ? "capacity:full"
+      : "capacity:open",
   ];
 }
 
@@ -338,7 +298,7 @@ export default async function ChairPairingsPage({
     pairingsSearchParams[publishedFilterParamKey] = publishedFilter;
   }
 
-  const pairingNotice = getPairingNotice(params.pairings);
+  const returnTo = buildReturnTo(chairPairingsPath, pairingsSearchParams);
   const {
     draftGroups,
     publishedGroups,
@@ -414,37 +374,40 @@ export default async function ChairPairingsPage({
           </div>
         </div>
         <div className={styles.actions}>
-          <form action={generatePairings}>
-            <button className={styles.actionButton} type="submit">
-              Generate draft groups
-            </button>
-          </form>
-          <form action={publishPairings}>
-            <button
+          <ChairActionForm
+            action={generatePairings}
+            notices={PAIRING_NOTICES}
+            param={PAIRINGS_NOTICE_PARAM}
+          >
+            <input name="returnTo" type="hidden" value={returnTo} />
+            <PendingSubmitButton
               className={styles.actionButton}
-              disabled={draftGroups.length === 0}
-              type="submit"
+              pendingLabel="Generating…"
             >
-              Publish draft
-            </button>
-          </form>
+              Generate draft groups
+            </PendingSubmitButton>
+          </ChairActionForm>
+          <ChairActionForm
+            action={publishPairings}
+            notices={PAIRING_NOTICES}
+            param={PAIRINGS_NOTICE_PARAM}
+          >
+            <input name="returnTo" type="hidden" value={returnTo} />
+            {draftGroups.length === 0 ? (
+              <button className={styles.actionButton} disabled type="submit">
+                Publish draft
+              </button>
+            ) : (
+              <PendingSubmitButton
+                className={styles.actionButton}
+                pendingLabel="Publishing…"
+              >
+                Publish draft
+              </PendingSubmitButton>
+            )}
+          </ChairActionForm>
         </div>
       </div>
-
-      {pairingNotice ? (
-        <section
-          aria-live="polite"
-          className={`${styles.panel} ${styles.pairingNotice} ${
-            pairingNotice.tone === "error"
-              ? styles.pairingNoticeError
-              : styles.pairingNoticeSuccess
-          }`}
-          role={pairingNotice.tone === "error" ? "alert" : "status"}
-        >
-          <p className={styles.pairingNoticeTitle}>{pairingNotice.title}</p>
-          <p className={styles.pairingNoticeBody}>{pairingNotice.body}</p>
-        </section>
-      ) : null}
 
       <section className={styles.sectionBlock}>
         <div className={styles.sectionHeader}>
@@ -485,12 +448,13 @@ export default async function ChairPairingsPage({
                 return (
                   <PairingGolferCard
                     golfer={golfer}
+                    returnTo={returnTo}
                     groupOptions={draftGroups.map((group) => ({
                       disabled:
-                        group.members.length >= 4 &&
+                        group.members.length >= maxPairingGroupMembers &&
                         golfer.draftAssignment?.groupId !== group.id,
                       id: group.id,
-                      label: `${group.name} (${group.members.length}/4)`,
+                      label: `${group.name} (${group.members.length}/${maxPairingGroupMembers})`,
                     }))}
                     key={golfer.id}
                   />
@@ -521,7 +485,13 @@ export default async function ChairPairingsPage({
 
         <div className={styles.panel}>
           <h3 className={styles.pairingCreateTitle}>Create new group</h3>
-          <form action={createPairingGroup} className={styles.compactForm}>
+          <ChairActionForm
+            action={createPairingGroup}
+            className={styles.compactForm}
+            notices={PAIRING_NOTICES}
+            param={PAIRINGS_NOTICE_PARAM}
+          >
+            <input name="returnTo" type="hidden" value={returnTo} />
             <label>
               Name
               <input name="name" required type="text" placeholder="Group 5" />
@@ -540,10 +510,13 @@ export default async function ChairPairingsPage({
               Tee time (optional)
               <input name="teeTime" type="datetime-local" />
             </label>
-            <button className={styles.actionButton} type="submit">
+            <PendingSubmitButton
+              className={styles.actionButton}
+              pendingLabel="Creating…"
+            >
               Create group
-            </button>
-          </form>
+            </PendingSubmitButton>
+          </ChairActionForm>
         </div>
 
         {draftGroups.length === 0 ? (
@@ -572,7 +545,12 @@ export default async function ChairPairingsPage({
               }}
             >
               {pagedDraftGroups.records.map((group) => (
-                <PairingGroupCard key={group.id} group={group} isDraft={true} />
+                <PairingGroupCard
+                  group={group}
+                  isDraft={true}
+                  key={group.id}
+                  returnTo={returnTo}
+                />
               ))}
             </FilterableCardGrid>
             <PaginationNav
@@ -596,18 +574,30 @@ export default async function ChairPairingsPage({
               </p>
             </div>
             <div className={styles.sectionActionStack}>
-              <form
-                action={submitUnpublishPairings}
+              <ChairActionForm
+                action={unpublishPairings}
                 className={styles.actionOnlyForm}
+                notices={PAIRING_NOTICES}
+                param={PAIRINGS_NOTICE_PARAM}
               >
-                <button
-                  className={styles.secondaryActionButton}
-                  disabled={draftGroups.length > 0}
-                  type="submit"
-                >
-                  Unpublish to draft
-                </button>
-              </form>
+                <input name="returnTo" type="hidden" value={returnTo} />
+                {draftGroups.length > 0 ? (
+                  <button
+                    className={styles.secondaryActionButton}
+                    disabled
+                    type="submit"
+                  >
+                    Unpublish to draft
+                  </button>
+                ) : (
+                  <PendingSubmitButton
+                    className={styles.secondaryActionButton}
+                    pendingLabel="Unpublishing…"
+                  >
+                    Unpublish to draft
+                  </PendingSubmitButton>
+                )}
+              </ChairActionForm>
               <p className={styles.sectionActionHint}>
                 {draftGroups.length > 0
                   ? "Unpublish is locked while another draft set exists, which avoids mixing live and draft groups."
@@ -633,7 +623,12 @@ export default async function ChairPairingsPage({
             }}
           >
             {pagedPublishedGroups.records.map((group) => (
-              <PairingGroupCard key={group.id} group={group} isDraft={false} />
+              <PairingGroupCard
+                group={group}
+                isDraft={false}
+                key={group.id}
+                returnTo={returnTo}
+              />
             ))}
           </FilterableCardGrid>
           <PaginationNav

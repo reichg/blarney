@@ -4,16 +4,26 @@ import {
   updatePairingGroup,
 } from "@/app/actions/pairings";
 import styles from "@/app/chair/chair.module.css";
+import { ChairActionForm } from "@/app/chair/notices/ChairActionForm";
+import { PendingSubmitButton } from "@/app/chair/notices/PendingSubmitButton";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
 import { toEventDateTimeLocalValue } from "@/lib/eventTime";
 import { formatDateTime } from "@/lib/format";
+import {
+  PAIRING_NOTICES,
+  PAIRINGS_NOTICE_PARAM,
+} from "./pairingNotices";
 import type { PairingGroupCardProps, PairingGroupMember } from "./type";
 
 function formatMemberMeta(member: PairingGroupMember) {
   return `Age ${member.snapshotAge} | Score ${member.snapshotScore}`;
 }
 
-export function PairingGroupCard({ group, isDraft }: PairingGroupCardProps) {
+export function PairingGroupCard({
+  group,
+  isDraft,
+  returnTo,
+}: PairingGroupCardProps) {
   const memberSummary = group.members.length
     ? `${group.members.length} golfer${group.members.length === 1 ? "" : "s"}`
     : "No members yet";
@@ -71,8 +81,16 @@ export function PairingGroupCard({ group, isDraft }: PairingGroupCardProps) {
       <div className={styles.detailStack}>
         {isDraft ? (
           <>
-            <form action={updatePairingGroup} className={styles.compactForm}>
+            <ChairActionForm
+              action={updatePairingGroup}
+              className={styles.compactForm}
+              notices={PAIRING_NOTICES}
+              param={PAIRINGS_NOTICE_PARAM}
+            >
               <input name="id" type="hidden" value={group.id} />
+              {returnTo ? (
+                <input name="returnTo" type="hidden" value={returnTo} />
+              ) : null}
               <label>
                 Name
                 <input
@@ -100,23 +118,31 @@ export function PairingGroupCard({ group, isDraft }: PairingGroupCardProps) {
                   type="datetime-local"
                 />
               </label>
-              <button className={styles.actionButton} type="submit">
+              <PendingSubmitButton
+                className={styles.actionButton}
+                pendingLabel="Saving…"
+              >
                 Save group
-              </button>
-            </form>
+              </PendingSubmitButton>
+            </ChairActionForm>
             <div className={styles.pairingGroupActions}>
-              <form
+              <ChairActionForm
                 action={deletePairingGroup}
                 className={styles.pairingDeleteForm}
+                notices={PAIRING_NOTICES}
+                param={PAIRINGS_NOTICE_PARAM}
               >
                 <input name="id" type="hidden" value={group.id} />
-                <button
+                {returnTo ? (
+                  <input name="returnTo" type="hidden" value={returnTo} />
+                ) : null}
+                <PendingSubmitButton
                   className={`${styles.dangerButton} ${styles.fullWidthButton}`}
-                  type="submit"
+                  pendingLabel="Deleting…"
                 >
                   Delete group
-                </button>
-              </form>
+                </PendingSubmitButton>
+              </ChairActionForm>
             </div>
           </>
         ) : (
@@ -143,19 +169,23 @@ export function PairingGroupCard({ group, isDraft }: PairingGroupCardProps) {
                     {formatMemberMeta(member)}
                   </span>
                   {isDraft ? (
-                    <form
+                    <ChairActionForm
                       action={removePairingMember}
                       className={styles.pairingRemoveForm}
+                      notices={PAIRING_NOTICES}
+                      param={PAIRINGS_NOTICE_PARAM}
                     >
                       <input name="memberId" type="hidden" value={member.id} />
-                      <button
+                      {returnTo ? (
+                        <input name="returnTo" type="hidden" value={returnTo} />
+                      ) : null}
+                      <PendingSubmitButton
                         className={styles.pairingRemoveButton}
-                        title="Remove from group"
-                        type="submit"
+                        pendingLabel="Removing…"
                       >
                         Remove
-                      </button>
-                    </form>
+                      </PendingSubmitButton>
+                    </ChairActionForm>
                   ) : null}
                 </span>
               </li>

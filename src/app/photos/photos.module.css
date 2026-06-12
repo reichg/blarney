@@ -114,6 +114,13 @@
   width: 100%;
 }
 
+/* Out-specifies the global button:hover/:focus-visible lift in globals.css;
+   the card already animates, so the extra -2px causes jitter. */
+.photoTrigger:hover:not(:disabled),
+.photoTrigger:focus-visible:not(:disabled) {
+  transform: none;
+}
+
 .photoTrigger:focus-visible {
   outline: none;
 }

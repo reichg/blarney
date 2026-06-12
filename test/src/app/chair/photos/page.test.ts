@@ -1,7 +1,28 @@
+import {
+  approvePhoto,
+  rejectPhoto,
+  returnApprovedPhotoToPending,
+} from "@/app/actions/chairPhotos";
+import type {
+  ChairFormAction,
+  ChairNoticeMap,
+} from "@/app/chair/notices/type";
 import ChairPhotosPage from "@/app/chair/photos/page";
-import { createElement } from "react";
+import {
+  PHOTO_NOTICES,
+  PHOTOS_NOTICE_PARAM,
+} from "@/app/chair/photos/photoNotices";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+type ChairActionFormProps = {
+  action: ChairFormAction;
+  children: ReactNode;
+  className?: string;
+  notices: ChairNoticeMap;
+  param: string;
+};
 
 type FilterableCardGridProps = {
   children: React.ReactNode;
@@ -20,12 +41,14 @@ type PaginationNavProps = {
 };
 
 const {
+  chairActionForm,
   filterableCardGrid,
   listPendingChairGalleryPhotosPage,
   listReviewedChairGalleryPhotosPage,
   paginationNav,
   requireChairPageAuth,
 } = vi.hoisted(() => ({
+  chairActionForm: vi.fn(),
   filterableCardGrid: vi.fn(({ children }) =>
     createElement("section", null, children),
   ),
@@ -71,9 +94,23 @@ vi.mock("@/app/chair/FilterableCardGrid", () => ({
   },
 }));
 
+// The real ChairActionForm is a client component that needs a mounted router;
+// the page test only asserts the action/notice wiring it receives.
+vi.mock("@/app/chair/notices/ChairActionForm", () => ({
+  ChairActionForm: (props: ChairActionFormProps) => {
+    chairActionForm(props);
+    return createElement("form", { className: props.className }, props.children);
+  },
+}));
+
 vi.mock("@/app/chair/PreviewDetailCard", () => ({
-  PreviewDetailCard: ({ children }: { children: React.ReactNode }) =>
-    createElement("article", null, children),
+  PreviewDetailCard: ({
+    actions,
+    children,
+  }: {
+    actions?: React.ReactNode;
+    children: React.ReactNode;
+  }) => createElement("article", null, actions, children),
 }));
 
 vi.mock("@/components/PaginationNav", () => ({
@@ -246,5 +283,75 @@ describe("chair photos page", () => {
         },
       }),
     );
+  });
+
+  it("routes every moderation action through the chair action form", async () => {
+    const pagination = {
+      currentCount: 1,
+      endIndex: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
+      isEmpty: false,
+      page: 1,
+      pageKey: "pendingPage",
+      pageSize: 50,
+      pageSizeKey: "pendingPageSize",
+      skip: 0,
+      startIndex: 1,
+      take: 50,
+      totalCount: 1,
+      totalPages: 1,
+    };
+    listPendingChairGalleryPhotosPage.mockResolvedValue({
+      pagination,
+      photos: [
+        {
+          approvedAt: null,
+          caption: "Bagpiper",
+          createdAt: new Date("2026-05-01T12:00:00.000Z"),
+          feedback: null,
+          id: "pending-1",
+          reviewNotes: null,
+          submitterEmail: "ada@example.com",
+          submitterName: "Ada",
+        },
+      ],
+    });
+    listReviewedChairGalleryPhotosPage.mockResolvedValue({
+      pagination: { ...pagination, pageKey: "reviewedPage" },
+      photos: [
+        {
+          approvedAt: new Date("2026-05-01T15:00:00.000Z"),
+          caption: "Final green",
+          createdAt: new Date("2026-05-01T12:00:00.000Z"),
+          feedback: null,
+          id: "reviewed-1",
+          reviewNotes: "Looks good",
+          submitterEmail: "grace@example.com",
+          submitterName: "Grace",
+        },
+      ],
+    });
+
+    renderToStaticMarkup(
+      await ChairPhotosPage({
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    const actionFormProps = chairActionForm.mock.calls.map(
+      ([props]) => props as ChairActionFormProps,
+    );
+
+    expect(actionFormProps.map((props) => props.action)).toEqual([
+      approvePhoto,
+      rejectPhoto,
+      returnApprovedPhotoToPending,
+    ]);
+
+    for (const props of actionFormProps) {
+      expect(props.param).toBe(PHOTOS_NOTICE_PARAM);
+      expect(props.notices).toBe(PHOTO_NOTICES);
+    }
   });
 });

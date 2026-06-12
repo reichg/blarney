@@ -10,7 +10,6 @@ import {
 } from "@/app/actions/marketplace";
 import styles from "@/app/chair/chair.module.css";
 import { displayValue } from "@/app/chair/display";
-import { MarketplaceActionToastProvider } from "@/app/chair/marketplace/MarketplaceActionToast";
 import { ConfirmSubmitButton } from "@/app/chair/marketplace/ConfirmSubmitButton";
 import { MarketplaceCreateListingPanel } from "@/app/chair/marketplace/MarketplaceCreateListingPanel";
 import { MarketplaceListingActionForm } from "@/app/chair/marketplace/MarketplaceListingActionForm";
@@ -839,7 +838,7 @@ export default async function ChairMarketplacePage({
   );
 
   return (
-    <MarketplaceActionToastProvider>
+    <>
       <div className={styles.topline}>
         <div className={styles.pageHeaderCopy}>
           <p className="eyebrow">Private</p>
@@ -1271,6 +1270,6 @@ export default async function ChairMarketplacePage({
           </section>
         </section>
       )}
-    </MarketplaceActionToastProvider>
+    </>
   );
 }

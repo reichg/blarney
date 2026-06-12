@@ -20,6 +20,13 @@ vi.mock("@/app/actions/feedback", () => ({
   submitFeedback: vi.fn(),
 }));
 
+// FeedbackForm binds useActionNavigation (and thus useRouter) during render,
+// which throws "router not mounted" outside the app router. The toast context
+// safely no-ops without a provider, so only navigation needs a double here.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+}));
+
 vi.mock("lucide-react", () => ({
   MessageSquare: () => createElement("svg", { "data-slot": "message-icon" }),
   UsersRound: () => createElement("svg", { "data-slot": "users-icon" }),

@@ -1,32 +1,27 @@
 "use client";
 
 import styles from "@/app/chair/chair.module.css";
+import { getAttachmentFileName } from "@/app/chair/download";
 import { filterChairListItems } from "@/app/chair/listFiltering";
+import { useChairActionToast } from "@/app/chair/notices/ChairActionToast";
 import { RemembrancePhotoCard } from "@/app/chair/remembrance/RemembrancePhotoCard";
 import { type ChairRemembranceGalleryProps } from "@/app/chair/remembrance/type";
 import { formatPaginationSummary } from "@/lib/pagination";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-function getAttachmentFileName(contentDisposition: string | null) {
-  if (!contentDisposition) {
-    return "blarney-remembrance.zip";
-  }
-
-  const match = /filename="?([^";]+)"?/i.exec(contentDisposition);
-
-  return match?.[1] ?? "blarney-remembrance.zip";
-}
+const remembranceArchiveFileName = "blarney-remembrance.zip";
 
 export function ChairRemembranceGallery({
   photos,
   pagination,
 }: ChairRemembranceGalleryProps) {
+  const { showToast } = useChairActionToast();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [filterValue, setFilterValue] = useState("");
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [downloadingAction, setDownloadingAction] = useState<
+    "selected" | "all" | null
+  >(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const searchItems = useMemo(
     () =>
@@ -65,6 +60,7 @@ export function ChairRemembranceGallery({
     ? formatPaginationSummary(pagination)
     : `Showing ${filteredPhotos.length} of ${photos.length} remembrance photos on this page`;
 
+  const isDownloading = downloadingAction !== null;
   const allSelected =
     filteredPhotos.length > 0 &&
     visibleSelectedPhotoIds.length === filteredPhotos.length;
@@ -111,15 +107,13 @@ export function ChairRemembranceGallery({
     });
 
     if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as {
-        message?: string;
-      } | null;
-      throw new Error(body?.message ?? "Remembrance archive download failed.");
+      throw new Error("Remembrance archive download failed.");
     }
 
     const blob = await response.blob();
     const fileName = getAttachmentFileName(
       response.headers.get("content-disposition"),
+      remembranceArchiveFileName,
     );
     const objectUrl = URL.createObjectURL(blob);
     const downloadLink = document.createElement("a");
@@ -137,46 +131,44 @@ export function ChairRemembranceGallery({
       return;
     }
 
-    setErrorMessage("");
-    setStatusMessage(
-      `Preparing ${selectedPhotoIds.length} remembrance photo${selectedPhotoIds.length === 1 ? "" : "s"}...`,
-    );
-    setIsDownloading(true);
+    setDownloadingAction("selected");
 
     try {
       await downloadArchive({ ids: selectedPhotoIds });
-      setStatusMessage(
-        `Download started for ${selectedPhotoIds.length} remembrance photo${selectedPhotoIds.length === 1 ? "" : "s"}.`,
-      );
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Remembrance archive download failed.",
-      );
-      setStatusMessage("");
+      showToast({
+        tone: "success",
+        title: "Download started",
+        body: `ZIP of ${selectedPhotoIds.length} remembrance photo${selectedPhotoIds.length === 1 ? "" : "s"} is downloading.`,
+      });
+    } catch {
+      showToast({
+        tone: "error",
+        title: "Remembrance download failed",
+        body: "Try again.",
+      });
     } finally {
-      setIsDownloading(false);
+      setDownloadingAction(null);
     }
   }
 
   async function handleDownloadAll() {
-    setErrorMessage("");
-    setStatusMessage("Preparing all remembrance photos...");
-    setIsDownloading(true);
+    setDownloadingAction("all");
 
     try {
       await downloadArchive({ mode: "all" });
-      setStatusMessage("Download started for all remembrance photos.");
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Remembrance archive download failed.",
-      );
-      setStatusMessage("");
+      showToast({
+        tone: "success",
+        title: "Download started",
+        body: "ZIP of all remembrance photos is downloading.",
+      });
+    } catch {
+      showToast({
+        tone: "error",
+        title: "Remembrance download failed",
+        body: "Try again.",
+      });
     } finally {
-      setIsDownloading(false);
+      setDownloadingAction(null);
     }
   }
 
@@ -231,7 +223,9 @@ export function ChairRemembranceGallery({
               onClick={handleDownloadSelected}
               type="button"
             >
-              Download selected
+              {downloadingAction === "selected"
+                ? "Preparing…"
+                : "Download selected"}
             </button>
             <button
               className={styles.actionButton}
@@ -239,16 +233,10 @@ export function ChairRemembranceGallery({
               onClick={handleDownloadAll}
               type="button"
             >
-              Download all
+              {downloadingAction === "all" ? "Preparing…" : "Download all"}
             </button>
           </div>
         </div>
-        <p
-          aria-live="polite"
-          className={`${styles.toolbarStatus} ${errorMessage ? styles.toolbarStatusError : ""}`}
-        >
-          {errorMessage || statusMessage}
-        </p>
       </section>
       <section
         aria-busy={isDownloading}

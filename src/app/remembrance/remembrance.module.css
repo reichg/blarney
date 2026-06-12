@@ -1,11 +1,12 @@
 .shell {
-  align-items: start;
+  align-items: stretch;
   grid-template-columns: minmax(0, 0.95fr) minmax(22rem, 1.05fr);
 }
 
 .storyColumn {
   display: grid;
   gap: 1rem;
+  grid-template-rows: auto 1fr;
 }
 
 .leadCard,
@@ -55,6 +56,7 @@
 }
 
 .formCard {
+  align-content: start;
   display: grid;
   gap: 1.25rem;
   position: relative;
@@ -110,10 +112,6 @@
   color: var(--pine);
   font-weight: 700;
   min-height: 1.5rem;
-}
-
-.error {
-  color: var(--rose);
 }
 
 @media (max-width: 980px) {

@@ -41,33 +41,32 @@ export default async function RegisterPage() {
                   <p className={styles.panelKicker}>Plan ahead</p>
                   <h2>Registration details</h2>
                   <p className={styles.panelLead}>
-                    One page handles golfers, BBQ-only guests, and secure
-                    checkout without extra steps.
+                    Golfers, BBQ-only guests, and secure checkout all happen
+                    right here on one page.
                   </p>
                 </div>
               </div>
               <ul className={styles.detailList}>
                 <li>
-                  <strong>
-                    Golf registration includes BBQ for every golfer.
-                  </strong>
+                  <strong>Every golf registration includes the BBQ.</strong>{" "}
+                  Golfers never pay separately for it.
                 </li>
                 <li>
-                  Add extra BBQ-only adults or kids who are not golfing, or use
-                  BBQ-only RSVP for a non-golfing party.
+                  Bringing family or friends who are not golfing? Add them as
+                  BBQ-only adults or kids.
                 </li>
                 <li>
-                  BBQ-only RSVP for a non-golfing party needs to include the
-                  payer as a BBQ-only adult to be included in the headcount for
-                  catering.
+                  No golfers in your party? Use the{" "}
+                  <strong>BBQ-only RSVP</strong> — and count yourself as one of
+                  the adults so we save you a plate.
                 </li>
                 <li>
-                  Golfers under 15 count as kids for BBQ totals. Golfers are not
-                  charged again for BBQ.
+                  Anyone under 15 counts as a kid in the BBQ totals, golfers
+                  included. Golfers are never charged extra.
                 </li>
                 <li>
-                  Average Manzanita score (Par 32) helps create fair groups for
-                  golfers.
+                  We ask each golfer for their average score at Manzanita (Par
+                  32) so the chair can build fair pairings.
                 </li>
               </ul>
             </section>
@@ -80,36 +79,31 @@ export default async function RegisterPage() {
                   <p className={styles.panelKicker}>Quick guide</p>
                   <h2>How headcounts work</h2>
                   <p className={styles.panelLead}>
-                    A few simple rules keep pricing, BBQ totals, and pairings
-                    consistent.
+                    Four quick rules cover pricing, BBQ totals, and pairings.
                   </p>
                 </div>
               </div>
               <div className={styles.featureGrid}>
                 <div className={styles.featureCard}>
                   <strong>Golf includes BBQ</strong>
-                  <span>
-                    Every golfer is already included in the BBQ total and price.
-                  </span>
+                  <span>Golfers are covered — no extra BBQ charge.</span>
                 </div>
                 <div className={styles.featureCard}>
-                  <strong>BBQ-only RSVP works here too</strong>
+                  <strong>No golfers? RSVP here</strong>
                   <span>
-                    Non-golfing parties can use the same page without adding
-                    golfers.
+                    BBQ-only parties RSVP on this same page. Remember to count
+                    yourself.
                   </span>
                 </div>
                 <div className={styles.featureCard}>
                   <strong>Under 15 counts as a kid</strong>
-                  <span>
-                    That rule applies to BBQ totals even when a golfer is part
-                    of the group.
-                  </span>
+                  <span>Applies to BBQ totals for everyone, golfers too.</span>
                 </div>
                 <div className={styles.featureCard}>
-                  <strong>Scores help pairings</strong>
+                  <strong>Scores shape pairings</strong>
                   <span>
-                    Average Manzanita score helps the chair build fair groups.
+                    Your average Manzanita score helps the chair build fair
+                    groups.
                   </span>
                 </div>
               </div>

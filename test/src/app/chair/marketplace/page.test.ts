@@ -287,7 +287,10 @@ describe("chair marketplace page", () => {
       }),
     );
 
-    expect(html).toContain("Marketplace order marked ready.");
+    // Action notices are surfaced as a client toast at action time (via
+    // useMarketplaceActionNavigation), not as a server-rendered banner, so the
+    // notice param must not produce inline notice markup in the page HTML.
+    expect(html).not.toContain("Marketplace order marked ready.");
     expect(html).toContain("Operations snapshot");
     expect(html).toContain("Fulfillment queue");
     expect(html).toContain("Pat Buyer");
@@ -469,7 +472,10 @@ describe("chair marketplace page", () => {
       );
 
       if (noticeTitle) {
-        expect(html).toContain(noticeTitle);
+        // The notice param still drives the catalog tab default (asserted
+        // below) but its copy is surfaced as a client toast at action time,
+        // never as inline banner markup in the server-rendered page.
+        expect(html).not.toContain(noticeTitle);
       }
 
       expect(html).toContain(

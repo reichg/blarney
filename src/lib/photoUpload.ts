@@ -17,6 +17,8 @@ export function isAllowedImageType(contentType: string) {
   return allowedImageTypes.has(contentType);
 }
 
+export const photoContentHashPattern = /^[0-9a-f]{64}$/;
+
 export function isAllowedPhotoSize(fileSize: number) {
   return (
     Number.isInteger(fileSize) &&
