@@ -1,7 +1,29 @@
+import {
+  createPairingGroup,
+  generatePairings,
+  publishPairings,
+  unpublishPairings,
+} from "@/app/actions/pairings";
+import type {
+  ChairFormAction,
+  ChairNoticeMap,
+} from "@/app/chair/notices/type";
 import ChairPairingsPage from "@/app/chair/pairings/page";
-import { createElement } from "react";
+import {
+  PAIRING_NOTICES,
+  PAIRINGS_NOTICE_PARAM,
+} from "@/app/chair/pairings/pairingNotices";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+type ChairActionFormProps = {
+  action: ChairFormAction;
+  children: ReactNode;
+  className?: string;
+  notices: ChairNoticeMap;
+  param: string;
+};
 
 type FilterableCardGridProps = {
   filterAllLabel: string;
@@ -47,6 +69,7 @@ type PaginationNavProps = {
 };
 
 const {
+  chairActionForm,
   filterableCardGrid,
   paginationNav,
   pairingGolferCard,
@@ -55,6 +78,7 @@ const {
   participantFindMany,
   requireChairPageAuth,
 } = vi.hoisted(() => ({
+  chairActionForm: vi.fn(),
   filterableCardGrid: vi.fn(({ children }) =>
     createElement("section", null, children),
   ),
@@ -78,6 +102,15 @@ vi.mock("@/app/actions/pairings", () => ({
   generatePairings: async () => {},
   publishPairings: async () => {},
   unpublishPairings: async () => {},
+}));
+
+// The real ChairActionForm is a client component that needs a mounted router;
+// the page test only asserts the action/notice wiring it receives.
+vi.mock("@/app/chair/notices/ChairActionForm", () => ({
+  ChairActionForm: (props: ChairActionFormProps) => {
+    chairActionForm(props);
+    return createElement("form", { className: props.className }, props.children);
+  },
 }));
 
 vi.mock("@/app/chair/chair.module.css", () => ({
@@ -390,6 +423,30 @@ describe("chair pairings page", () => {
         },
       }),
     );
+  });
+
+  it("routes every page-level pairing action through the chair action form", async () => {
+    renderToStaticMarkup(
+      await ChairPairingsPage({
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    const actionFormProps = chairActionForm.mock.calls.map(
+      ([props]) => props as ChairActionFormProps,
+    );
+
+    expect(actionFormProps.map((props) => props.action)).toEqual([
+      generatePairings,
+      publishPairings,
+      createPairingGroup,
+      unpublishPairings,
+    ]);
+
+    for (const props of actionFormProps) {
+      expect(props.param).toBe(PAIRINGS_NOTICE_PARAM);
+      expect(props.notices).toBe(PAIRING_NOTICES);
+    }
   });
 
   it("keeps pairings pagination and filter state independent across all three lists", async () => {

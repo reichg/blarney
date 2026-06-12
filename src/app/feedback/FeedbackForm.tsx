@@ -1,7 +1,14 @@
 "use client";
 
-import { DraftNotice } from "@/components/DraftNotice";
+import {
+  FEEDBACK_NOTICE_PARAM,
+  FEEDBACK_NOTICES,
+} from "@/app/feedback/feedbackNotices";
 import styles from "@/app/forms.module.css";
+import { DraftNotice } from "@/components/DraftNotice";
+import { PendingSubmitButton } from "@/components/notices/PendingSubmitButton";
+import type { NoticeFormAction } from "@/components/notices/type";
+import { useActionNavigation } from "@/components/notices/useActionNavigation";
 import {
   feedbackCategoryOptions,
   feedbackRatingOptions,
@@ -11,11 +18,12 @@ import { MessageSquare } from "lucide-react";
 import { useRef } from "react";
 
 export type FeedbackFormProps = {
-  submitFeedback: (formData: FormData) => void | Promise<void>;
+  submitFeedback: NoticeFormAction;
 };
 
 export function FeedbackForm({ submitFeedback }: FeedbackFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
+  const runAction = useActionNavigation(FEEDBACK_NOTICE_PARAM, FEEDBACK_NOTICES);
   const { wasRestored, clearDraft, handleChange } = useUncontrolledFormDraft({
     formId: "feedback",
     formVersion: 1,
@@ -24,12 +32,11 @@ export function FeedbackForm({ submitFeedback }: FeedbackFormProps) {
 
   return (
     <form
-      action={submitFeedback}
+      // Failure surfaces a toast and keeps the visitor on the form, so the
+      // draft is only cleared on the success path before navigating away.
+      action={runAction(submitFeedback, { onResult: clearDraft })}
       className={`${styles.panel} ${styles.form}`}
-      // Plain server-action form: the action navigates on success, so clearing
-      // the draft as the form submits is the success path.
       onInput={handleChange}
-      onSubmit={() => clearDraft()}
       ref={formRef}
     >
       <DraftNotice
@@ -81,10 +88,10 @@ export function FeedbackForm({ submitFeedback }: FeedbackFormProps) {
         <span className={styles.requiredLabel}>Message</span>
         <textarea name="message" required rows={6} />
       </label>
-      <button className={styles.submitButton} type="submit">
+      <PendingSubmitButton className={styles.submitButton}>
         <MessageSquare aria-hidden="true" size={18} />
         Send feedback
-      </button>
+      </PendingSubmitButton>
     </form>
   );
 }

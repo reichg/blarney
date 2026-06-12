@@ -3,6 +3,7 @@
 import type { PhotoGalleryProps } from "@/app/photos/type";
 import { ModularCard } from "@/components/ModularCard";
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import photoStyles from "./photos.module.css";
 
 export function PhotoGallery({ photos }: PhotoGalleryProps) {
@@ -97,59 +98,71 @@ export function PhotoGallery({ photos }: PhotoGalleryProps) {
         })}
       </div>
 
-      {activePhoto ? (
-        <div
-          aria-describedby={lightboxCaptionId}
-          aria-labelledby={lightboxTitleId}
-          aria-modal="true"
-          className={photoStyles.lightbox}
-          onClick={closePhoto}
-          role="dialog"
-        >
-          <div
-            className={photoStyles.lightboxPanel}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={photoStyles.lightboxTopline}>
-              <p className={photoStyles.lightboxEyebrow}>Approved photo</p>
-              <button
-                aria-label="Close full-size photo"
-                className={photoStyles.lightboxClose}
-                onClick={closePhoto}
-                ref={closeButtonRef}
-                type="button"
+      {/*
+        Portal to <body>: the gallery panel gains a transform on hover/focus-within,
+        which would otherwise become the containing block for this fixed-position
+        overlay and clip it to the panel. Only renders after a click, so
+        document.body is always available.
+      */}
+      {activePhoto
+        ? createPortal(
+            <div
+              aria-describedby={lightboxCaptionId}
+              aria-labelledby={lightboxTitleId}
+              aria-modal="true"
+              className={photoStyles.lightbox}
+              onClick={closePhoto}
+              role="dialog"
+            >
+              <div
+                className={photoStyles.lightboxPanel}
+                onClick={(event) => event.stopPropagation()}
               >
-                Close
-              </button>
-            </div>
-            <div className={photoStyles.lightboxBody}>
-              <figure className={photoStyles.lightboxFigure}>
-                <div className={photoStyles.lightboxMedia}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    alt="Blarney tournament photo"
-                    className={photoStyles.lightboxImage}
-                    src={`/api/photos/${activePhoto.id}/view`}
-                  />
+                <div className={photoStyles.lightboxTopline}>
+                  <p className={photoStyles.lightboxEyebrow}>Approved photo</p>
+                  <button
+                    aria-label="Close full-size photo"
+                    className={photoStyles.lightboxClose}
+                    onClick={closePhoto}
+                    ref={closeButtonRef}
+                    type="button"
+                  >
+                    Close
+                  </button>
                 </div>
-              </figure>
-              <section className={photoStyles.lightboxDetails}>
-                <h2 className={photoStyles.lightboxTitle} id={lightboxTitleId}>
-                  Blarney tournament photo
-                </h2>
-                <p className={photoStyles.lightboxDetailsLabel}>Caption</p>
-                <p
-                  className={photoStyles.lightboxCaption}
-                  id={lightboxCaptionId}
-                >
-                  {activePhoto.caption ??
-                    "No caption was provided for this gallery photo."}
-                </p>
-              </section>
-            </div>
-          </div>
-        </div>
-      ) : null}
+                <div className={photoStyles.lightboxBody}>
+                  <figure className={photoStyles.lightboxFigure}>
+                    <div className={photoStyles.lightboxMedia}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        alt="Blarney tournament photo"
+                        className={photoStyles.lightboxImage}
+                        src={`/api/photos/${activePhoto.id}/view`}
+                      />
+                    </div>
+                  </figure>
+                  <section className={photoStyles.lightboxDetails}>
+                    <h2
+                      className={photoStyles.lightboxTitle}
+                      id={lightboxTitleId}
+                    >
+                      Blarney tournament photo
+                    </h2>
+                    <p className={photoStyles.lightboxDetailsLabel}>Caption</p>
+                    <p
+                      className={photoStyles.lightboxCaption}
+                      id={lightboxCaptionId}
+                    >
+                      {activePhoto.caption ??
+                        "No caption was provided for this gallery photo."}
+                    </p>
+                  </section>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

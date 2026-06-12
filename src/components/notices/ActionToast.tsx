@@ -1,40 +1,42 @@
 "use client";
 
-import styles from "@/app/chair/chair.module.css";
-import type { MarketplaceNotice } from "@/app/chair/marketplace/marketplaceNotices";
+import styles from "@/components/notices/notices.module.css";
+import type {
+  ActionNotice,
+  ActionToastValue,
+} from "@/components/notices/type";
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type MouseEvent,
   type ReactNode,
 } from "react";
 
-/** How long an action toast stays before auto-dismissing. */
+export type { ActionNotice } from "@/components/notices/type";
+
+/** How long a success toast stays before auto-dismissing. Errors persist. */
 const TOAST_AUTO_DISMISS_MS = 5000;
 
-type ShowMarketplaceToast = (notice: MarketplaceNotice) => void;
-
-// Defaults to a no-op so the navigation hook is safe to call outside a provider
+// Defaults to a no-op so consumers are safe to render outside a provider
 // (e.g. in isolated unit tests) without throwing.
-const MarketplaceToastContext = createContext<ShowMarketplaceToast>(() => {});
+const ActionToastContext = createContext<ActionToastValue>({
+  showToast: () => {},
+});
 
-export function useMarketplaceToast(): ShowMarketplaceToast {
-  return useContext(MarketplaceToastContext);
+export function useActionToast(): ActionToastValue {
+  return useContext(ActionToastContext);
 }
 
-// Wraps the chair marketplace tree so any action form can surface a notice in
-// the viewport regardless of scroll position. Errors no longer rely on the
-// top-of-page banner that scroll-preserving navigation kept out of view.
-export function MarketplaceActionToastProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const [notice, setNotice] = useState<MarketplaceNotice | null>(null);
+// Wraps a page tree so any action can surface a notice in the viewport
+// regardless of scroll position. Errors no longer rely on top-of-page
+// banners that scroll-preserving navigation keeps out of view.
+export function ActionToastProvider({ children }: { children: ReactNode }) {
+  const [notice, setNotice] = useState<ActionNotice | null>(null);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearDismissTimer = useCallback(() => {
@@ -44,16 +46,26 @@ export function MarketplaceActionToastProvider({
     }
   }, []);
 
-  const showToast = useCallback<ShowMarketplaceToast>(
-    (next) => {
+  const showToast = useCallback(
+    (next: ActionNotice) => {
       clearDismissTimer();
       setNotice(next);
-      dismissTimerRef.current = setTimeout(() => {
-        setNotice(null);
-        dismissTimerRef.current = null;
-      }, TOAST_AUTO_DISMISS_MS);
+
+      // Success notices fade on their own; error notices persist until the
+      // user dismisses them so failures are never missed.
+      if (next.tone === "success") {
+        dismissTimerRef.current = setTimeout(() => {
+          setNotice(null);
+          dismissTimerRef.current = null;
+        }, TOAST_AUTO_DISMISS_MS);
+      }
     },
     [clearDismissTimer],
+  );
+
+  const contextValue = useMemo<ActionToastValue>(
+    () => ({ showToast }),
+    [showToast],
   );
 
   useEffect(() => clearDismissTimer, [clearDismissTimer]);
@@ -71,7 +83,7 @@ export function MarketplaceActionToastProvider({
   }
 
   return (
-    <MarketplaceToastContext.Provider value={showToast}>
+    <ActionToastContext.Provider value={contextValue}>
       {children}
       {notice ? (
         <div
@@ -88,7 +100,9 @@ export function MarketplaceActionToastProvider({
           >
             <div className={styles.actionToastCopy}>
               <p className={styles.actionToastTitle}>{notice.title}</p>
-              <p className={styles.actionToastBody}>{notice.body}</p>
+              {notice.body ? (
+                <p className={styles.actionToastBody}>{notice.body}</p>
+              ) : null}
             </div>
             <button
               aria-label="Dismiss notice"
@@ -101,6 +115,6 @@ export function MarketplaceActionToastProvider({
           </section>
         </div>
       ) : null}
-    </MarketplaceToastContext.Provider>
+    </ActionToastContext.Provider>
   );
 }

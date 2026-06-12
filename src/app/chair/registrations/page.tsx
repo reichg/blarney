@@ -6,6 +6,7 @@ import {
   pickSearchParams,
 } from "@/app/chair/listFiltering";
 import { PreviewDetailCard } from "@/app/chair/PreviewDetailCard";
+import { ExportCsvButton } from "@/app/chair/registrations/ExportCsvButton";
 import {
   registrationAttendeeTotalsSelect,
   type ChairRegistrationsPageProps,
@@ -433,22 +434,22 @@ export default async function ChairRegistrationsPage({
           </div>
         </div>
         <div className={styles.actions}>
-          <a
+          <ExportCsvButton
             className={styles.actionButton}
-            download
+            fallbackFileName="registrations.csv"
             href="/api/chair/registrations/export"
           >
             <Download aria-hidden="true" size={16} />
             Export CSV
-          </a>
-          <a
+          </ExportCsvButton>
+          <ExportCsvButton
             className={styles.actionButton}
-            download
+            fallbackFileName="golfers.csv"
             href="/api/chair/registrations/export?scope=golfers"
           >
             <Download aria-hidden="true" size={16} />
             Export golfers CSV
-          </a>
+          </ExportCsvButton>
         </div>
       </div>
       <section className={styles.sectionBlock}>

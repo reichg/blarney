@@ -71,10 +71,6 @@
   min-width: 0;
 }
 
-.error {
-  color: var(--rose);
-}
-
 .uploadButton {
   align-items: center;
   background: linear-gradient(135deg, var(--pine), var(--pine-2));

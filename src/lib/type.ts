@@ -500,6 +500,7 @@ export type RegistrationPaymentReconciliation = RegistrationPaymentRecord & {
 
 export type PhotoUploadRequest = {
   caption?: string;
+  contentHash?: string;
   contentType: string;
   feedbackId?: string;
   fileName: string;

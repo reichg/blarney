@@ -3,6 +3,7 @@
 import formsStyles from "@/app/forms.module.css";
 import { DraftNotice } from "@/components/DraftNotice";
 import { ModularCard } from "@/components/ModularCard";
+import { useActionToast } from "@/components/notices/ActionToast";
 import type { MarketplaceCatalogListing } from "@/lib/marketplaceCatalog";
 import { marketplaceCreateCheckoutResponseSchema } from "@/lib/marketplaceCheckout.contracts";
 import { isTrustedSquareCheckoutUrl } from "@/lib/squareCheckoutUrl";
@@ -28,6 +29,7 @@ type MarketplaceStoreDraft = {
 
 const MARKETPLACE_STORE_FORM_ID = "marketplaceStore";
 const MARKETPLACE_STORE_FORM_VERSION = 1;
+const CHECKOUT_ERROR_TITLE = "Marketplace checkout did not start.";
 
 type MarketplaceStorefrontProps = {
   listings: MarketplaceCatalogListing[];
@@ -189,11 +191,11 @@ export function MarketplaceStorefront({
   listings,
 }: MarketplaceStorefrontProps) {
   const router = useRouter();
+  const { showToast } = useActionToast();
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -260,13 +262,14 @@ export function MarketplaceStorefront({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
     setNotice(null);
 
     if (cartLines.length === 0) {
-      setError(
-        "Add at least one marketplace item before continuing to checkout.",
-      );
+      showToast({
+        tone: "error",
+        title: CHECKOUT_ERROR_TITLE,
+        body: "Add at least one marketplace item before continuing to checkout.",
+      });
       return;
     }
 
@@ -295,9 +298,11 @@ export function MarketplaceStorefront({
       const parsed = marketplaceCreateCheckoutResponseSchema.safeParse(payload);
 
       if (!parsed.success) {
-        setError(
-          "Marketplace checkout could not be started. Please try again.",
-        );
+        showToast({
+          tone: "error",
+          title: CHECKOUT_ERROR_TITLE,
+          body: "Marketplace checkout could not be started. Please try again.",
+        });
         return;
       }
 
@@ -313,9 +318,11 @@ export function MarketplaceStorefront({
 
       if (result.ok && result.status === "pending") {
         if (!isTrustedSquareCheckoutUrl(result.paymentUrl)) {
-          setError(
-            "Marketplace checkout is temporarily unavailable. Please try again.",
-          );
+          showToast({
+            tone: "error",
+            title: CHECKOUT_ERROR_TITLE,
+            body: "Marketplace checkout is temporarily unavailable. Please try again.",
+          });
           return;
         }
 
@@ -325,9 +332,11 @@ export function MarketplaceStorefront({
       }
 
       if (!result.ok && result.status === "unavailable_items") {
-        setError(
-          "One or more selected items are no longer available in the requested quantities. Review the catalog and try again.",
-        );
+        showToast({
+          tone: "error",
+          title: CHECKOUT_ERROR_TITLE,
+          body: "One or more selected items are no longer available in the requested quantities. Review the catalog and try again.",
+        });
         return;
       }
 
@@ -338,13 +347,17 @@ export function MarketplaceStorefront({
         return;
       }
 
-      setError(
-        "Marketplace checkout is temporarily unavailable. Please try again.",
-      );
+      showToast({
+        tone: "error",
+        title: CHECKOUT_ERROR_TITLE,
+        body: "Marketplace checkout is temporarily unavailable. Please try again.",
+      });
     } catch {
-      setError(
-        "Marketplace checkout is temporarily unavailable. Please try again.",
-      );
+      showToast({
+        tone: "error",
+        title: CHECKOUT_ERROR_TITLE,
+        body: "Marketplace checkout is temporarily unavailable. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -463,9 +476,6 @@ export function MarketplaceStorefront({
             </label>
           </div>
 
-          {error ? (
-            <div className={formsStyles.errorNotice}>{error}</div>
-          ) : null}
           {notice ? <div className={formsStyles.notice}>{notice}</div> : null}
 
           <div className={formsStyles.actionRow}>

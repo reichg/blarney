@@ -702,6 +702,152 @@ describe("marketplace catalog admin service", () => {
     });
   });
 
+  describe("replaced listing image cleanup", () => {
+    const previousImageKey =
+      "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png";
+    const nextImageKey =
+      "listing/223e4567-e89b-12d3-a456-426614174000-hoodie-v2.png";
+
+    function listingUpdateInput(imageUrl: string) {
+      return {
+        listingId: "listing-1",
+        slug: "hoodie-drop",
+        title: "Blarney Hoodie",
+        description: "Warm layer",
+        imageUrl,
+        fulfillmentNote: "Pickup at check-in",
+        sortOrder: "4",
+      };
+    }
+
+    it("deletes the previous managed image after replacing it on update", async () => {
+      listingFindUnique.mockResolvedValue({
+        id: "listing-1",
+        imageUrl: previousImageKey,
+        status: "DRAFT",
+      });
+
+      await expect(
+        updateMarketplaceListing(listingUpdateInput(nextImageKey)),
+      ).resolves.toEqual({
+        ok: true,
+        entityId: "listing-1",
+        revalidatePublicCatalog: false,
+      });
+
+      expect(deletePhotoObject).toHaveBeenCalledTimes(1);
+      expect(deletePhotoObject).toHaveBeenCalledWith(previousImageKey);
+    });
+
+    it("deletes the previous managed image when the image is cleared on update", async () => {
+      listingFindUnique.mockResolvedValue({
+        id: "listing-1",
+        imageUrl: previousImageKey,
+        status: "DRAFT",
+      });
+
+      await expect(
+        updateMarketplaceListing(listingUpdateInput("")),
+      ).resolves.toEqual({
+        ok: true,
+        entityId: "listing-1",
+        revalidatePublicCatalog: false,
+      });
+
+      expect(deletePhotoObject).toHaveBeenCalledWith(previousImageKey);
+    });
+
+    it("keeps the managed image when the update leaves it unchanged", async () => {
+      listingFindUnique.mockResolvedValue({
+        id: "listing-1",
+        imageUrl: previousImageKey,
+        status: "DRAFT",
+      });
+
+      await expect(
+        updateMarketplaceListing(listingUpdateInput(previousImageKey)),
+      ).resolves.toEqual({
+        ok: true,
+        entityId: "listing-1",
+        revalidatePublicCatalog: false,
+      });
+
+      expect(deletePhotoObject).not.toHaveBeenCalled();
+    });
+
+    it("never deletes a legacy http image url replaced by a managed key", async () => {
+      listingFindUnique.mockResolvedValue({
+        id: "listing-1",
+        imageUrl: "https://example.com/images/hoodie.jpg",
+        status: "DRAFT",
+      });
+
+      await expect(
+        updateMarketplaceListing(listingUpdateInput(nextImageKey)),
+      ).resolves.toEqual({
+        ok: true,
+        entityId: "listing-1",
+        revalidatePublicCatalog: false,
+      });
+
+      expect(deletePhotoObject).not.toHaveBeenCalled();
+    });
+
+    it("keeps the update successful and warns when replaced image cleanup fails", async () => {
+      const warnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+
+      listingFindUnique.mockResolvedValue({
+        id: "listing-1",
+        imageUrl: previousImageKey,
+        status: "DRAFT",
+      });
+      deletePhotoObject.mockRejectedValueOnce(new Error("s3 unavailable"));
+
+      await expect(
+        updateMarketplaceListing(listingUpdateInput(nextImageKey)),
+      ).resolves.toEqual({
+        ok: true,
+        entityId: "listing-1",
+        revalidatePublicCatalog: false,
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[marketplace-catalog] listing-image-delete-failed",
+        expect.objectContaining({
+          imageKey: previousImageKey,
+          listingId: "listing-1",
+          message: "s3 unavailable",
+        }),
+      );
+
+      warnSpy.mockRestore();
+    });
+
+    it("deletes the previous managed image after a combined save replaces it", async () => {
+      listingFindUnique.mockResolvedValue({
+        id: "listing-1",
+        imageUrl: previousImageKey,
+        status: "DRAFT",
+      });
+
+      await expect(
+        saveMarketplaceListing({
+          ...listingUpdateInput(nextImageKey),
+          variants: [],
+        }),
+      ).resolves.toEqual({
+        ok: true,
+        entityId: "listing-1",
+        revalidatePublicCatalog: false,
+      });
+
+      expect(deletePhotoObject).toHaveBeenCalledTimes(1);
+      expect(deletePhotoObject).toHaveBeenCalledWith(previousImageKey);
+    });
+  });
+
   it("saves listing details and existing variants together", async () => {
     listingFindUnique.mockResolvedValue({
       id: "listing-1",

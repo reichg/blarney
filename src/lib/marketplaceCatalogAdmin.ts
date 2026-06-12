@@ -314,6 +314,37 @@ function logMarketplaceCatalogEvent(
   logger(`[marketplace-catalog] ${event}`, details);
 }
 
+// Best-effort S3 cleanup once a listing image is no longer referenced
+// (replaced, cleared, or its listing deleted). Only managed listing/* keys are
+// deleted; legacy http(s)/path URLs are untouched. Must run only after the DB
+// change has committed.
+async function deleteReplacedListingImage(
+  listingId: string,
+  previousImageUrl: string | null,
+  nextImageUrl: string | null,
+) {
+  const previousImageKey =
+    normalizeManagedMarketplaceListingImageKey(previousImageUrl);
+
+  if (
+    !previousImageKey ||
+    previousImageKey ===
+      normalizeManagedMarketplaceListingImageKey(nextImageUrl)
+  ) {
+    return;
+  }
+
+  try {
+    await deletePhotoObject(previousImageKey);
+  } catch (error) {
+    logMarketplaceCatalogEvent("warn", "listing-image-delete-failed", {
+      imageKey: previousImageKey,
+      listingId,
+      message: error instanceof Error ? error.message : "unknown",
+    });
+  }
+}
+
 export async function getChairMarketplaceCatalog(
   client: MarketplaceCatalogAdminClient = db,
 ) {
@@ -448,6 +479,12 @@ export async function updateMarketplaceListing(
       select: { id: true, status: true },
     });
 
+    await deleteReplacedListingImage(
+      updatedListing.id,
+      existingImageUrl,
+      nextImageUrl,
+    );
+
     return {
       ok: true,
       entityId: updatedListing.id,
@@ -517,8 +554,10 @@ export async function saveMarketplaceListing(
     removedVariantIds.add(removedVariantId);
   }
 
+  let previousImageUrl: string | null = null;
+
   try {
-    return await client.$transaction(async (transaction) => {
+    const saveResult = await client.$transaction(async (transaction) => {
       const listing = await transaction.marketplaceListing.findUnique({
         where: { id: parsed.data.listingId },
         select: { id: true, imageUrl: true, status: true },
@@ -534,6 +573,7 @@ export async function saveMarketplaceListing(
 
       const nextImageUrl = parsed.data.imageUrl;
       const existingImageUrl = listing.imageUrl;
+      previousImageUrl = existingImageUrl;
 
       if (
         nextImageUrl !== null &&
@@ -638,6 +678,16 @@ export async function saveMarketplaceListing(
         revalidatePublicCatalog: updatedListing.status === "ACTIVE",
       } as const;
     });
+
+    if (saveResult.ok) {
+      await deleteReplacedListingImage(
+        saveResult.entityId,
+        previousImageUrl,
+        parsed.data.imageUrl,
+      );
+    }
+
+    return saveResult;
   } catch (error) {
     if (isMissingRecordError(error)) {
       return { ok: false, reason: "not_found" };
@@ -879,7 +929,7 @@ export async function deleteMarketplaceListing(
         // disappears; drafts and archived listings are never public.
         revalidatePublicCatalog:
           shouldRevalidatePublicCatalogForListingStatus(listing.status),
-        imageKey: normalizeManagedMarketplaceListingImageKey(listing.imageUrl),
+        imageUrl: listing.imageUrl,
       } as const;
     });
 
@@ -887,17 +937,11 @@ export async function deleteMarketplaceListing(
       return { ok: false, reason: deleteResult.reason };
     }
 
-    if (deleteResult.imageKey) {
-      try {
-        await deletePhotoObject(deleteResult.imageKey);
-      } catch (error) {
-        logMarketplaceCatalogEvent("warn", "listing-image-delete-failed", {
-          imageKey: deleteResult.imageKey,
-          listingId: deleteResult.entityId,
-          message: error instanceof Error ? error.message : "unknown",
-        });
-      }
-    }
+    await deleteReplacedListingImage(
+      deleteResult.entityId,
+      deleteResult.imageUrl,
+      null,
+    );
 
     return {
       ok: true,

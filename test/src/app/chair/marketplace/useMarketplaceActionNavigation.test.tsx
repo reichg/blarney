@@ -18,10 +18,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 // Error notices are surfaced through the toast context rather than navigation.
-vi.mock("@/app/chair/marketplace/MarketplaceActionToast", () => ({
-  useMarketplaceToast: () => showToast,
-  MarketplaceActionToastProvider: ({ children }: { children: unknown }) =>
-    children,
+vi.mock("@/app/chair/notices/ChairActionToast", () => ({
+  useChairActionToast: () => ({ showToast }),
+  ChairActionToastProvider: ({ children }: { children: unknown }) => children,
 }));
 
 afterEach(() => {

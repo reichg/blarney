@@ -1,6 +1,7 @@
 "use client";
 
 import { DraftNotice } from "@/components/DraftNotice";
+import { useActionToast } from "@/components/notices/ActionToast";
 import styles from "@/app/forms.module.css";
 import type {
   Golfer,
@@ -125,6 +126,7 @@ export function RegistrationForm({
   submitRsvpAction,
 }: RegistrationFormProps) {
   const router = useRouter();
+  const { showToast } = useActionToast();
   const [mode, setMode] = useState<SignupMode>("golf");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -139,7 +141,6 @@ export function RegistrationForm({
   const [dietaryNotes, setDietaryNotes] = useState("");
   const [notes, setNotes] = useState("");
   const [familyNames, setFamilyNames] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingCheckout, setPendingCheckout] =
     useState<PendingCheckoutResume | null>(null);
@@ -193,7 +194,6 @@ export function RegistrationForm({
     setDietaryNotes("");
     setNotes("");
     setFamilyNames("");
-    setError(null);
   }
 
   const { wasRestored, clearDraft } = useControlledFormDraft<RegistrationDraft>({
@@ -290,7 +290,6 @@ export function RegistrationForm({
     const nextMode = event.target.value === "bbq" ? "bbq" : "golf";
 
     setMode(nextMode);
-    setError(null);
 
     if (nextMode === "bbq" && rsvpAdultCount + rsvpKidCount === 0) {
       setRsvpAdultCount(1);
@@ -333,7 +332,11 @@ export function RegistrationForm({
     const result = await submitRegistrationAction(formData);
 
     if (!result.ok) {
-      setError(result.error);
+      showToast({
+        tone: "error",
+        title: "Registration was not submitted.",
+        body: result.error,
+      });
       setIsSubmitting(false);
       return;
     }
@@ -373,7 +376,11 @@ export function RegistrationForm({
 
   async function submitBbqRsvp(formData: FormData) {
     if (rsvpAttendeeCount === 0) {
-      setError("Add at least one BBQ attendee before continuing to payment.");
+      showToast({
+        tone: "error",
+        title: "RSVP was not submitted.",
+        body: "Add at least one BBQ attendee before continuing to payment.",
+      });
       setIsSubmitting(false);
       return;
     }
@@ -384,7 +391,11 @@ export function RegistrationForm({
     const result = await submitRsvpAction(formData);
 
     if (!result.ok) {
-      setError(result.error);
+      showToast({
+        tone: "error",
+        title: "RSVP was not submitted.",
+        body: result.error,
+      });
       setIsSubmitting(false);
       return;
     }
@@ -437,7 +448,6 @@ export function RegistrationForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
     setIsSubmitting(true);
 
     const form = event.currentTarget;
@@ -448,7 +458,11 @@ export function RegistrationForm({
     void (async () => {
       try {
         if (selectedMode !== "golf" && selectedMode !== "bbq") {
-          setError("Choose golf registration or BBQ-only RSVP.");
+          showToast({
+            tone: "error",
+            title: "Signup type is required.",
+            body: "Choose golf registration or BBQ-only RSVP.",
+          });
           setIsSubmitting(false);
           return;
         }
@@ -462,11 +476,13 @@ export function RegistrationForm({
 
         await submitBbqRsvp(formData);
       } catch {
-        setError(
-          isGolfSubmission
+        showToast({
+          tone: "error",
+          title: "Submission failed.",
+          body: isGolfSubmission
             ? "Registration could not be submitted. Please try again."
             : "RSVP could not be submitted. Please try again.",
-        );
+        });
         setIsSubmitting(false);
       }
     })();
@@ -819,8 +835,8 @@ export function RegistrationForm({
                 </div>
               </dl>
               <p className={styles.supportText}>
-                Golfers under 15 count as kids for BBQ totals. Golfers are not
-                charged again for BBQ.
+                Anyone under 15 counts as a kid in the BBQ totals, golfers
+                included. Golfers are never charged extra for the BBQ.
               </p>
             </section>
           </section>
@@ -863,13 +879,13 @@ export function RegistrationForm({
               <div>
                 <h2 id={attendeeDetailsHeadingId}>Attendee details</h2>
                 <p className={styles.sectionLead}>
-                  Count everyone joining the BBQ, including the payer.
+                  Count everyone joining the BBQ — including yourself.
                 </p>
               </div>
             </div>
 
             <fieldset className={styles.fieldset}>
-              <legend>BBQ-only attendees (Including payer)</legend>
+              <legend>BBQ-only attendees (count yourself too)</legend>
               <div className={styles.gridTwo}>
                 <label className={styles.field}>
                   <span className={styles.requiredLabel}>BBQ-only adults</span>
@@ -987,11 +1003,6 @@ export function RegistrationForm({
           {isGolfMode ? " registration" : " BBQ RSVP"} is finalized only after
           payment succeeds.
         </p>
-        {error ? (
-          <div aria-live="polite" className={styles.errorNotice}>
-            {error}
-          </div>
-        ) : null}
         <button
           className={styles.submitButton}
           disabled={isSubmitting}

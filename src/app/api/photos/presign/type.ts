@@ -1,3 +1,4 @@
+import { photoContentHashPattern } from "@/lib/photoUpload";
 import { z } from "zod";
 
 function normalizeOptionalString(value: unknown) {
@@ -25,6 +26,10 @@ export const presignSchema = z
     feedbackId: z.preprocess(
       normalizeOptionalString,
       z.string().trim().min(1).optional(),
+    ),
+    contentHash: z.preprocess(
+      normalizeOptionalString,
+      z.string().regex(photoContentHashPattern).optional(),
     ),
   })
   .superRefine((value, context) => {

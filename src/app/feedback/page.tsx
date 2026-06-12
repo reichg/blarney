@@ -1,7 +1,7 @@
 import { submitFeedback } from "@/app/actions/feedback";
 import { FeedbackForm } from "@/app/feedback/FeedbackForm";
 import styles from "@/app/forms.module.css";
-import { MessageSquare, UsersRound } from "lucide-react";
+import { UsersRound } from "lucide-react";
 
 export default function FeedbackPage() {
   return (
@@ -15,29 +15,8 @@ export default function FeedbackPage() {
         </div>
       </header>
       <section className={styles.formSection}>
-        <div className={styles.formShell}>
+        <div className={`${styles.formShell} ${styles.equalShell}`}>
           <aside className={styles.panelStack}>
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <span className={styles.panelBadge}>
-                  <MessageSquare aria-hidden="true" size={20} />
-                </span>
-                <div>
-                  <p className={styles.panelKicker}>Useful starting points</p>
-                  <h2>Helpful topics</h2>
-                  <p className={styles.panelLead}>
-                    If you are not sure where to begin, these are the areas the
-                    chair reviews most often.
-                  </p>
-                </div>
-              </div>
-              <ul className={styles.detailList}>
-                <li>Registration and payments</li>
-                <li>Golf pairings and tee times</li>
-                <li>Family events and logistics</li>
-                <li>Photo gallery and memories</li>
-              </ul>
-            </section>
             <section className={styles.panel}>
               <div className={styles.panelHeader}>
                 <span className={styles.panelBadge}>

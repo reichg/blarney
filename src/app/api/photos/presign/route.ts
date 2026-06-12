@@ -54,6 +54,27 @@ export async function POST(request: Request) {
       feedbackId = remembranceFeedback.id;
     }
 
+    if (parsed.data.contentHash) {
+      // Best-effort dedup; rejected gallery photos may be resubmitted.
+      const duplicate = await db.photoSubmission.findFirst({
+        where: {
+          purpose: parsed.data.purpose,
+          contentHash: parsed.data.contentHash,
+          ...(isRemembranceUpload
+            ? { feedbackId }
+            : { status: { not: "REJECTED" } }),
+        },
+        select: { id: true },
+      });
+
+      if (duplicate) {
+        return NextResponse.json(
+          { message: "This photo has already been submitted." },
+          { status: 409 },
+        );
+      }
+    }
+
     const upload = isRemembranceUpload
       ? await createRemembrancePhotoUpload(
           parsed.data.fileName,
@@ -72,6 +93,7 @@ export async function POST(request: Request) {
         caption: parsed.data.caption,
         feedbackId,
         purpose: parsed.data.purpose,
+        contentHash: parsed.data.contentHash,
         s3Key: upload.key,
         ...(isRemembranceUpload
           ? {
@@ -87,13 +109,9 @@ export async function POST(request: Request) {
       uploadUrl: upload.uploadUrl,
     });
   } catch (error) {
+    console.error("Failed to prepare photo upload:", error);
     return NextResponse.json(
-      {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Photo upload could not be prepared.",
-      },
+      { message: "Photo upload could not be prepared." },
       { status: 500 },
     );
   }

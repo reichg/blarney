@@ -1,8 +1,16 @@
 import type { SearchParamsRecord } from "@/lib/pagination";
 import type { Prisma } from "@prisma/client";
+import type { ReactNode } from "react";
 
 export type ChairRegistrationsPageProps = {
   searchParams: Promise<SearchParamsRecord>;
+};
+
+export type ExportCsvButtonProps = {
+  href: string;
+  fallbackFileName: string;
+  className?: string;
+  children: ReactNode;
 };
 
 export const registrationAttendeeTotalsSelect = {

@@ -9,6 +9,12 @@ vi.mock("@/app/actions/pairings", () => ({
   updatePairingGroup: async () => {},
 }));
 
+// The card's ChairActionForm wrappers resolve a router for scroll-preserving
+// navigation; the toast context safely defaults to a no-op without a provider.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+}));
+
 vi.mock("@/app/chair/chair.module.css", () => ({
   default: new Proxy(
     {},
