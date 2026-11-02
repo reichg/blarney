@@ -3,6 +3,7 @@ import { ActionToastProvider } from "@/components/notices/ActionToast";
 import { getEventSettings } from "@/lib/content";
 import type { Metadata } from "next";
 import "./globals.css";
+import { DraftBanner } from "@/components/DraftBanner";
 
 const siteTitle = "Blarney 42";
 const siteDescription =
@@ -83,6 +84,7 @@ export default async function RootLayout({
             </footer>
           </div>
         </ActionToastProvider>
+        <DraftBanner />
       </body>
     </html>
   );
