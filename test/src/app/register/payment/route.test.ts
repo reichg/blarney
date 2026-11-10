@@ -22,7 +22,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-const publicSiteUrl = "https://blarney42.gabe-reichenberger.com";
+const publicSiteUrl = "https://blarney42.evolutionary-eyes.com";
 
 describe("registration payment route", () => {
   it("redirects a checkout to its existing Square payment URL", async () => {

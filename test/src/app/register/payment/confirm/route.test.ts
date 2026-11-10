@@ -25,7 +25,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-const publicSiteUrl = "https://blarney42.gabe-reichenberger.com";
+const publicSiteUrl = "https://blarney42.evolutionary-eyes.com";
 
 describe("registration payment confirmation route", () => {
   it("finalizes a checkout when the signed token matches", async () => {

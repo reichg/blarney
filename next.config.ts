@@ -18,7 +18,7 @@ const allowedDevOrigins = Array.from(
       "localhost:3001",
       "127.0.0.1:3001",
       "blarney42.com",
-      "blarney42.gabe-reichenberger.com",
+      "blarney42.evolutionary-eyes.com",
       "*.trycloudflare.com",
       getHostFromUrl(process.env.NEXT_PUBLIC_SITE_URL),
       getHostFromUrl(process.env.CLOUDFLARED_TUNNEL_URL),
