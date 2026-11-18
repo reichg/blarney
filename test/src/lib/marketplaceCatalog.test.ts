@@ -17,7 +17,6 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { getMarketplaceCatalog } from "@/lib/marketplaceCatalog";
-import { getMarketplaceListingImageViewPath } from "@/lib/marketplaceListingImage";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -81,13 +80,18 @@ describe("marketplace catalog service", () => {
   });
 
   it("maps managed listing image keys to the public marketplace image route", async () => {
+    // Managed keys are stored as "listing/<uuid>-<name>" with no leading slash;
+    // the public view route carries the key as an unpadded base64url token.
+    const imageKey = "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png";
+    const imageToken = Buffer.from(imageKey, "utf8").toString("base64url");
+
     listingFindMany.mockResolvedValue([
       {
         id: "listing-hoodie",
         slug: "hoodie",
         title: "Blarney Hoodie",
         description: "Warm layer",
-        imageUrl: "/listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
+        imageUrl: imageKey,
         fulfillmentNote: "Pickup at check-in",
         sortOrder: 1,
         variants: [
@@ -105,9 +109,7 @@ describe("marketplace catalog service", () => {
 
     await expect(getMarketplaceCatalog()).resolves.toEqual([
       expect.objectContaining({
-        imageUrl: getMarketplaceListingImageViewPath(
-          "/listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
-        ),
+        imageUrl: `/api/marketplace/listing-images/${imageToken}`,
       }),
     ]);
   });

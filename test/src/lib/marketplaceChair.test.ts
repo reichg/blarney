@@ -37,6 +37,9 @@ vi.mock("@/lib/db", () => ({
 
 afterEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks keeps queued `mockResolvedValueOnce` values, so drop any
+  // that a test left unconsumed rather than let them answer the next test.
+  orderFindUnique.mockReset();
 });
 
 describe("marketplace chair service", () => {
@@ -96,7 +99,9 @@ describe("marketplace chair service", () => {
       },
     ]);
     orderFindMany.mockImplementation(async (args) => {
-      if ("in" in args.where.fulfillmentStatus) {
+      // The active-orders query filters with { in: [...] }; the fulfilled-history
+      // query filters with the plain string "FULFILLED".
+      if (typeof args.where.fulfillmentStatus === "object") {
         return [
           {
             id: "order-1",
@@ -204,15 +209,10 @@ describe("marketplace chair service", () => {
   });
 
   it("moves an unfulfilled order to ready", async () => {
-    orderFindUnique
-      .mockResolvedValueOnce({
-        id: "order-1",
-        fulfillmentStatus: "UNFULFILLED",
-      })
-      .mockResolvedValueOnce({
-        id: "order-1",
-        fulfillmentStatus: "READY",
-      });
+    orderFindUnique.mockResolvedValueOnce({
+      id: "order-1",
+      fulfillmentStatus: "UNFULFILLED",
+    });
     orderUpdateMany.mockResolvedValue({ count: 1 });
 
     await expect(

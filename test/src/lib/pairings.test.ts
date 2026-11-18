@@ -285,13 +285,15 @@ describe("pairing builder", () => {
       }),
     ];
 
+    // Men first, then women. Within a gender the lower average score comes
+    // first; equal scores (cara and beth, both 40) put the older golfer first.
     expect(sortPairingGolfers(golfers).map((golfer) => golfer.id)).toEqual([
       "liam",
       "mark",
+      "uma",
       "cara",
       "beth",
       "nora",
-      "uma",
     ]);
     expect(golfers.map((golfer) => golfer.id)).toEqual([
       "nora",
@@ -375,8 +377,14 @@ describe("pairing builder", () => {
         group.members.map((member) => member.applicant.firstName),
       ),
     ).toEqual([
-      ["Fiona", "Mark", "Chloe", "Paula"],
-      ["Nora", "Alice", "Ben", "Dave"],
+      // Anchors are the two oldest golfers (Fiona 72, Nora 68), one per group.
+      // Each other golfer joins the group with fewer members, then fewer
+      // golfers of their own kind (good = score <= 41), then the better
+      // projected average. Good golfers go first, then the rest, best score first:
+      // Alice -> group 1, Mark -> 2, Chloe -> 1, Ben -> 2, Paula -> 1 (projected
+      // 43.25 against 44), Dave -> 2 (group 1 is full).
+      ["Fiona", "Alice", "Chloe", "Paula"],
+      ["Nora", "Mark", "Ben", "Dave"],
     ]);
     expect(
       groups.every((group) =>

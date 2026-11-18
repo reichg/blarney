@@ -64,12 +64,13 @@ describe("MarketplacePage", () => {
     const page = await MarketplacePage();
     const html = renderToStaticMarkup(page);
 
+    expect(html).toContain("Tournament merch, ready when you are.");
     expect(html).toContain("Marketplace details and checkout notes");
-    expect(html).toContain("One clean merch flow");
     expect(html).toContain("Build a simple merch order");
-    expect(html.indexOf("One clean merch flow")).toBeLessThan(
+    expect(html.indexOf("Marketplace details and checkout notes")).toBeLessThan(
       html.indexOf("Build a simple merch order"),
     );
+    expect(html).toContain("1 listing");
     expect(html).toContain("Blarney Hoodie");
   });
 });

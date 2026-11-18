@@ -85,9 +85,7 @@ describe("S3 photo uploads", () => {
       Uint8Array.from([1, 2, 3]),
     );
 
-    expect(upload.key).toMatch(
-      /^blarney\/listing\/[a-f0-9-]+-club-hoodie\.png$/,
-    );
+    expect(upload.key).toMatch(/^listing\/[a-f0-9-]+-club-hoodie\.png$/);
     expect(sendMock).toHaveBeenCalledTimes(1);
     expect(sendMock.mock.calls[0][0]).toBeInstanceOf(PutObjectCommand);
     expect(sendMock.mock.calls[0][0].input).toMatchObject({

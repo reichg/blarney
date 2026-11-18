@@ -17,7 +17,6 @@ vi.mock("@/lib/s3", () => ({
 }));
 
 import { POST } from "@/app/api/chair/marketplace/listing-images/upload/route";
-import { getMarketplaceListingImageViewPath } from "@/lib/marketplaceListingImage";
 
 beforeEach(() => {
   requireChairApiAuth.mockResolvedValue(null);
@@ -68,9 +67,10 @@ describe("chair marketplace listing image upload route", () => {
   });
 
   it("uploads valid listing images through the server route", async () => {
-    uploadMarketplaceListingImageObject.mockResolvedValue({
-      key: "/listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
-    });
+    // The view URL carries the stored key as an unpadded base64url token.
+    const imageKey = "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png";
+    const imageToken = Buffer.from(imageKey, "utf8").toString("base64url");
+    uploadMarketplaceListingImageObject.mockResolvedValue({ key: imageKey });
 
     const response = await POST(
       buildUploadRequest(
@@ -85,10 +85,8 @@ describe("chair marketplace listing image upload route", () => {
       expect.any(Uint8Array),
     );
     await expect(response.json()).resolves.toEqual({
-      imageKey: "/listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
-      imageUrl: getMarketplaceListingImageViewPath(
-        "/listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png",
-      ),
+      imageKey,
+      imageUrl: `/api/marketplace/listing-images/${imageToken}`,
     });
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");

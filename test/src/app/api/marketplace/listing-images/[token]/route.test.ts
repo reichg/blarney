@@ -9,7 +9,6 @@ vi.mock("@/lib/s3", () => ({
 }));
 
 import { GET } from "@/app/api/marketplace/listing-images/[token]/route";
-import { encodeMarketplaceListingImageToken } from "@/lib/marketplaceListingImage";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -29,12 +28,12 @@ describe("marketplace listing image route", () => {
   });
 
   it("redirects valid listing image tokens to a signed S3 read url", async () => {
-    const imageKey = "/listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png";
+    const imageKey = "listing/123e4567-e89b-12d3-a456-426614174000-hoodie.png";
     getPhotoReadUrl.mockResolvedValue("https://example.com/read/hoodie");
 
     const response = await GET(new Request("http://localhost:3000"), {
       params: Promise.resolve({
-        token: encodeMarketplaceListingImageToken(imageKey),
+        token: Buffer.from(imageKey, "utf8").toString("base64url"),
       }),
     });
 
