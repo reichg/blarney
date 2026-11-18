@@ -1,6 +1,7 @@
 import { Navigation } from "@/components/Navigation";
 import { ActionToastProvider } from "@/components/notices/ActionToast";
 import { getEventSettings } from "@/lib/content";
+import { getSiteOrigin } from "@/lib/siteOrigin";
 import type { Metadata } from "next";
 import "./globals.css";
 import { DraftBanner } from "@/components/DraftBanner";
@@ -8,24 +9,9 @@ import { DraftBanner } from "@/components/DraftBanner";
 const siteTitle = "Blarney 42";
 const siteDescription =
   "Registration, logistics, pairings, feedback, and photos for the Blarney 42 golf event.";
-const metadataBaseFallback = "http://localhost:3001";
-
-function getMetadataBase() {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-
-  if (!siteUrl) {
-    return new URL(metadataBaseFallback);
-  }
-
-  try {
-    return new URL(siteUrl);
-  } catch {
-    return new URL(metadataBaseFallback);
-  }
-}
 
 export const metadata: Metadata = {
-  metadataBase: getMetadataBase(),
+  metadataBase: getSiteOrigin(),
   title: siteTitle,
   description: siteDescription,
   applicationName: siteTitle,
