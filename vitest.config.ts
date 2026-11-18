@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -7,10 +8,11 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": new URL("./src", import.meta.url).pathname,
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
       // next's "server-only" guard has no meaning in the test environment
-      "server-only": new URL("./test/__mocks__/server-only.ts", import.meta.url)
-        .pathname,
+      "server-only": fileURLToPath(
+        new URL("./test/__mocks__/server-only.ts", import.meta.url),
+      ),
     },
   },
 });
